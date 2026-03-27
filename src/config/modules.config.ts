@@ -9,18 +9,18 @@ export interface ModuleConfig {
   slug:  string;
   icon:  LucideIcon;
   label: string;
-  route: string;
+ 
 }
 
 // Mapa de configuración — sincronizado con el seed del backend
 export const MODULE_CONFIG: Record<string, ModuleConfig> = {
-  dashboard:   { slug: 'dashboard',   icon: LayoutDashboard, label: 'Dashboard',     route: '/dashboard'   },
-  vehicles:    { slug: 'vehicles',    icon: Truck,           label: 'Vehículos',     route: '/vehicles'    },
-  consumables: { slug: 'consumables', icon: Package,         label: 'Consumibles',   route: '/consumables' },
-  tools:       { slug: 'tools',       icon: Wrench,          label: 'Herramientas',  route: '/tools'       },
-  equipment:   { slug: 'equipment',   icon: Settings2,       label: 'Equipos',       route: '/equipment'   },
-  reports:     { slug: 'reports',     icon: FileBarChart,    label: 'Reportes',      route: '/reports'     },
-  monitoring:  { slug: 'monitoring',  icon: Activity,        label: 'Monitoreo',     route: '/monitoring'  },
-  users:       { slug: 'users',       icon: Users,           label: 'Usuarios',      route: '/users'       },
-  settings:    { slug: 'settings',    icon: Settings,        label: 'Configuración', route: '/settings'    },
+  dashboard:   { slug: 'dashboard',   icon: LayoutDashboard, label: 'Dashboard'  },
+  vehicles:    { slug: 'vehicles',    icon: Truck,           label: 'Vehículos' },
+  consumables: { slug: 'consumables', icon: Package,         label: 'Consumibles' },
+  tools:       { slug: 'tools',       icon: Wrench,          label: 'Herramientas' },
+  equipment:   { slug: 'equipment',   icon: Settings2,       label: 'Equipos'},
+  reports:     { slug: 'reports',     icon: FileBarChart,    label: 'Reportes' },
+  monitoring:  { slug: 'monitoring',  icon: Activity,        label: 'Monitoreo' },
+  users:       { slug: 'users',       icon: Users,           label: 'Usuarios',},
+  settings:    { slug: 'settings',    icon: Settings,        label: 'Configuración'  },
 };

@@ -1,79 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Ubuntu+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+
 
 @theme {
-  /* ── Fuentes ─────────────────────────────────────────────── */
-  --font-sans: 'DM Sans', sans-serif;
-  --font-mono: 'Space Mono', monospace;
+  /* ── Tipografía Flowloop ─────────────────────────────────────── */
+  --font-sans:    'Ubuntu', sans-serif;
+  --font-display: 'Oswald', sans-serif;
+  --font-mono:    'Ubuntu Mono', monospace;
 
-  /* ── Paleta base ─────────────────────────────────────────── */
-  --color-brand:        #E8630A;   /* naranja petróleo — acento principal */
-  --color-brand-light:  #FF8534;
-  --color-brand-dark:   #C04D00;
-  --color-brand-muted:  rgba(232, 99, 10, 0.12);
+  /* ── Colores primarios Flowloop ──────────────────────────────── */
+  --color-primary:         #072C2C;   /* deep teal — base de marca */
+  --color-primary-hover:   #0A3D3D;
+  --color-primary-light:   #0F5252;
+  --color-primary-muted:   rgba(7, 44, 44, 0.08);
 
-  /* ── Superficie light ────────────────────────────────────── */
-  --color-surface-0:    #FFFFFF;
-  --color-surface-1:    #F7F7F5;
-  --color-surface-2:    #EEEDE9;
-  --color-surface-3:    #E2E0DA;
+  --color-secondary:       #FF5F03;   /* naranja acento */
+  --color-secondary-hover: #E55200;
+  --color-secondary-muted: rgba(255, 95, 3, 0.10);
 
-  /* ── Texto light ─────────────────────────────────────────── */
-  --color-text-900:     #12110F;
-  --color-text-600:     #4A4740;
-  --color-text-400:     #7A7870;
-  --color-text-200:     #B8B5AC;
+  /* ── Superficie ──────────────────────────────────────────────── */
+  --color-surface:         #EDEADE;   /* cream — fondo global */
+  --color-surface-0:       #FFFFFF;
+  --color-surface-1:       #F5F4EE;
+  --color-surface-2:       #EDEADE;
+  --color-surface-3:       #E0DFD7;
 
-  /* ── Border light ────────────────────────────────────────── */
-  --color-border:       #E2E0DA;
-  --color-border-strong:#C8C5BC;
+  /* ── Texto ───────────────────────────────────────────────────── */
+  --color-text-900:        #111827;
+  --color-text-600:        #374151;
+  --color-text-400:        #6B7280;
+  --color-text-200:        #9CA3AF;
 
-  /* ── Semánticos ──────────────────────────────────────────── */
-  --color-success:      #1A8A4A;
-  --color-success-bg:   #ECFDF3;
-  --color-warning:      #B45309;
-  --color-warning-bg:   #FFFBEB;
-  --color-danger:       #C42B2B;
-  --color-danger-bg:    #FEF2F2;
-  --color-info:         #1D5FA5;
-  --color-info-bg:      #EFF6FF;
+  /* ── Bordes ──────────────────────────────────────────────────── */
+  --color-border:          #D1CFC5;
+  --color-border-strong:   #A09D92;
 
-  /* ── Radios ──────────────────────────────────────────────── */
-  --radius-sm:   4px;
-  --radius-md:   8px;
-  --radius-lg:   12px;
-  --radius-xl:   16px;
-  --radius-full: 9999px;
+  /* ── Semánticos ──────────────────────────────────────────────── */
+  --color-success:         #16A34A;
+  --color-success-bg:      #F0FDF4;
+  --color-warning:         #D97706;
+  --color-warning-bg:      #FFFBEB;
+  --color-danger:          #DC2626;
+  --color-danger-bg:       #FEF2F2;
+  --color-info:            #1D4ED8;
+  --color-info-bg:         #EFF6FF;
+
+   --color-brand:       #FF5F03;   /* = var(--color-secondary) */
+  --color-brand-light: #FF7A2E;
+  --color-brand-dark:  #E55200;
+  --color-brand-muted: rgba(255, 95, 3, 0.10);
+
+    /* --color-primary-* → para sidebar y componentes que usan el teal    */
+  --color-primary:         #072C2C;
+  --color-primary-hover:   #0A3D3D;
+  --color-primary-light:   #0F5252;
+  --color-primary-muted:   rgba(7, 44, 44, 0.08);
+
+  --sidebar-bg:          #072C2C;
+  --sidebar-border:      rgba(255, 255, 255, 0.08);
+  --sidebar-text:        rgba(255, 255, 255, 0.75);
+  --sidebar-text-muted:  rgba(255, 255, 255, 0.45);
+  --sidebar-hover-bg:    rgba(255, 255, 255, 0.08);
+  --sidebar-active-bg:   #FF5F03;
+  --sidebar-active-text: #ffffff;
+  --sidebar-avatar-bg:   #FF5F03;
+  --sidebar-logo-text:   rgba(255, 255, 255, 0.70);
 }
 
-/* ── Variables dark mode ───────────────────────────────────── */
+/* ── Dark mode — mantiene identidad Flowloop ────────────────────── */
 .dark {
-  --color-surface-0:    #111110;
-  --color-surface-1:    #18171A;
-  --color-surface-2:    #222028;
-  --color-surface-3:    #2C2A34;
-  --color-text-900:     #F0EEE8;
-  --color-text-600:     #B8B5AC;
-  --color-text-400:     #7A7870;
-  --color-text-200:     #4A4740;
-  --color-border:       #2C2A34;
-  --color-border-strong:#3E3B48;
-  --color-success-bg:   #0A1F12;
-  --color-warning-bg:   #1C1406;
-  --color-danger-bg:    #1C0A0A;
-  --color-info-bg:      #080F1C;
+  --color-surface:         #0A1A1A;
+  --color-surface-0:       #0D2020;
+  --color-surface-1:       #102828;
+  --color-surface-2:       #143333;
+  --color-surface-3:       #1A3E3E;
+  --color-text-900:        #F9FAFB;
+  --color-text-600:        #D1D5DB;
+  --color-text-400:        #9CA3AF;
+  --color-text-200:        #4B5563;
+  --color-border:          #1F3E3E;
+  --color-border-strong:   #2D5252;
+  --color-primary-muted:   rgba(7, 44, 44, 0.4);
+  --color-secondary-muted: rgba(255, 95, 3, 0.15);
+  --color-success-bg:      #052e16;
+  --color-warning-bg:      #1c0f00;
+  --color-danger-bg:       #1a0606;
+  --color-info-bg:         #030d2e;
+   --color-brand:       #FF5F03;   /* = var(--color-secondary) */
+  --color-brand-light: #FF7A2E;
+  --color-brand-dark:  #E55200;
+  --color-brand-muted: rgba(255, 95, 3, 0.10);
+
+    /* --color-primary-* → para sidebar y componentes que usan el teal    */
+  --color-primary:         #072C2C;
+  --color-primary-hover:   #0A3D3D;
+  --color-primary-light:   #0F5252;
+  --color-primary-muted:   rgba(7, 44, 44, 0.08);
+
+  --sidebar-bg:          #041818;
+  --sidebar-border:      rgba(255, 255, 255, 0.06);
+  --sidebar-text:        rgba(255, 255, 255, 0.80);
+  --sidebar-text-muted:  rgba(255, 255, 255, 0.35);
+  --sidebar-hover-bg:    rgba(255, 255, 255, 0.06);
+  --sidebar-active-bg:   #FF5F03;
+  --sidebar-active-text: #ffffff;
+  --sidebar-avatar-bg:   #FF5F03;
+  --sidebar-logo-text:   rgba(255, 255, 255, 0.60);
 }
 
-/* ── Reset base ────────────────────────────────────────────── */
-* { box-sizing: border-box; }
+/* ── Reset base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
 html {
-  font-family: var(--font-sans);
-  background-color: var(--color-surface-1);
-  color: var(--color-text-900);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family:              var(--font-sans);
+  background-color:         var(--color-surface);
+  color:                    var(--color-text-900);
+  -webkit-font-smoothing:   antialiased;
+  -moz-osx-font-smoothing:  grayscale;
 }
 
 body {
@@ -81,47 +125,56 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ── Scrollbar personalizado ───────────────────────────────── */
+/* ── Scrollbar ──────────────────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: var(--color-border-strong); border-radius: 9999px; }
+::-webkit-scrollbar-thumb  {
+  background:    var(--color-border-strong);
+  border-radius: 9999px;
+}
 ::-webkit-scrollbar-thumb:hover { background: var(--color-text-400); }
 
-/* ── Animaciones ───────────────────────────────────────────── */
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes slide-in-left {
-  from { opacity: 0; transform: translateX(-16px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes pulse-brand {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 99, 10, 0.4); }
-  50%       { box-shadow: 0 0 0 6px rgba(232, 99, 10, 0); }
-}
-
-.animate-fade-in       { animation: fade-in 0.35s ease both; }
-.animate-slide-left    { animation: slide-in-left 0.3s ease both; }
-.animate-pulse-brand   { animation: pulse-brand 2s ease infinite; }
-
-/* ── Stagger para listas ───────────────────────────────────── */
-.stagger > *:nth-child(1)  { animation-delay: 0ms; }
-.stagger > *:nth-child(2)  { animation-delay: 60ms; }
-.stagger > *:nth-child(3)  { animation-delay: 120ms; }
-.stagger > *:nth-child(4)  { animation-delay: 180ms; }
-.stagger > *:nth-child(5)  { animation-delay: 240ms; }
-.stagger > *:nth-child(6)  { animation-delay: 300ms; }
-.stagger > *:nth-child(7)  { animation-delay: 360ms; }
-.stagger > *:nth-child(8)  { animation-delay: 420ms; }
-.stagger > *:nth-child(9)  { animation-delay: 480ms; }
-
-/* ── Focus ring ────────────────────────────────────────────── */
+/* ── Focus ring WCAG 2.2 AA ─────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline:        2px solid var(--color-secondary);
   outline-offset: 2px;
 }
 
-/* ── Utilidades ────────────────────────────────────────────── */
-.text-balance { text-wrap: balance; }
-.font-mono    { font-family: var(--font-mono); }
+/* ── Animaciones ────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0);     }
+}
+@keyframes pulse-secondary {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(255, 95, 3, 0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(255, 95, 3, 0);   }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in      { animation: fade-in      0.3s ease both; }
+.animate-slide-left   { animation: slide-in-left 0.25s ease both; }
+.animate-pulse-accent { animation: pulse-secondary 2s ease infinite; }
+.animate-spin         { animation: spin 0.8s linear infinite; }
+
+/* ── Stagger ────────────────────────────────────────────────────── */
+.stagger > *:nth-child(1)  { animation-delay:   0ms; }
+.stagger > *:nth-child(2)  { animation-delay:  50ms; }
+.stagger > *:nth-child(3)  { animation-delay: 100ms; }
+.stagger > *:nth-child(4)  { animation-delay: 150ms; }
+.stagger > *:nth-child(5)  { animation-delay: 200ms; }
+.stagger > *:nth-child(6)  { animation-delay: 250ms; }
+.stagger > *:nth-child(7)  { animation-delay: 300ms; }
+.stagger > *:nth-child(8)  { animation-delay: 350ms; }
+.stagger > *:nth-child(9)  { animation-delay: 400ms; }
+
+/* ── Utilidades ─────────────────────────────────────────────────── */
+.font-display { font-family: var(--font-display); }
+.font-mono    { font-family: var(--font-mono);    }
+.text-balance { text-wrap: balance;               }
+

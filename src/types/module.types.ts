@@ -6,7 +6,7 @@ export interface AppModule {
   route: string;
   order_index: number;
   is_core: boolean;
-  can_view: boolean;
+  is_active: boolean;
   can_create: boolean;
   can_edit: boolean;
   can_delete: boolean;
