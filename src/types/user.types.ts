@@ -20,13 +20,23 @@ export interface UserRole {
   role: Role;
 }
 
+
 export interface Role {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  is_active: boolean;
-  is_system: boolean;
+  id:          string;
+  name:        string;
+  slug:        string;
+  description: string | null;
+  is_active:   boolean;
+  is_system:   boolean;
+  role_permissions: { permission: Permission }[];
+}
+
+export interface Permission {
+  id:     string;
+  name:   string;
+  slug:   string;
+  module: string;
+  action: string;
 }
 
 export interface PaginatedResponse<T> {

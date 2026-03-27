@@ -13,11 +13,11 @@ function DashboardShell({
   const toggle = () => setMobileOpen((v) => !v);
   return (
     <div
-      className='flex h-screen overflow-hidden'
-      style={{ background: 'var(--color-surface-0)' }}
+      className='flex h-screen'
+      style={{ background: 'var(--color-surface)' }}
     >
       <Sidebar mobileOpen={mobileOpen} onMobileToggle={toggle} />
-      <div className='flex-1 flex flex-col overflow-hidden'>
+      <div className='flex-1 flex flex-col min-w-0'>
         <Header onMenuClick={toggle} />
         <main className='flex-1 overflow-auto'>{children}</main>
       </div>

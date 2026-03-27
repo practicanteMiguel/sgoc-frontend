@@ -14,19 +14,17 @@ export function DashboardView() {
     ? (ROLE_LABELS[user.roles[0]] ?? user.roles[0])
     : '';
 
-  // Excluir solo el módulo dashboard del grid
-  // El resto: si llegó = puede verlo
   const gridModules = modules?.filter((m) => m.slug !== 'dashboard') ?? [];
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-8xl mx-auto p-10">
       <div className="mb-8 animate-fade-in">
         <p className="text-xs font-medium uppercase tracking-widest mb-1"
            style={{ color: 'var(--color-secondary)' }}>
           {roleLabel}
         </p>
         <h1 className="font-display text-2xl font-semibold"
-            style={{ color: 'var(--color-primary)' }}>
+            >
           Bienvenido, {user?.first_name}
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--color-text-400)' }}>
@@ -74,12 +72,12 @@ export function DashboardView() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold"
-                     style={{ color: 'var(--color-primary)' }}>
+                     >
                     {cfg.label}
                   </p>
                   <p className="text-xs mt-0.5"
                      style={{ color: 'var(--color-text-400)' }}>
-                    {mod.can_create ? 'Gestión completa' : 'Solo lectura'}
+                    {mod.can_create === undefined || mod.can_create ? 'Gestión completa' : 'Solo lectura'}
                   </p>
                 </div>
               </Link>

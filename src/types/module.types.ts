@@ -7,10 +7,10 @@ export interface AppModule {
   order_index: number;
   is_core: boolean;
   is_active: boolean;
-  can_create: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
-  can_export: boolean;
+  can_create?:boolean;
+  can_edit?: boolean;
+  can_delete?: boolean;
+  can_export?: boolean;
 }
 export interface Notification {
   id: string;
