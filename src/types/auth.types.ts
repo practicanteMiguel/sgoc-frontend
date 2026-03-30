@@ -14,6 +14,7 @@ export interface AuthUser {
   first_name: string;
   last_name: string;
   position: string;
+  phone: string | undefined;
   module: string | null;
   field: string | null;
   roles: string[];

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/src/lib/axios';
 import type { User, PaginatedResponse } from '@/src/types/user.types';
+import { useAuthStore } from '@/src/stores/auth.store';
 
 // ── Listar usuarios ────────────────────────────────────────────
 export function useUsers(page = 1, limit = 20) {
@@ -96,4 +97,15 @@ export function useResetPassword() {
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al resetear contraseña'));
     },
   });
+}
+export function useListUsersSelect() {
+  const { user: me } = useAuthStore();
+  
+  return useQuery({
+    queryKey: ['users', 'list-simple'],
+    queryFn:  () =>
+      api.get<PaginatedResponse<User>>(`/users?limit=100`)
+        .then((r) => r.data.data.filter((u) => u.id !== me?.id)),
+    staleTime: 2 * 60 * 1000,
+  })
 }

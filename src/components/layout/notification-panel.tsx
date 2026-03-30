@@ -1,7 +1,7 @@
 'use client';
 
 import { Bell, Check, CheckCheck, Loader2 } from 'lucide-react';
-import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '@/src/hooks/dashboard/use-notifications';
+import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '@/src/hooks/settings/use-notifications';
 import { formatDate } from '@/src/lib/utils';
 
 const PRIORITY_STYLES: Record<string, { dot: string; label: string }> = {

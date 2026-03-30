@@ -78,7 +78,8 @@ export function useChangePassword() {
 
     onSuccess: () => {
       updateUser({ is_first_login: false });
-      router.replace('/dashboard/dashboard');
+      toast.success('Contraseña actualizada correctamente.');
+      router.replace('/auth/login');
     },
 
     onError: (err: any) => {

@@ -8,7 +8,7 @@ interface AuthState {
   refreshToken: string | null;
   theme: "light" | "dark";
   isAuthenticated: boolean;
-  _hasHydrated: boolean; // 👈 nuevo
+  _hasHydrated: boolean; 
 
   setAuth: (user: AuthUser, accessToken: string, refreshToken: string) => void;
   clearAuth: () => void;
@@ -16,7 +16,7 @@ interface AuthState {
   toggleTheme: () => void;
   updateUser: (user: Partial<AuthUser>) => void;
   setAccessToken: (token: string) => void;
-  setHasHydrated: (state: boolean) => void; // 👈 nuevo
+  setHasHydrated: (state: boolean) => void; 
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -27,7 +27,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       theme: "light",
       isAuthenticated: false,
-      _hasHydrated: false, // 👈
+      _hasHydrated: false, 
 
       setAuth: (user, accessToken, refreshToken) =>
         set({ user, accessToken, refreshToken, isAuthenticated: true }),
@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (partial) =>
         set({ user: get().user ? { ...get().user!, ...partial } : null }),
       setAccessToken: (token) => set({ accessToken: token }),
-      setHasHydrated: (state) => set({ _hasHydrated: state }), // 👈
+      setHasHydrated: (state) => set({ _hasHydrated: state }), 
     }),
     {
       name: "auth-storage",
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true); // 👈 se dispara cuando localStorage ya cargó
+        state?.setHasHydrated(true); 
       },
     },
   ),

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Sun, Moon, LogOut, User, Loader2, Menu } from "lucide-react";
 import { useAuthStore } from "@/src/stores/auth.store";
 import { useLogout } from "@/src/hooks/auth/use-auth";
-import { useUnreadCount } from "@/src/hooks/dashboard/use-notifications";
+import { useUnreadCount } from "@/src/hooks/settings/use-notifications";
 import { NotificationPanel } from "./notification-panel";
 import { MODULE_CONFIG } from "@/src/config/modules.config";
 import { getInitials } from "@/src/lib/utils";

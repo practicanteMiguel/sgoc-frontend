@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/src/lib/axios';
 import { useAuthStore } from '@/src/stores/auth.store';
 import type { Notification } from '@/src/types/module.types';
+import { toast } from 'sonner';
 
 interface NotificationsResponse {
   data:   Notification[];
@@ -20,7 +21,7 @@ export function useNotifications(onlyUnread = false) {
         .get<NotificationsResponse>(`/notifications${onlyUnread ? '?unread=true' : ''}`)
         .then((r) => r.data),
     enabled:   isAuthenticated,
-    refetchInterval: 30 * 1000, // refresca cada 30s automáticamente
+    refetchInterval: 15 * 1000, 
   });
 }
 
@@ -33,7 +34,7 @@ export function useUnreadCount() {
     queryFn:  () =>
       api.get<{count: number}>('/notifications/unread-count').then((r) => r.data),
     enabled:         isAuthenticated,
-    refetchInterval: 30 * 1000,
+    refetchInterval: 15 * 1000,
   });
 }
 
@@ -76,6 +77,7 @@ export function useSendNotification() {
     }) => api.post('/notifications/send', data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Notificación enviada');
     },
   });
 }
