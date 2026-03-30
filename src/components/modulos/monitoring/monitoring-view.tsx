@@ -1,37 +1,47 @@
 'use client';
 
 import { Activity } from 'lucide-react';
-import { ModulePlaceholder } from '../../ui/module-placeholder';
+import { AuditLogsList } from './audit-log-list';
 
 export function MonitoringView() {
   return (
-    <ModulePlaceholder
-      moduleSlug="monitoring"
-      icon={Activity}
-      title="Monitoreo Operativo"
-      description="Indicadores en tiempo real del estado de la operación del contrato"
-      features={[
-        {
-          label:       'Dashboard de vehículos',
-          description: 'Operativos, en mantenimiento, con daños pendientes y fuera de servicio',
-        },
-        {
-          label:       'Indicadores de consumibles',
-          description: 'Solicitudes pendientes, consumo excesivo y alertas de stock bajo',
-        },
-        {
-          label:       'Estado de reportes',
-          description: 'Reportes enviados vs pendientes por supervisor y período',
-        },
-        {
-          label:       'Gráficas históricas',
-          description: 'Tendencias de uso de recursos por campo y cuadrilla',
-        },
-        {
-          label:       'Alertas automáticas',
-          description: 'Notificaciones por vehículos sin mantenimiento, stock crítico y reportes atrasados',
-        },
-      ]}
-    />
+    <div className="max-w-8xl p-10 mx-auto animate-fade-in">
+
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-1">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{ background: 'var(--color-secondary-muted)', color: 'var(--color-secondary)' }}
+          >
+            <Activity size={18} strokeWidth={1.8} />
+          </div>
+          <div>
+            <h2
+              className="font-display text-xl font-semibold"
+              style={{ color: 'var(--color-secundary)' }}
+            >
+              Monitoreo Operativo
+            </h2>
+            <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>
+              Indicadores en tiempo real del estado de la operación
+            </p>
+          </div>
+        </div>
+      </div>
+
+      
+
+      {/* Registro de actividad */}
+      <div
+        className="rounded-xl p-5"
+        style={{
+          background: 'var(--color-surface-0)',
+          border:     '1px solid var(--color-border)',
+        }}
+      >
+        <AuditLogsList />
+      </div>
+    </div>
   );
 }
