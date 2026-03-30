@@ -7,6 +7,7 @@ import { UsersTable } from './users-table';
 import { UserForm } from './user-form';
 import { ResetPasswordModal } from './reset-password-modal';
 import { RolesView } from './roles/roles-view';
+import { UserModuleAccessMatrix } from './roles/user-module-access-matrix';
 import type { User } from '@/src/types/user.types';
 
 type Tab = 'users' | 'roles';
@@ -15,8 +16,9 @@ export function UsersView() {
   const [activeTab, setActiveTab] = useState<Tab>('users');
   const [search, setSearch]       = useState('');
   const [showForm, setShowForm]   = useState(false);
-  const [editUser, setEditUser]   = useState<User | null>(null);
-  const [resetUser, setResetUser] = useState<User | null>(null);
+  const [editUser, setEditUser]     = useState<User | null>(null);
+  const [resetUser, setResetUser]   = useState<User | null>(null);
+  const [accessUser, setAccessUser] = useState<User | null>(null);
 
   const { data, isLoading } = useUsers();
 
@@ -125,6 +127,7 @@ export function UsersView() {
               users={filteredUsers}
               onEdit={(u) => { setEditUser(u); setShowForm(true); }}
               onResetPass={(u) => setResetUser(u)}
+              onManageAccess={(u) => setAccessUser(u)}
             />
           )}
         </div>
@@ -146,6 +149,12 @@ export function UsersView() {
         <ResetPasswordModal
           user={resetUser}
           onClose={() => setResetUser(null)}
+        />
+      )}
+      {accessUser && (
+        <UserModuleAccessMatrix
+          user={accessUser}
+          onClose={() => setAccessUser(null)}
         />
       )}
     </div>

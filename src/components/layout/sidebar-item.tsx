@@ -54,7 +54,7 @@ export function SidebarItem({
       <Icon
         size={18}
         strokeWidth={isActive ? 2.2 : 1.8}
-        className="flex-shrink-0 transition-transform duration-150 group-hover:scale-110"
+        className="shrink-0 transition-transform duration-150 group-hover:scale-110"
       />
       {!collapsed && (
         <span className="text-sm font-medium truncate leading-none">

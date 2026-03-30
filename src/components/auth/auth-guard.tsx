@@ -15,7 +15,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const hasHydrated = useHasHydrated(); // 👈
 
   useEffect(() => {
-    if (!hasHydrated) return; // ⏳ esperar que Zustand lea localStorage
+    if (!hasHydrated) return; 
 
     if (!isAuthenticated) {
       router.replace('/auth/login');
@@ -28,12 +28,12 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [hasHydrated, isAuthenticated, user, router]);
 
-  // Mientras hidrata → spinner (no sabemos aún si está auth)
+  
   if (!hasHydrated) {
     return <Spinner mensaje="Cargando..." />;
   }
 
-  // Ya hidratado pero no autenticado → null mientras redirige
+
   if (!isAuthenticated) {
     return null;
   }
@@ -41,7 +41,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   return <>{children}</>;
 }
 
-// Spinner extraído para reutilizar
+
 function Spinner({ mensaje }: { mensaje: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center"

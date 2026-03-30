@@ -22,11 +22,11 @@ export default function SidebarContent({
     <>
       {/* Logo */}
       <div
-        className="flex items-center h-14 px-4 gap-3 flex-shrink-0"
+        className="flex items-center h-14 px-4 gap-3 shrink-0"
         style={{ borderBottom: "1px solid var(--sidebar-border)" }}
       >
         <div
-          className="w-7 h-7 rounded flex items-center justify-center font-display font-bold text-sm flex-shrink-0"
+          className="w-7 h-7 rounded flex items-center justify-center font-display font-bold text-sm shrink-0"
           style={{ background: "var(--sidebar-active-bg)", color: "#fff" }}
         >
           G
@@ -89,12 +89,12 @@ export default function SidebarContent({
       {/* Usuario */}
       {user && (
         <div
-          className="p-3 flex-shrink-0"
+          className="p-3 shrink-0"
           style={{ borderTop: "1px solid var(--sidebar-border)" }}
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold font-display flex-shrink-0"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold font-display shrink-0"
               style={{ background: "var(--sidebar-avatar-bg)", color: "#fff" }}
             >
               {getInitials(user.first_name, user.last_name)}

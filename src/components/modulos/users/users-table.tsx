@@ -1,18 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Trash2, KeyRound, CheckCircle2, XCircle } from 'lucide-react';
+import { Pencil, Trash2, KeyRound, CheckCircle2, XCircle, Layers } from 'lucide-react';
 import { ConfirmDeleteModal } from './confirm-delete-modal';
 import { formatDate, getInitials, ROLE_LABELS } from '@/src/lib/utils';
 import type { User } from '@/src/types/user.types';
 
 interface UsersTableProps {
-  users:       User[];
-  onEdit:      (user: User) => void;
-  onResetPass: (user: User) => void;
+  users:           User[];
+  onEdit:          (user: User) => void;
+  onResetPass:     (user: User) => void;
+  onManageAccess?: (user: User) => void;
 }
 
-export function UsersTable({ users, onEdit, onResetPass }: UsersTableProps) {
+export function UsersTable({ users, onEdit, onResetPass, onManageAccess }: UsersTableProps) {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
 
   if (users.length === 0) {
@@ -112,6 +113,16 @@ export function UsersTable({ users, onEdit, onResetPass }: UsersTableProps) {
                                 title="Resetear contraseña">
                           <KeyRound size={13} />
                         </button>
+                        {onManageAccess && (
+                          <button
+                            onClick={() => onManageAccess(u)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                            style={{ color: 'var(--color-secondary)' }}
+                            title="Gestionar accesos de módulos"
+                          >
+                            <Layers size={13} />
+                          </button>
+                        )}
                         <button
                           onClick={() => setDeleteTarget(u)}
                           className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-all"
@@ -164,6 +175,16 @@ export function UsersTable({ users, onEdit, onResetPass }: UsersTableProps) {
                             style={{ color: 'var(--color-text-400)' }}>
                       <KeyRound size={14} />
                     </button>
+                    {onManageAccess && (
+                      <button
+                        onClick={() => onManageAccess(u)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ color: 'var(--color-secondary)' }}
+                        title="Gestionar accesos de módulos"
+                      >
+                        <Layers size={14} />
+                      </button>
+                    )}
                     <button onClick={() => setDeleteTarget(u)}
                             className="w-8 h-8 rounded-lg flex items-center justify-center"
                             style={{ color: 'var(--color-danger)' }}>

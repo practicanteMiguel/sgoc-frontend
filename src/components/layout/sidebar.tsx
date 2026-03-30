@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Menu, X, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import SidebarContent from "./sidebar-content";
 
@@ -30,7 +30,7 @@ export function Sidebar({ mobileOpen, onMobileToggle }: SidebarProps) {
     <>
  
       <aside
-        className="hidden lg:flex flex-col h-full flex-shrink-0 relative transition-all duration-300 ease-in-out"
+        className="hidden lg:flex flex-col h-full shrink-0 relative transition-all duration-300 ease-in-out"
         style={{
           width: collapsed ? "64px" : "224px",
           background: "var(--sidebar-bg)",
