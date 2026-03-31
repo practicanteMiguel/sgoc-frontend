@@ -85,7 +85,7 @@ export function MessagingTab() {
   };
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-4xl">
       <div
         className="rounded-xl overflow-hidden"
         style={{
@@ -97,7 +97,7 @@ export function MessagingTab() {
           className="px-5 py-3 flex items-center gap-3"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
-          <Send size={15} style={{ color: "var(--color-primary)" }} />
+          <Send size={15} style={{ color: "var(--color-secudary)" }} />
           <p
             className="text-xs font-mono uppercase tracking-widest"
             style={{ color: "var(--color-text-400)" }}
@@ -175,7 +175,7 @@ export function MessagingTab() {
               name="priority"
               control={control}
               render={({ field }) => (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid md:grid-cols-3 gap-2">
                   {PRIORITY_OPTIONS.map(
                     ({ value, label, icon: Icon, color, bg }) => (
                       <button

@@ -23,10 +23,10 @@ export function SettingsView() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in">
+    <div className="max-w-8xl p-10 mx-auto animate-fade-in">
       <div className="mb-6">
         <h2 className="font-display text-xl font-semibold"
-            style={{ color: 'var(--color-primary)' }}>
+            style={{ color: 'var(--color-secundary)' }}>
           Configuración
         </h2>
         <p className="text-sm mt-0.5"

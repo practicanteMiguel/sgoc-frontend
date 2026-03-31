@@ -50,7 +50,7 @@ export function PasswordTab() {
   ];
 
   return (
-    <div className="max-w-md">
+    <div className="max-w-xl">
       <div
         className="rounded-xl overflow-hidden"
         style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
@@ -59,7 +59,7 @@ export function PasswordTab() {
           className="px-5 py-3 flex items-center gap-3"
           style={{ borderBottom: '1px solid var(--color-border)' }}
         >
-          <ShieldCheck size={16} style={{ color: 'var(--color-primary)' }} />
+          <ShieldCheck size={16} style={{ color: 'var(--color-secundary)' }} />
           <p className="text-xs font-mono uppercase tracking-widest"
              style={{ color: 'var(--color-text-400)' }}>
             Cambiar contraseña

@@ -172,7 +172,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               </div>
               <div className="p-1.5 flex flex-col gap-0.5">
                 <Link
-                  href="/settings"
+                  href="/dashboard/settings"
                   onClick={() => setShowProfile(false)}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors"
                   style={{ color: "var(--color-text-600)" }}

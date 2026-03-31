@@ -35,25 +35,25 @@ export function NotificationsTab() {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-6xl">
       <div
         className="rounded-xl overflow-hidden"
         style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
       >
  
         <div
-          className="flex items-center justify-between px-5 py-3"
+          className="md:flex items-center justify-between px-5 py-3"
           style={{ borderBottom: '1px solid var(--color-border)' }}
         >
           <div className="flex items-center gap-2">
-            <Bell size={15} style={{ color: 'var(--color-primary)' }} />
+            <Bell size={15} style={{ color: 'var(--color-secundary)' }} />
             <p className="text-xs font-mono uppercase tracking-widest"
                style={{ color: 'var(--color-text-400)' }}>
               Notificaciones
             </p>
             {unread > 0 && (
               <span
-                className="text-xs font-bold px-2 py-0.5 rounded-full font-mono"
+                className="text-xs font-bold px-2 py-0.5 mt-2 rounded-full font-mono"
                 style={{ background: 'var(--color-secondary)', color: '#fff' }}
               >
                 {unread} sin leer

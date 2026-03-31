@@ -1,7 +1,17 @@
-import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
 import { api } from '@/src/lib/axios';
 import { useAuthStore, getAuthState } from '@/src/stores/auth.store';
+
+export function useProfile() {
+    const { isAuthenticated, user } = useAuthStore();
+    return useQuery({
+        queryKey: ['profile', user?.id],
+        queryFn: () => api.get('/users/profile').then((r) => r.data),
+        enabled: isAuthenticated,
+        staleTime:0,
+    });
+}
 
 export function useUpdateProfile() {
     const { user, updateUser } = useAuthStore();
@@ -30,8 +40,11 @@ export function useUpdateProfile() {
             updateUser({
                 first_name: updated.first_name,
                 last_name: updated.last_name,
+                phone: updated.phone,
+                position: updated.position
 
             });
+            qc.invalidateQueries({ queryKey: ['profile'] });
             qc.invalidateQueries({ queryKey: ['users'] });
             toast.success('Perfil actualizado correctamente.');
 
