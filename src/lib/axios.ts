@@ -1,16 +1,12 @@
 import axios, { type AxiosRequestConfig } from "axios";
 
-function resolveBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-  // En el browser: si la página corre en HTTPS usamos el proxy de Next.js
-  // para evitar mixed-content (ej: ngrok). En HTTP local va directo al backend.
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    return '/proxy';
-  }
-  return 'http://10.10.1.181:3001/api/v1';
-}
-
-const BASE_URL = resolveBaseUrl();
+// En el browser siempre usamos el proxy de Next.js (/proxy → backend).
+// Esto evita la alerta "acceso a red local" y el bloqueo mixed-content en HTTPS.
+// En el servidor (SSR) usamos la URL interna directa porque no hay rewrite disponible.
+const BASE_URL =
+  typeof window !== 'undefined'
+    ? '/proxy'
+    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://10.10.1.181:3001/api/v1');
 
 export const api = axios.create({
   baseURL: BASE_URL,
