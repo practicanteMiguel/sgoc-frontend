@@ -3,6 +3,71 @@ import { toast } from 'sonner';
 import { api } from '@/src/lib/axios';
 import { useAuthStore } from '@/src/stores/auth.store';
 import type { Notification } from '@/src/types/module.types';
+import {
+  subscribeToPush,
+  unsubscribeFromPush,
+  getCurrentSubscription,
+  isPushSupported,
+} from '@/src/lib/web-push';
+
+interface PushSubscriptionRecord {
+  id: string;
+  endpoint: string;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export function usePushSubscriptions() {
+  const { isAuthenticated } = useAuthStore();
+  return useQuery({
+    queryKey: ['push-subscriptions'],
+    queryFn: () =>
+      api.get<PushSubscriptionRecord[]>('/notifications/push/subscriptions').then((r) => r.data),
+    enabled: isAuthenticated,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function usePushStatus() {
+  return useQuery({
+    queryKey: ['push-status'],
+    queryFn: async () => {
+      if (!isPushSupported()) return { supported: false, subscribed: false };
+      const sub = await getCurrentSubscription();
+      return { supported: true, subscribed: !!sub };
+    },
+    staleTime: 0,
+  });
+}
+
+export function useSubscribeToPush() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: subscribeToPush,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['push-subscriptions'] });
+      qc.invalidateQueries({ queryKey: ['push-status'] });
+      toast.success('Notificaciones push activadas');
+    },
+    onError: (err: any) => {
+      const msg = err?.message ?? 'Error al activar notificaciones push';
+      toast.error(msg);
+    },
+  });
+}
+
+export function useUnsubscribeFromPush() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: unsubscribeFromPush,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['push-subscriptions'] });
+      qc.invalidateQueries({ queryKey: ['push-status'] });
+      toast.success('Notificaciones push desactivadas');
+    },
+    onError: () => toast.error('Error al desactivar notificaciones push'),
+  });
+}
 
 interface NotificationsResponse {
   data:   Notification[];

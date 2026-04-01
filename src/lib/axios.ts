@@ -1,7 +1,16 @@
 import axios, { type AxiosRequestConfig } from "axios";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
+function resolveBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  // En el browser: si la página corre en HTTPS usamos el proxy de Next.js
+  // para evitar mixed-content (ej: ngrok). En HTTP local va directo al backend.
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    return '/proxy';
+  }
+  return 'http://10.10.1.181:3001/api/v1';
+}
+
+const BASE_URL = resolveBaseUrl();
 
 export const api = axios.create({
   baseURL: BASE_URL,

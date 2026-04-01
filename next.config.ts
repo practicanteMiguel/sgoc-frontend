@@ -1,10 +1,19 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
-  // Permite acceso a la API desde cualquier origen
-  allowedDevOrigins: ['10.10.1.181'],
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_INTERNAL_URL ?? 'http://10.10.1.181:3001';
 
-  // Permite imágenes desde cualquier origen (útil para avatares futuros)
+const nextConfig: NextConfig = {
+  allowedDevOrigins: ['10.10.1.181', 'metempirical-quarterly-broderick.ngrok-free.dev'],
+
+  async rewrites() {
+    return [
+      {
+        source: '/proxy/:path*',
+        destination: `${BACKEND_URL}/api/v1/:path*`,
+      },
+    ];
+  },
+
   images: {
     remotePatterns: [
       {
