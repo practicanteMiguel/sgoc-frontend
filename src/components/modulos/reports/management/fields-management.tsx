@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Plus, Pencil, Trash2, AlertTriangle, Loader2,
-  MapPin, UserRound, UserX, UserCheck2, Users, FileText,
+  MapPin, UserRound, UserX, UserCheck2, Users, FileText, BarChart3,
 } from 'lucide-react';
 import { useFields, useDeleteField, useRemoveSupervisor } from '@/src/hooks/reports/use-fields';
 import { useEmployees } from '@/src/hooks/reports/use-employees';
@@ -15,9 +15,12 @@ import { AssignSupervisorModal } from './assign-supervisor-modal';
 import { EmployeeForm } from './employee-form';
 import { EmployeesTable } from './employees-table';
 import { ContractView } from './contract-view';
+import { ComplianceDashboard } from '../compliance/coordinator/compliance-dashboard';
+import { FieldCompliancePanel } from '../compliance/coordinator/field-compliance-panel';
 import type { Field, Employee } from '@/src/types/reports.types';
 
-const CONTRACT_TAB      = '__contract__';
+const CONTRACT_TAB    = '__contract__';
+const COMPLIANCE_TAB  = '__compliance__';
 const CONTRACT_FIELD_ID = 'dc9c6e07-e9f9-4184-ad1e-65386a7986be';
 
 export function FieldsManagement() {
@@ -35,8 +38,9 @@ export function FieldsManagement() {
   const { data: fieldsData, isLoading: fieldsLoading } = useFields();
   const fields = fieldsData?.data ?? [];
 
-  const isContractView = activeFieldId === CONTRACT_TAB;
-  const currentField   = isContractView
+  const isContractView   = activeFieldId === CONTRACT_TAB;
+  const isComplianceView = activeFieldId === COMPLIANCE_TAB;
+  const currentField     = (isContractView || isComplianceView)
     ? null
     : (fields.find((f) => f.id === activeFieldId) ?? fields[0] ?? null);
 
@@ -99,6 +103,24 @@ export function FieldsManagement() {
           Contrato
         </button>
 
+        {/* Cumplimiento tab */}
+        <button
+          onClick={() => setActiveFieldId(COMPLIANCE_TAB)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap shrink-0"
+          style={
+            isComplianceView
+              ? {
+                  background: 'var(--color-surface-0)',
+                  color:      'var(--color-secundary)',
+                  boxShadow:  '0 1px 4px rgba(7,44,44,0.12)',
+                }
+              : { color: 'var(--color-text-400)' }
+          }
+        >
+          <BarChart3 size={13} />
+          Cumplimiento
+        </button>
+
         {/* Plant tabs */}
         {fields.filter((f) => f.id !== CONTRACT_FIELD_ID).map((f) => {
           const active = !isContractView && (activeFieldId ?? fields[0]?.id) === f.id;
@@ -127,6 +149,8 @@ export function FieldsManagement() {
       {/* Content */}
       {isContractView ? (
         <ContractView canManage={canManage} isAdmin={isAdmin} />
+      ) : isComplianceView ? (
+        <ComplianceDashboard />
       ) : fields.length === 0 ? (
         <div
           className="flex flex-col items-center py-20 rounded-xl"
@@ -377,6 +401,14 @@ function FieldTabContent({
             onEdit={(emp) => { setEditEmployee(emp); setShowEmpForm(true); }}
           />
         )}
+      </div>
+
+      {/* Compliance section */}
+      <div
+        className="pt-5"
+        style={{ borderTop: '1px solid var(--color-border)' }}
+      >
+        <FieldCompliancePanel field={field} canManage={canManage} />
       </div>
 
       {showEmpForm && (

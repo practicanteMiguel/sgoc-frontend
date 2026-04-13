@@ -16,7 +16,7 @@ export interface AuthUser {
   position: string;
   phone: string | undefined;
   module: string | null;
-  field: string | null;
+  field_id: string | null;
   roles: string[];
   is_first_login: boolean;
 }
