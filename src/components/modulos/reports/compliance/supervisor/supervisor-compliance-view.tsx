@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { useAuthStore } from '@/src/stores/auth.store'
 import { useField } from '@/src/hooks/reports/use-fields'
 import { MonthDeliverables } from './month-deliverables'
+import { EvidencesView } from '../evidences/evidences-view'
 
 const MONTHS = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -13,12 +14,15 @@ const MONTHS = [
 
 const NOW = new Date()
 
+type Tab = 'entregables' | 'evidencias'
+
 export function SupervisorComplianceView() {
   const { user }  = useAuthStore()
   const fieldId   = user?.field_id ?? null
 
   const { data: field } = useField(fieldId)
 
+  const [tab,  setTab]  = useState<Tab>('entregables')
   const [mes,  setMes]  = useState(NOW.getMonth() + 1) // 1-12
   const [anio, setAnio] = useState(NOW.getFullYear())
 
@@ -53,38 +57,60 @@ export function SupervisorComplianceView() {
           )}
         </div>
 
-        {/* Month navigator */}
-        <div
-          className="flex items-center gap-1 rounded-xl p-1"
-          style={{ background: 'var(--color-surface-2)' }}
-        >
-          <button
-            onClick={prevMonth}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
-            style={{ color: 'var(--color-text-600)' }}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Tabs */}
+          <div
+            className="flex items-center gap-1 rounded-xl p-1"
+            style={{ background: 'var(--color-surface-2)' }}
           >
-            <ChevronLeft size={16} />
-          </button>
-          <span
-            className="px-4 py-1.5 rounded-lg text-sm font-semibold min-w-[160px] text-center"
-            style={{ background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
-          >
-            {MONTHS[mes - 1]} {anio}
-          </span>
-          <button
-            onClick={nextMonth}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
-            style={{ color: 'var(--color-text-600)' }}
-          >
-            <ChevronRight size={16} />
-          </button>
+            {(['entregables', 'evidencias'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize"
+                style={{
+                  background: tab === t ? 'var(--color-surface-0)' : 'transparent',
+                  color: tab === t ? 'var(--color-text-900)' : 'var(--color-text-400)',
+                }}
+              >
+                {t === 'entregables' ? 'Entregables' : 'Evidencias'}
+              </button>
+            ))}
+          </div>
+
+          {/* Month navigator - only relevant for entregables */}
+          {tab === 'entregables' && (
+            <div
+              className="flex items-center gap-1 rounded-xl p-1"
+              style={{ background: 'var(--color-surface-2)' }}
+            >
+              <button
+                onClick={prevMonth}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-text-600)' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span
+                className="px-4 py-1.5 rounded-lg text-sm font-semibold min-w-40 text-center"
+                style={{ background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
+              >
+                {MONTHS[mes - 1]} {anio}
+              </span>
+              <button
+                onClick={nextMonth}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-text-600)' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Deliverables */}
-      {fieldId ? (
-        <MonthDeliverables fieldId={fieldId} mes={mes} anio={anio} />
-      ) : (
+      {/* No plant assigned */}
+      {!fieldId && (
         <div
           className="flex flex-col items-center justify-center py-16 rounded-xl"
           style={{ background: 'var(--color-surface-0)', border: '1px dashed var(--color-border)' }}
@@ -97,6 +123,15 @@ export function SupervisorComplianceView() {
             Contacta al administrador para que te asigne una planta.
           </p>
         </div>
+      )}
+
+      {/* Tab content */}
+      {fieldId && tab === 'entregables' && (
+        <MonthDeliverables fieldId={fieldId} mes={mes} anio={anio} />
+      )}
+
+      {fieldId && tab === 'evidencias' && (
+        <EvidencesView fieldId={fieldId} defaultAnio={anio} defaultMes={mes} canDelete={false} />
       )}
     </div>
   )

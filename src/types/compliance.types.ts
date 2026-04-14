@@ -128,6 +128,26 @@ export interface HorasExtraRecord {
   created_at: string
 }
 
+export type EvidenceCategory = 'ausentismo' | 'ley_50' | 'dia_familia' | 'horas_extra' | 'cronograma' | 'general'
+
+export interface Evidence {
+  id: string
+  file_name: string
+  drive_file_id: string
+  drive_web_link: string
+  anio: number | null
+  mes: number | null
+  category: EvidenceCategory | null
+  created_at: string
+  field: { id: string; name: string }
+  uploaded_by: { id: string; first_name: string; last_name: string }
+}
+
+export interface EvidenceUploadResult {
+  uploaded: number
+  files: Evidence[]
+}
+
 export interface Schedule {
   id: string
   field: { id: string; name: string }

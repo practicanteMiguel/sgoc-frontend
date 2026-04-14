@@ -217,10 +217,13 @@ interface FieldTabContentProps {
   onRemoveSupervisor:(f: Field) => void;
 }
 
+type PlantTab = 'empleados' | 'cumplimiento'
+
 function FieldTabContent({
   field, canManage, isAdmin,
   onEditField, onDeleteField, onAssignSupervisor, onRemoveSupervisor,
 }: FieldTabContentProps) {
+  const [plantTab,     setPlantTab]     = useState<PlantTab>('empleados');
   const [showEmpForm,  setShowEmpForm]  = useState(false);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
 
@@ -366,50 +369,63 @@ function FieldTabContent({
         </div>
       </div>
 
-      {/* Employees section */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h4 className="font-display font-semibold text-sm"
-                style={{ color: 'var(--color-text-900)' }}>
-              Empleados
-            </h4>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+      {/* Inner tab bar */}
+      <div
+        className="flex items-center gap-1 rounded-xl p-1 w-fit"
+        style={{ background: 'var(--color-surface-2)' }}
+      >
+        {(['empleados', 'cumplimiento'] as PlantTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setPlantTab(t)}
+            className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              background: plantTab === t ? 'var(--color-surface-0)' : 'transparent',
+              color:      plantTab === t ? 'var(--color-text-900)' : 'var(--color-text-400)',
+            }}
+          >
+            {t === 'empleados' ? 'Empleados' : 'Cumplimiento'}
+          </button>
+        ))}
+      </div>
+
+      {/* Employees tab */}
+      {plantTab === 'empleados' && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
               {empData?.total ?? 0} registrados en esta planta
             </p>
+            {canManage && (
+              <button
+                onClick={() => { setEditEmployee(null); setShowEmpForm(true); }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold hover:opacity-90 transition-all"
+                style={{ background: 'var(--color-primary)', color: '#fff' }}
+              >
+                <Plus size={13} /> Nuevo empleado
+              </button>
+            )}
           </div>
-          {canManage && (
-            <button
-              onClick={() => { setEditEmployee(null); setShowEmpForm(true); }}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold hover:opacity-90 transition-all"
-              style={{ background: 'var(--color-primary)', color: '#fff' }}
-            >
-              <Plus size={13} /> Nuevo empleado
-            </button>
+
+          {empLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-secondary)' }} />
+            </div>
+          ) : (
+            <EmployeesTable
+              employees={employees}
+              canEdit={canManage}
+              canDelete={isAdmin}
+              onEdit={(emp) => { setEditEmployee(emp); setShowEmpForm(true); }}
+            />
           )}
         </div>
+      )}
 
-        {empLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-secondary)' }} />
-          </div>
-        ) : (
-          <EmployeesTable
-            employees={employees}
-            canEdit={canManage}
-            canDelete={isAdmin}
-            onEdit={(emp) => { setEditEmployee(emp); setShowEmpForm(true); }}
-          />
-        )}
-      </div>
-
-      {/* Compliance section */}
-      <div
-        className="pt-5"
-        style={{ borderTop: '1px solid var(--color-border)' }}
-      >
+      {/* Compliance tab */}
+      {plantTab === 'cumplimiento' && (
         <FieldCompliancePanel field={field} canManage={canManage} />
-      </div>
+      )}
 
       {showEmpForm && (
         <EmployeeForm
