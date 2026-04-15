@@ -147,6 +147,7 @@ export function EmployeesTable({ employees, canEdit, canDelete, onEdit }: Employ
             <select
               value={filterPos}
               onChange={(e) => setFilterPos(e.target.value)}
+              className="w-full md:w-auto"
               style={{ ...FIELD_STYLE_SM, cursor: 'pointer' }}
             >
               <option value="">Todos los cargos</option>
@@ -157,6 +158,7 @@ export function EmployeesTable({ employees, canEdit, canDelete, onEdit }: Employ
             <select
               value={filterSched}
               onChange={(e) => setFilterSched(e.target.value)}
+              className="w-full md:w-auto"
               style={{ ...FIELD_STYLE_SM, cursor: 'pointer' }}
             >
               <option value="">Todos los horarios</option>

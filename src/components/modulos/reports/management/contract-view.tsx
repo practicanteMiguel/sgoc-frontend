@@ -252,6 +252,7 @@ export function ContractView({ canManage, isAdmin }: ContractViewProps) {
               <select
                 value={filterPos}
                 onChange={(e) => { setFilterPos(e.target.value); setPage(1); }}
+                className="w-full md:w-auto"
                 style={{ ...FIELD_STYLE_SM, cursor: 'pointer' }}
               >
                 <option value="">Todos los cargos</option>
@@ -262,6 +263,7 @@ export function ContractView({ canManage, isAdmin }: ContractViewProps) {
               <select
                 value={filterSched}
                 onChange={(e) => { setFilterSched(e.target.value); setPage(1); }}
+                className="w-full md:w-auto"
                 style={{ ...FIELD_STYLE_SM, cursor: 'pointer' }}
               >
                 <option value="">Todos los horarios</option>

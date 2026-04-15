@@ -225,7 +225,7 @@ export function ProfileTab() {
             <div className="grid md:grid-cols-2 gap-3">
               {[
                 { label: "Correo", value: profile?.email, Icon: Mail },
-                { label: "Campo", value: profile?.field ?? "—", Icon: MapPin },
+                ...(roleSlug === 'supervisor' ? [{ label: "Campo", value: (profile?.field as { name?: string } | null)?.name ?? "—", Icon: MapPin }] : []),
               ].map(({ label, value, Icon }) => (
                 <div key={label} className="flex flex-col gap-1.5">
                   <label
