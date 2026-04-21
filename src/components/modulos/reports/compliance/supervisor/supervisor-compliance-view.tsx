@@ -6,6 +6,7 @@ import { useAuthStore } from '@/src/stores/auth.store'
 import { useField } from '@/src/hooks/reports/use-fields'
 import { MonthDeliverables } from './month-deliverables'
 import { EvidencesView } from '../evidences/evidences-view'
+import { SupervisorActivitiesView } from '../../activities/supervisor-activities-view'
 
 const MONTHS = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -14,7 +15,13 @@ const MONTHS = [
 
 const NOW = new Date()
 
-type Tab = 'entregables' | 'evidencias'
+type Tab = 'entregables' | 'evidencias' | 'actividades'
+
+const TAB_LABELS: Record<Tab, string> = {
+  entregables: 'Entregables',
+  evidencias:  'Evidencias',
+  actividades: 'Actividades',
+}
 
 export function SupervisorComplianceView() {
   const { user }  = useAuthStore()
@@ -63,17 +70,17 @@ export function SupervisorComplianceView() {
             className="flex items-center gap-1 rounded-xl p-1"
             style={{ background: 'var(--color-surface-2)' }}
           >
-            {(['entregables', 'evidencias'] as Tab[]).map((t) => (
+            {(['entregables', 'evidencias', 'actividades'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize"
                 style={{
                   background: tab === t ? 'var(--color-surface-0)' : 'transparent',
-                  color: tab === t ? 'var(--color-text-900)' : 'var(--color-text-400)',
+                  color:      tab === t ? 'var(--color-text-900)' : 'var(--color-text-400)',
                 }}
               >
-                {t === 'entregables' ? 'Entregables' : 'Evidencias'}
+                {TAB_LABELS[t]}
               </button>
             ))}
           </div>
@@ -132,6 +139,10 @@ export function SupervisorComplianceView() {
 
       {fieldId && tab === 'evidencias' && (
         <EvidencesView fieldId={fieldId} defaultAnio={anio} defaultMes={mes} canDelete={false} />
+      )}
+
+      {fieldId && tab === 'actividades' && (
+        <SupervisorActivitiesView />
       )}
     </div>
   )
