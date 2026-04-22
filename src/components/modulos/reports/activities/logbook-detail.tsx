@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Image, FileText, Calendar, Lock } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Image, FileText, Calendar, Lock, Share2, Check, Eye, X } from 'lucide-react'
 import { useLog, useDeleteActivity } from '@/src/hooks/activities/use-logbook'
 import { useTechnicalReports } from '@/src/hooks/activities/use-technical-reports'
+import { useLogVault } from '@/src/hooks/activities/use-vault'
+import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { ActivityFormModal } from './activity-form-modal'
-import type { Activity, TechnicalReport } from '@/src/types/activities.types'
+import type { Activity, TechnicalReport, VaultImage } from '@/src/types/activities.types'
 
 interface Props {
   logId:             string
@@ -45,9 +47,34 @@ export function LogbookDetail({ logId, onBack, onGenerateReport, readOnly }: Pro
     [crewReports, logId],
   )
 
-  const deleteActivity           = useDeleteActivity()
-  const [actModal, setActModal]  = useState<{ open: boolean; activity?: Activity | null }>({ open: false })
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const deleteActivity              = useDeleteActivity()
+  const [actModal,    setActModal]  = useState<{ open: boolean; activity?: Activity | null }>({ open: false })
+  const [deletingId,  setDeletingId] = useState<string | null>(null)
+  const [copied,      setCopied]    = useState(false)
+  const [vaultModal,  setVaultModal] = useState(false)
+
+  const { data: vaultImages = [], isLoading: loadingVault } = useLogVault(vaultModal ? logId : null)
+
+  const usedVaultUrls = useMemo(() => {
+    const vaultUrlSet = new Set(vaultImages.map((v: VaultImage) => v.url))
+    const urls = new Set<string>()
+    for (const act of log?.activities ?? []) {
+      for (const key of ['image_before', 'image_during', 'image_after'] as const) {
+        const url = act[key]
+        if (url && vaultUrlSet.has(url)) urls.add(url)
+      }
+    }
+    return urls
+  }, [log, vaultImages])
+
+  function handleCopyVault() {
+    if (!log?.vault_token) return
+    const url = `${window.location.origin}/vault/${log.vault_token}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   if (isLoading) {
     return (
@@ -92,6 +119,25 @@ export function LogbookDetail({ logId, onBack, onGenerateReport, readOnly }: Pro
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {log.vault_token && !hasReport && (
+            <button
+              onClick={handleCopyVault}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+              style={{ background: copied ? '#d1fae5' : 'var(--color-surface-2)', color: copied ? '#065f46' : 'var(--color-text-700)', border: '1px solid var(--color-border)' }}
+            >
+              {copied ? <Check size={13} /> : <Share2 size={13} />}
+              {copied ? 'Copiado' : 'Boveda'}
+            </button>
+          )}
+          {log.vault_token && hasReport && (
+            <button
+              onClick={() => setVaultModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)', border: '1px solid var(--color-border)' }}
+            >
+              <Eye size={13} /> Ver boveda
+            </button>
+          )}
           {!readOnly && !hasReport && (
             <button
               onClick={() => setActModal({ open: true, activity: null })}
@@ -214,6 +260,103 @@ export function LogbookDetail({ logId, onBack, onGenerateReport, readOnly }: Pro
           activity={actModal.activity}
           onClose={() => setActModal({ open: false })}
         />
+      )}
+
+      {vaultModal && (
+        <ModalPortal onClose={() => setVaultModal(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-xl overflow-hidden flex flex-col"
+            style={{
+              background: 'var(--color-surface-0)',
+              border:     '1px solid var(--color-border)',
+              boxShadow:  '0 20px 60px rgba(4,24,24,0.25)',
+              width:      '480px',
+              maxHeight:  '85vh',
+            }}
+          >
+            <div
+              className="flex items-center justify-between px-5 py-4 shrink-0"
+              style={{ borderBottom: '1px solid var(--color-border)' }}
+            >
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-secundary)' }}>Boveda de imagenes</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+                  {log.crew.name} &middot; Semana {log.week_number} / {log.year}
+                </p>
+              </div>
+              <button
+                onClick={() => setVaultModal(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-text-400)' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingVault ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+                </div>
+              ) : vaultImages.length === 0 ? (
+                <div className="py-12 text-center">
+                  <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>No hay imagenes en la boveda.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-4 mb-4 text-xs" style={{ color: 'var(--color-text-400)' }}>
+                    <span><span className="font-semibold" style={{ color: '#10b981' }}>{usedVaultUrls.size}</span> usadas</span>
+                    <span><span className="font-semibold" style={{ color: 'var(--color-text-700)' }}>{vaultImages.length - usedVaultUrls.size}</span> disponibles</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {vaultImages.map((img: VaultImage) => {
+                      const used = usedVaultUrls.has(img.url)
+                      return (
+                        <div key={img.id} className="flex flex-col gap-1">
+                          <div
+                            className="relative rounded-lg overflow-hidden"
+                            style={{ aspectRatio: '4/3' }}
+                          >
+                            <img
+                              src={img.url}
+                              alt={img.original_name}
+                              className="w-full h-full object-cover"
+                              style={{ opacity: used ? 1 : 0.55 }}
+                            />
+                            <div className="absolute top-1 left-1">
+                              {used ? (
+                                <span className="text-[9px] font-semibold text-white bg-emerald-600 rounded px-1.5 py-0.5">
+                                  Usada
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-semibold text-white bg-black/50 rounded px-1.5 py-0.5">
+                                  Disponible
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => window.open(img.url, '_blank')}
+                              className="absolute bottom-1 right-1 w-6 h-6 rounded flex items-center justify-center"
+                              style={{ background: 'rgba(255,255,255,0.85)' }}
+                              title="Ver imagen completa"
+                            >
+                              <Eye size={11} style={{ color: '#1a3a3a' }} />
+                            </button>
+                          </div>
+                          <p className="text-[10px] truncate leading-tight" style={{ color: 'var(--color-text-400)' }}>
+                            {img.original_name}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   )

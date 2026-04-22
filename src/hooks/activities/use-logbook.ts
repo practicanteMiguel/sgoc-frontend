@@ -94,6 +94,7 @@ export function useDeleteActivity() {
       api.delete(`/logbook/${logId}/activities/${activityId}`).then((r) => r.data),
     onSuccess: (_d, { logId }) => {
       qc.invalidateQueries({ queryKey: ['logbook-detail', logId] })
+      qc.invalidateQueries({ queryKey: ['vault', logId] })
       toast.success('Actividad eliminada')
     },
     onError: (err: any) => {

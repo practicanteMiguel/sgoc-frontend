@@ -57,9 +57,19 @@ export interface WeeklyLog {
   id: string
   week_number: number
   year: number
+  vault_token: string
   crew: { id: string; name: string; field: CrewField }
   activities: Activity[]
   created_at: string
+}
+
+export interface VaultImage {
+  id: string
+  url: string
+  public_id: string
+  original_name: string
+  is_assigned: boolean
+  uploaded_at: string
 }
 
 export interface TechnicalReportLog {
