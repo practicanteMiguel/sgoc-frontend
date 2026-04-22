@@ -65,7 +65,7 @@ export function UserForm({ user, onClose }: UserFormProps) {
   const fieldHasSupervisor = !isEdit && !!selectedFieldObj?.supervisor;
 
   useEffect(() => {
-    if (user) {
+    if (user && roles) {
       reset({
         first_name: user.first_name,
         last_name:  user.last_name,
@@ -73,11 +73,11 @@ export function UserForm({ user, onClose }: UserFormProps) {
         position:   user.position,
         phone:      user.phone ?? '',
         role_slug:  user.user_roles?.[0]?.role?.slug ?? '',
-        field_id:   user.field ?? '',
+        field_id:   user.field_id ?? '',
         module:     user.module ?? '',
       });
     }
-  }, [user, reset]);
+  }, [user, roles, fields, reset]);
 
   const onSubmit = (data: FormData) => {
     if (isEdit) {

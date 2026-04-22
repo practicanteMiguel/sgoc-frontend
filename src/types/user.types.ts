@@ -5,8 +5,9 @@ export interface User {
   last_name: string;
   phone: string | null;
   position: string;
-  module: string | null;
-  field: string | null;
+  module:   string | null;
+  field:    string | null;
+  field_id: string | null;
   is_active: boolean;
   is_email_verified: boolean;
   is_first_login: boolean;
