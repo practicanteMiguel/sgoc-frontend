@@ -7,13 +7,15 @@ import { FieldsManagement } from './management/fields-management';
 import { SupervisorComplianceView } from './compliance/supervisor/supervisor-compliance-view';
 import { CoordinatorEvidencesView } from './compliance/evidences/coordinator-evidences-view';
 import { CoordinatorActivitiesView } from './activities/coordinator-activities-view';
+import { CoordinatorViasView } from './vias/coordinator-vias-view';
 
-type CoordTab = 'empleados' | 'evidencias' | 'actividades'
+type CoordTab = 'empleados' | 'evidencias' | 'actividades' | 'vias'
 
 const TAB_LABELS: Record<CoordTab, string> = {
   empleados:   'Empleados',
   evidencias:  'Evidencias',
   actividades: 'Actividades',
+  vias:        'Vias',
 }
 
 export function ReportsView() {
@@ -35,7 +37,7 @@ export function ReportsView() {
             className="flex items-center gap-1 rounded-xl p-1 w-fit"
             style={{ background: 'var(--color-surface-2)' }}
           >
-            {(['empleados', 'evidencias', 'actividades'] as CoordTab[]).map((t) => (
+            {(['empleados', 'evidencias', 'actividades', 'vias'] as CoordTab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -62,6 +64,12 @@ export function ReportsView() {
         {tab === 'actividades' && (
           <div className="max-w-8xl px-6 sm:px-10 py-8 mx-auto">
             <CoordinatorActivitiesView />
+          </div>
+        )}
+
+        {tab === 'vias' && (
+          <div className="max-w-8xl px-6 sm:px-10 py-8 mx-auto">
+            <CoordinatorViasView />
           </div>
         )}
       </>

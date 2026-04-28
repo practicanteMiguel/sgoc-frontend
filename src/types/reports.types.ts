@@ -11,6 +11,8 @@ export interface Field {
   name: string;
   location: string;
   supervisor: FieldSupervisor | null;
+  center_lat: number | null;
+  center_lng: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -7,6 +7,7 @@ import { useField } from '@/src/hooks/reports/use-fields'
 import { MonthDeliverables } from './month-deliverables'
 import { EvidencesView } from '../evidences/evidences-view'
 import { SupervisorActivitiesView } from '../../activities/supervisor-activities-view'
+import { SupervisorViasView } from '../../vias/supervisor-vias-view'
 
 const MONTHS = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -15,12 +16,13 @@ const MONTHS = [
 
 const NOW = new Date()
 
-type Tab = 'entregables' | 'evidencias' | 'actividades'
+type Tab = 'entregables' | 'evidencias' | 'actividades' | 'vias'
 
 const TAB_LABELS: Record<Tab, string> = {
   entregables: 'Entregables',
   evidencias:  'Evidencias',
   actividades: 'Actividades',
+  vias:        'Vias',
 }
 
 export function SupervisorComplianceView() {
@@ -70,7 +72,7 @@ export function SupervisorComplianceView() {
             className="flex items-center gap-1 rounded-xl p-1"
             style={{ background: 'var(--color-surface-2)' }}
           >
-            {(['entregables', 'evidencias', 'actividades'] as Tab[]).map((t) => (
+            {(['entregables', 'evidencias', 'actividades', 'vias'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -143,6 +145,10 @@ export function SupervisorComplianceView() {
 
       {fieldId && tab === 'actividades' && (
         <SupervisorActivitiesView />
+      )}
+
+      {fieldId && tab === 'vias' && (
+        <SupervisorViasView />
       )}
     </div>
   )
