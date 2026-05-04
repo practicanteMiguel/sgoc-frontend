@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Plus, Trash2, Loader2, MapPin, Image as ImageIcon, Check, X } from 'lucide-react'
-import { useCreateViaReport } from '@/src/hooks/vias/use-via-reports'
+import { ArrowLeft, Plus, Trash2, Loader2, MapPin, Image as ImageIcon, Check, X, ChevronLeft, ChevronRight, Eye } from 'lucide-react'
+import { useCreateViaReport, useViaReports, useViaReport } from '@/src/hooks/vias/use-via-reports'
 import type { CreateViaReportItem } from '@/src/hooks/vias/use-via-reports'
 import type { ViaCaptureGroup, ViaMonthlyLog, ViaState, ViaReportType } from '@/src/types/vias.types'
 import { VIA_STATE_LABELS, VIA_STATE_COLORS, MONTHS } from '@/src/types/vias.types'
+import { ModalPortal } from '@/src/components/ui/modal-portal'
 
 const STATES_BY_TYPE: Record<ViaReportType, ViaState[]> = {
   mensual: ['bueno', 'regular', 'malo'],
@@ -34,17 +35,39 @@ function newItem(): ItemDraft {
 }
 
 interface Props {
-  log:    ViaMonthlyLog
-  onBack: () => void
-  onDone: (reportId: string) => void
+  log:               ViaMonthlyLog
+  hasMonthlyReport?: boolean
+  onBack:            () => void
+  onDone:            (reportId: string) => void
 }
 
-export function ViaReportForm({ log, onBack, onDone }: Props) {
-  const [type,         setType]         = useState<ViaReportType>('mensual')
-  const [generalObs,   setGeneralObs]   = useState('')
-  const [items,        setItems]        = useState<ItemDraft[]>([newItem()])
-  const [capturePanel, setCapturePanel] = useState<number | null>(null)
+export function ViaReportForm({ log, hasMonthlyReport = false, onBack, onDone }: Props) {
+  const [type,           setType]           = useState<ViaReportType>(hasMonthlyReport ? 'urgente' : 'mensual')
+  const [generalObs,     setGeneralObs]     = useState('')
+  const [items,          setItems]          = useState<ItemDraft[]>([
+    { ...newItem(), state: hasMonthlyReport ? 'critico' : 'bueno' },
+  ])
+  const [capturePanel,   setCapturePanel]   = useState<number | null>(null)
+  const [previewGroup,   setPreviewGroup]   = useState<ViaCaptureGroup | null>(null)
+  const [previewIdx,     setPreviewIdx]     = useState(0)
+  const [previewItemKey, setPreviewItemKey] = useState<number | null>(null)
   const createReport = useCreateViaReport()
+
+  // Fetch already-used capture groups from existing reports for this period
+  const { data: periodReportsData } = useViaReports({
+    field_id: log.field.id,
+    year:     log.year,
+    month:    log.month,
+  })
+  const mensualReportId = (periodReportsData?.data ?? [])
+    .find((r) => r.monthly_log?.id === log.id && r.type === 'mensual')
+    ?.id ?? null
+  const { data: mensualDetail } = useViaReport(mensualReportId)
+  const usedGroupIds = new Set(
+    (mensualDetail?.items ?? [])
+      .map((item) => item.capture_group?.id)
+      .filter((id): id is string => id != null),
+  )
 
   const groups = log.capture_groups ?? []
 
@@ -59,10 +82,12 @@ export function ViaReportForm({ log, onBack, onDone }: Props) {
   }
 
   function assignGroup(itemKey: number, group: ViaCaptureGroup) {
+    const current = items.find((i) => i.key === itemKey)
     updateItem(itemKey, {
       capture_group_id: group.id,
       capture_thumb:    group.images[0]?.url ?? null,
-      via_name:         group.via_name ?? items.find((i) => i.key === itemKey)?.via_name ?? '',
+      via_name:         group.via_name ?? current?.via_name ?? '',
+      observations:     group.comment  ?? current?.observations ?? '',
     })
     setCapturePanel(null)
   }
@@ -134,21 +159,34 @@ export function ViaReportForm({ log, onBack, onDone }: Props) {
         className="rounded-xl p-4 flex flex-col gap-3"
         style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
       >
-        <p className="text-xs font-semibold" style={{ color: 'var(--color-text-700)' }}>Tipo de informe</p>
-        <div className="flex items-center gap-2">
-          {(['mensual', 'urgente'] as ViaReportType[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => changeType(t)}
-              className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={{
-                background: type === t ? 'var(--color-primary)' : 'var(--color-surface-2)',
-                color:      type === t ? '#fff'                  : 'var(--color-text-600)',
-              }}
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-xs font-semibold" style={{ color: 'var(--color-text-700)' }}>Tipo de informe</p>
+          {hasMonthlyReport && (
+            <span
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+              style={{ background: '#d1fae5', color: '#065f46' }}
             >
-              {t === 'mensual' ? 'Mensual' : 'Urgente'}
-            </button>
-          ))}
+              Ya tiene informe mensual
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {(['mensual', 'urgente'] as ViaReportType[]).map((t) => {
+            if (t === 'mensual' && hasMonthlyReport) return null
+            return (
+              <button
+                key={t}
+                onClick={() => changeType(t)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: type === t ? 'var(--color-primary)' : 'var(--color-surface-2)',
+                  color:      type === t ? '#fff'                  : 'var(--color-text-600)',
+                }}
+              >
+                {t === 'mensual' ? 'Mensual' : 'Urgente'}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -177,7 +215,8 @@ export function ViaReportForm({ log, onBack, onDone }: Props) {
             Vias ({items.length})
           </p>
           <button
-            onClick={() => setItems((prev) => [...prev, newItem()])}
+            onClick={() => setItems((prev) => [...prev, { ...newItem(), state: type === 'urgente' ? 'critico' : 'bueno' }])}
+
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
             style={{ background: 'var(--color-primary)', color: '#fff' }}
           >
@@ -258,19 +297,39 @@ export function ViaReportForm({ log, onBack, onDone }: Props) {
                   </div>
 
                   {groups.map((group) => {
-                    const inUse = items.some((i) => i.key !== item.key && i.capture_group_id === group.id)
+                    const inDraft  = items.some((i) => i.key !== item.key && i.capture_group_id === group.id)
+                    const inReport = usedGroupIds.has(group.id)
+                    const disabled = inDraft || inReport
                     return (
-                      <button
+                      <div
                         key={group.id}
-                        onClick={() => !inUse && assignGroup(item.key, group)}
-                        disabled={inUse}
-                        className="flex items-center gap-3 rounded-lg p-2 hover:opacity-80 transition-opacity text-left w-full"
-                        style={{ opacity: inUse ? 0.4 : 1 }}
+                        className="flex items-center gap-3 rounded-lg p-2"
+                        style={{ opacity: disabled ? 0.4 : 1 }}
                       >
-                        <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0">
+                        {/* Thumbnail - click to preview */}
+                        <button
+                          onClick={() => {
+                            setPreviewGroup(group)
+                            setPreviewIdx(0)
+                            setPreviewItemKey(item.key)
+                          }}
+                          className="w-10 h-10 rounded-lg overflow-hidden shrink-0 relative group/thumb"
+                        >
                           <img src={group.images[0]?.url ?? ''} alt="" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-1 min-w-0">
+                          <div
+                            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                            style={{ background: 'rgba(0,0,0,0.45)' }}
+                          >
+                            <Eye size={12} className="text-white" />
+                          </div>
+                        </button>
+
+                        {/* Info - click to assign */}
+                        <button
+                          onClick={() => !disabled && assignGroup(item.key, group)}
+                          disabled={disabled}
+                          className="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                        >
                           <p className="text-xs font-medium truncate" style={{ color: 'var(--color-text-900)' }}>
                             {group.via_name ?? 'Sin nombre'}
                           </p>
@@ -283,13 +342,11 @@ export function ViaReportForm({ log, onBack, onDone }: Props) {
                               &middot; {group.images.length} foto{group.images.length !== 1 ? 's' : ''}
                             </span>
                           </div>
-                        </div>
-                        {inUse && (
-                          <span className="text-[9px] font-semibold shrink-0" style={{ color: 'var(--color-text-400)' }}>
-                            En uso
-                          </span>
-                        )}
-                      </button>
+                        </button>
+
+                        {inDraft  && <span className="text-[9px] font-semibold shrink-0" style={{ color: 'var(--color-text-400)' }}>En uso</span>}
+                        {inReport && <span className="text-[9px] font-semibold shrink-0" style={{ color: 'var(--color-text-400)' }}>Usado</span>}
+                      </div>
                     )
                   })}
                 </div>
@@ -352,6 +409,128 @@ export function ViaReportForm({ log, onBack, onDone }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Group preview lightbox */}
+      {previewGroup && (
+        <ModalPortal onClose={() => setPreviewGroup(null)}>
+          <div
+            className="w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
+            style={{ background: 'var(--color-surface-0)', maxHeight: '92vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between px-4 pt-4 pb-3 shrink-0">
+              <div className="flex-1 min-w-0 pr-2">
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text-900)' }}>
+                  {previewGroup.via_name ?? 'Sin nombre'}
+                </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <MapPin size={9} style={{ color: 'var(--color-text-400)' }} />
+                  <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-400)' }}>
+                    {Number(previewGroup.lat).toFixed(5)}, {Number(previewGroup.lng).toFixed(5)}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewGroup(null)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:opacity-70 shrink-0"
+                style={{ color: 'var(--color-text-400)', background: 'var(--color-surface-2)' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Main image with nav arrows */}
+            <div className="relative shrink-0 mx-4 rounded-xl overflow-hidden" style={{ aspectRatio: '4/3', background: 'var(--color-surface-2)' }}>
+              <img
+                src={previewGroup.images[previewIdx]?.url}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+              {previewGroup.images.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setPreviewIdx((i) => (i - 1 + previewGroup.images.length) % previewGroup.images.length)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.55)', color: '#fff' }}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    onClick={() => setPreviewIdx((i) => (i + 1) % previewGroup.images.length)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.55)', color: '#fff' }}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </>
+              )}
+            </div>
+
+            <p className="text-[10px] text-center mt-2 shrink-0" style={{ color: 'var(--color-text-400)' }}>
+              {previewIdx + 1} / {previewGroup.images.length}
+            </p>
+
+            {/* Thumbnails */}
+            {previewGroup.images.length > 1 && (
+              <div className="flex gap-2 px-4 py-2 overflow-x-auto shrink-0">
+                {previewGroup.images.map((img, idx) => (
+                  <button
+                    key={img.id}
+                    onClick={() => setPreviewIdx(idx)}
+                    className="shrink-0 rounded-lg overflow-hidden transition-all"
+                    style={{
+                      width: 48, height: 48,
+                      outline:       previewIdx === idx ? '2px solid var(--color-primary)' : '2px solid transparent',
+                      outlineOffset: 2,
+                      opacity:       previewIdx === idx ? 1 : 0.55,
+                    }}
+                  >
+                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Comment */}
+            {previewGroup.comment && (
+              <div
+                className="mx-4 mt-2 px-3 py-2.5 rounded-xl shrink-0"
+                style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}
+              >
+                <p className="text-xs" style={{ color: 'var(--color-text-600)' }}>{previewGroup.comment}</p>
+              </div>
+            )}
+
+            {/* Select button */}
+            <div className="px-4 py-4 shrink-0">
+              <button
+                onClick={() => {
+                  if (previewItemKey != null) assignGroup(previewItemKey, previewGroup)
+                  setPreviewGroup(null)
+                }}
+                disabled={
+                  previewItemKey == null ||
+                  (usedGroupIds.has(previewGroup.id)) ||
+                  items.some((i) => i.key !== previewItemKey && i.capture_group_id === previewGroup.id)
+                }
+                className="w-full py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{
+                  background: 'var(--color-primary)',
+                  color: '#fff',
+                  opacity: (
+                    previewItemKey == null ||
+                    (usedGroupIds.has(previewGroup.id)) ||
+                    items.some((i) => i.key !== previewItemKey && i.capture_group_id === previewGroup.id)
+                  ) ? 0.4 : 1,
+                }}
+              >
+                Seleccionar grupo
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   )
 }

@@ -1,17 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Copy, CheckCircle2, MapPin, RefreshCw, Loader2, Image as ImageIcon, Plus, X } from 'lucide-react'
+import { ArrowLeft, Copy, CheckCircle2, MapPin, RefreshCw, Loader2, Image as ImageIcon, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useViaLog } from '@/src/hooks/vias/use-via-logs'
 import { MONTHS } from '@/src/types/vias.types'
 import type { ViaCaptureGroup, ViaMonthlyLog } from '@/src/types/vias.types'
+import { ModalPortal } from '@/src/components/ui/modal-portal'
 
 const APP_BASE = typeof window !== 'undefined' ? window.location.origin : ''
 
 interface Props {
-  log:      ViaMonthlyLog
-  onBack:   () => void
-  onReport: (log: ViaMonthlyLog) => void
+  log:              ViaMonthlyLog
+  hasMonthlyReport?: boolean
+  onBack:           () => void
+  onReport:         (log: ViaMonthlyLog) => void
 }
 
 function GroupCard({ group }: { group: ViaCaptureGroup }) {
@@ -22,12 +24,10 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
 
   if (!thumb) return null
 
-  function openAt(idx: number) { setActiveIdx(idx); setOpen(true) }
-
   return (
     <>
       <button
-        onClick={() => openAt(0)}
+        onClick={() => { setActiveIdx(0); setOpen(true) }}
         className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
         style={{ aspectRatio: '1', background: 'var(--color-surface-1)' }}
       >
@@ -60,11 +60,7 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
       </button>
 
       {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.92)' }}
-          onClick={() => setOpen(false)}
-        >
+        <ModalPortal onClose={() => setOpen(false)}>
           <div
             className="w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
             style={{ background: 'var(--color-surface-0)', maxHeight: '92vh' }}
@@ -104,13 +100,31 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
               </button>
             </div>
 
-            {/* Main image */}
-            <div className="shrink-0 mx-4 rounded-xl overflow-hidden" style={{ aspectRatio: '4/3', background: 'var(--color-surface-2)' }}>
+            {/* Main image with nav */}
+            <div className="relative shrink-0 mx-4 rounded-xl overflow-hidden" style={{ aspectRatio: '4/3', background: 'var(--color-surface-2)' }}>
               <img
                 src={group.images[activeIdx]?.url}
                 alt={group.images[activeIdx]?.original_name}
                 className="w-full h-full object-cover"
               />
+              {count > 1 && (
+                <>
+                  <button
+                    onClick={() => setActiveIdx((i) => (i - 1 + count) % count)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.55)', color: '#fff' }}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    onClick={() => setActiveIdx((i) => (i + 1) % count)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.55)', color: '#fff' }}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Counter */}
@@ -127,11 +141,10 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
                     onClick={() => setActiveIdx(idx)}
                     className="shrink-0 rounded-lg overflow-hidden transition-all"
                     style={{
-                      width: 48,
-                      height: 48,
-                      outline: activeIdx === idx ? '2px solid var(--color-primary)' : '2px solid transparent',
+                      width: 48, height: 48,
+                      outline:       activeIdx === idx ? '2px solid var(--color-primary)' : '2px solid transparent',
                       outlineOffset: 2,
-                      opacity: activeIdx === idx ? 1 : 0.55,
+                      opacity:       activeIdx === idx ? 1 : 0.55,
                     }}
                   >
                     <img src={img.url} alt="" className="w-full h-full object-cover" />
@@ -152,13 +165,13 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
 
             {!group.comment && <div className="pb-4" />}
           </div>
-        </div>
+        </ModalPortal>
       )}
     </>
   )
 }
 
-export function ViaLogDetail({ log: initialLog, onBack, onReport }: Props) {
+export function ViaLogDetail({ log: initialLog, hasMonthlyReport = false, onBack, onReport }: Props) {
   const [copied, setCopied] = useState(false)
   const { data: log, isLoading, refetch, isFetching } = useViaLog(initialLog.id)
   const current       = log ?? initialLog
@@ -220,6 +233,14 @@ export function ViaLogDetail({ log: initialLog, onBack, onReport }: Props) {
             {copied ? 'Copiado' : 'Boveda'}
           </button>
 
+          {hasMonthlyReport && (
+            <span
+              className="text-[10px] font-semibold px-2 py-1 rounded-full shrink-0"
+              style={{ background: '#d1fae5', color: '#065f46' }}
+            >
+              Informe mensual
+            </span>
+          )}
           <button
             onClick={() => onReport(current)}
             disabled={captureGroups.length === 0}

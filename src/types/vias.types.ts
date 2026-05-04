@@ -43,13 +43,16 @@ export interface ViaReportItem {
 }
 
 export interface ViaMapPoint {
-  item_id: string
-  via_name: string
-  state: ViaState
-  lat: number
-  lng: number
-  images: string[]
-  captured_at: string
+  via_name:     string
+  lat:          number
+  lng:          number
+  item_id?:     string
+  state?:       ViaState
+  images?:      string[]
+  captured_at?: string
+  // Added by frontend when building the supervisor overview map
+  report_id?:   string
+  report_type?: ViaReportType
 }
 
 export interface ViaReport {
@@ -60,6 +63,7 @@ export interface ViaReport {
   monthly_log: ViaMonthlyLogSummary & { field: { id: string; name: string } }
   items: ViaReportItem[]
   map_points: ViaMapPoint[]
+  items_count?: number
 }
 
 export interface PaginatedViaLogs {

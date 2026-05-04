@@ -243,7 +243,7 @@ export function CoordinatorViasView() {
                           <StateBadge key={state} state={state as ViaState} />
                         ))}
                         <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>
-                          {report.items?.length ?? 0} via{(report.items?.length ?? 0) !== 1 ? 's' : ''}
+                          {report.items_count ?? report.items?.length ?? 0} via{(report.items_count ?? report.items?.length ?? 0) !== 1 ? 's' : ''}
                           &nbsp;&middot;&nbsp;{report.map_points?.length ?? 0} pts GPS
                         </span>
                       </div>

@@ -5,65 +5,121 @@ import type { ViaMapPoint } from '@/src/types/vias.types'
 import { VIA_STATE_COLORS, VIA_STATE_LABELS } from '@/src/types/vias.types'
 
 interface ViaMapProps {
-  points:     ViaMapPoint[]
-  centerLat?: number | null
-  centerLng?: number | null
-  zoom?:      number
-  height?:    string
+  points:              ViaMapPoint[]
+  centerLat?:          number | null
+  centerLng?:          number | null
+  zoom?:               number
+  height?:             string
+  highlightedItemIds?: Set<string>
 }
 
-export function ViaMap({ points, centerLat, centerLng, zoom = 13, height = '400px' }: ViaMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef       = useRef<any>(null)
+function applyHighlight(markers: Map<string, any>, ids: Set<string> | undefined) {
+  const selecting = ids && ids.size > 0
+  for (const [key, marker] of markers) {
+    const isHL = !selecting || ids!.has(key)
+    marker.setStyle({
+      fillOpacity: isHL ? 0.9 : 0.2,
+      color:       isHL ? '#fff' : 'transparent',
+      weight:      isHL ? 2 : 0,
+    })
+    marker.setRadius(selecting ? (isHL ? 12 : 7) : 10)
+  }
+}
 
-  const defaultLat = centerLat ?? (points[0]?.lat ?? 4.6)
-  const defaultLng = centerLng ?? (points[0]?.lng ?? -74.1)
+function buildMarkers(
+  L: any, map: any, pts: ViaMapPoint[],
+  markers: Map<string, any>,
+) {
+  for (const [, marker] of markers) marker.remove()
+  markers.clear()
 
+  for (let i = 0; i < pts.length; i++) {
+    const pt    = pts[i]
+    const color = pt.state ? (VIA_STATE_COLORS[pt.state] ?? '#888') : '#888'
+    const m     = L.circleMarker([pt.lat, pt.lng], {
+      radius: 10, color: '#fff', weight: 2, fillColor: color, fillOpacity: 0.9,
+    })
+
+    const imgHtml   = pt.images?.length
+      ? `<img src="${pt.images[0]}" width="180" style="border-radius:6px;margin-top:6px;display:block;" />`
+      : ''
+    const stateHtml = pt.state
+      ? `<span style="color:${color};font-weight:600;">${VIA_STATE_LABELS[pt.state]}</span><br/>`
+      : ''
+    const dateHtml  = pt.captured_at
+      ? `<span style="color:#888;font-size:11px;">${new Date(pt.captured_at).toLocaleDateString('es-CO')}</span>`
+      : ''
+
+    m.bindPopup(`
+      <div style="font-family:sans-serif;font-size:12px;min-width:160px;">
+        <strong style="font-size:13px;">${pt.via_name}</strong><br/>
+        ${stateHtml}${dateHtml}${imgHtml}
+      </div>
+    `)
+
+    m.addTo(map)
+    const key = pt.item_id ?? `pt_${i}`
+    markers.set(key, m)
+  }
+}
+
+export function ViaMap({
+  points, centerLat, centerLng, zoom = 13, height = '400px', highlightedItemIds,
+}: ViaMapProps) {
+  const containerRef  = useRef<HTMLDivElement>(null)
+  const mapRef        = useRef<any>(null)
+  const leafletRef    = useRef<any>(null)
+  const markersRef    = useRef<Map<string, any>>(new Map())
+  const highlightRef  = useRef(highlightedItemIds)
+  const pointsRef     = useRef(points)
+
+  highlightRef.current = highlightedItemIds
+  pointsRef.current    = points
+
+  // Update highlight when selection changes
+  useEffect(() => {
+    if (!mapRef.current || markersRef.current.size === 0) return
+    applyHighlight(markersRef.current, highlightedItemIds)
+  }, [highlightedItemIds])
+
+  // Rebuild markers when points change (preserves map view/zoom)
+  useEffect(() => {
+    if (!mapRef.current || !leafletRef.current) return
+    buildMarkers(leafletRef.current, mapRef.current, points, markersRef.current)
+    applyHighlight(markersRef.current, highlightRef.current)
+  }, [points])
+
+  // Init map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
+    let cancelled = false
 
     async function initMap() {
       const L = (await import('leaflet')).default
       await import('leaflet/dist/leaflet.css')
+      if (cancelled || !containerRef.current) return
+
+      const pts = pointsRef.current
+      // Use the first point's position if available; fall back to field center or Colombia default
+      const defaultLat = pts[0]?.lat ?? (centerLat != null ? Number(centerLat) : 4.6)
+      const defaultLng = pts[0]?.lng ?? (centerLng != null ? Number(centerLng) : -74.1)
 
       const map = L.map(containerRef.current!, { zoomControl: true }).setView(
-        [defaultLat, defaultLng],
-        zoom,
+        [defaultLat, defaultLng], zoom,
       )
-      mapRef.current = map
+      mapRef.current     = map
+      leafletRef.current = L
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
       }).addTo(map)
 
-      for (const pt of points) {
-        const color = VIA_STATE_COLORS[pt.state] ?? '#888'
-        const marker = L.circleMarker([pt.lat, pt.lng], {
-          radius:      10,
-          color:       '#fff',
-          weight:      2,
-          fillColor:   color,
-          fillOpacity: 0.9,
-        })
+      buildMarkers(L, map, pts, markersRef.current)
+      applyHighlight(markersRef.current, highlightRef.current)
 
-        const imgHtml = pt.images?.length
-          ? `<img src="${pt.images[0]}" width="180" style="border-radius:6px;margin-top:6px;display:block;" />`
-          : ''
-
-        marker.bindPopup(`
-          <div style="font-family:sans-serif;font-size:12px;min-width:160px;">
-            <strong style="font-size:13px;">${pt.via_name}</strong><br/>
-            <span style="color:${color};font-weight:600;">${VIA_STATE_LABELS[pt.state]}</span><br/>
-            <span style="color:#888;font-size:11px;">${new Date(pt.captured_at).toLocaleDateString('es-CO')}</span>
-            ${imgHtml}
-          </div>
-        `)
-
-        marker.addTo(map)
-      }
-
-      if (points.length > 1 && !centerLat && !centerLng) {
-        const latlngs = points.map((p) => L.latLng(p.lat, p.lng))
+      // Always fit to actual point locations when multiple points exist
+      if (pts.length > 1) {
+        const latlngs = pts.map((p) => L.latLng(p.lat, p.lng))
         map.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30] })
       }
     }
@@ -71,10 +127,10 @@ export function ViaMap({ points, centerLat, centerLng, zoom = 13, height = '400p
     initMap()
 
     return () => {
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-      }
+      cancelled = true
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
+      leafletRef.current = null
+      markersRef.current.clear()
     }
   }, [])
 
