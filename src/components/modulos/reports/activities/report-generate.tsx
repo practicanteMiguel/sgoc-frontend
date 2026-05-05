@@ -6,6 +6,7 @@ import {
   Calendar, ChevronDown, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { buildHtmlHeader } from '@/src/lib/report-header'
 import { useLog } from '@/src/hooks/activities/use-logbook'
 import {
   useTechnicalReports,
@@ -272,13 +273,13 @@ export function buildPdfBody(
     </tr>
   `}).join('')
 
-  return `
-  <h1>Informe Tecnico Semanal</h1>
-  <p class="sub">
-    Planta: <strong>${fieldName}</strong> &nbsp;&middot;&nbsp;
-    Cuadrilla: <strong>${crewName}</strong> &nbsp;&middot;&nbsp;
-    Semana <strong>${weekNumber}</strong> &middot; <strong>${year}</strong>
-  </p>
+  const header = buildHtmlHeader({
+    title:    'Informe Tecnico Semanal',
+    subtitle: `Planta: <strong>${fieldName}</strong> &nbsp;&middot;&nbsp; Cuadrilla: <strong>${crewName}</strong>`,
+    extra:    `Semana <strong>${weekNumber}</strong> &middot; <strong>${year}</strong>`,
+  })
+
+  return `${header}
   ${statsHtml}
   <table>
     <thead>
@@ -297,28 +298,28 @@ export function buildPdfBody(
   ${buildGanttHtml(activities, forms, weekNumber)}`
 }
 
-export const PDF_STYLES = `
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { font-family: Arial, sans-serif; margin: 0; padding: 24px; color: #111; }
-  h1   { font-size: 20px; margin-bottom: 4px; color: #1a3a3a; }
-  .sub { font-size: 13px; color: #555; margin-bottom: 20px; }
-  table  { width:100%; border-collapse:collapse; margin-top:20px; }
-  thead tr { background:#1a3a3a; color:#fff; }
-  thead th { padding:10px; font-size:12px; text-align:left; }
-  .page-break { page-break-after: always; }
-`
+export async function downloadPdfFromHtml(bodyHtml: string, filename: string): Promise<void> {
+  const style = document.createElement('style')
+  style.textContent = [
+    'table{width:100%;border-collapse:collapse;margin-top:20px;}',
+    'thead tr{background:#1a3a3a!important;color:#fff!important;}',
+    'thead th{padding:10px;font-size:12px;text-align:left;}',
+    '.page-break{page-break-after:always;}',
+  ].join('')
+  document.head.appendChild(style)
 
-export function openPrintWindow(bodyHtml: string, title: string, styles: string = PDF_STYLES): void {
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-  <title>${title}</title>
-  <style>${styles}</style></head><body>
-  ${bodyHtml}
-  </body></html>`
-  const win = window.open('', '_blank')
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  setTimeout(() => win.print(), 400)
+  const html = `<div style="font-family:Arial,sans-serif;padding:24px;color:#111;background:#fff;">${bodyHtml}</div>`
+  const { default: html2pdf } = await import('html2pdf.js')
+  try {
+    await html2pdf().set({
+      margin: 10,
+      filename,
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }).from(html).save()
+  } finally {
+    document.head.removeChild(style)
+  }
 }
 
 export function ReportGenerate({ logId, crewId, fieldName = '', onBack }: Props) {
@@ -333,12 +334,13 @@ export function ReportGenerate({ logId, crewId, fieldName = '', onBack }: Props)
   const createReport = useCreateTechnicalReport()
   const updateReport = useUpdateTechnicalReport()
 
-  const [reportId,    setReportId]    = useState<string | null>(null)
-  const [forms,       setForms]       = useState<ActivityForms>({})
-  const [saved,       setSaved]       = useState(false)
-  const [saving,      setSaving]      = useState(false)
-  const [generating,  setGenerating]  = useState(false)
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [reportId,      setReportId]      = useState<string | null>(null)
+  const [forms,         setForms]         = useState<ActivityForms>({})
+  const [saved,         setSaved]         = useState(false)
+  const [saving,        setSaving]        = useState(false)
+  const [generating,    setGenerating]    = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [expandedIds,   setExpandedIds]   = useState<Set<string>>(new Set())
   const initialized = useRef(false)
 
   useEffect(() => {
@@ -439,17 +441,30 @@ export function ReportGenerate({ logId, crewId, fieldName = '', onBack }: Props)
     setSaving(false)
   }
 
-  function handlePdf() {
+  async function handlePdf() {
     if (!log) return
-    const body = buildPdfBody(
-      log.crew.name,
-      log.week_number,
-      log.year,
-      fieldName || log.crew.field?.name || '',
-      log.activities ?? [],
-      forms,
-    )
-    openPrintWindow(body, `Informe Tecnico - ${log.crew.name} - Semana ${log.week_number}`)
+    setDownloadingPdf(true)
+    try {
+      const body = buildPdfBody(
+        log.crew.name,
+        log.week_number,
+        log.year,
+        fieldName || log.crew.field?.name || '',
+        log.activities ?? [],
+        forms,
+      )
+      await downloadPdfFromHtml(body, `Informe_Tecnico_${log.crew.name}_Semana${log.week_number}.pdf`)
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
+
+  async function handleGmail() {
+    if (!log) return
+    await handlePdf()
+    const sub  = encodeURIComponent(`Informe Tecnico Semanal - ${log.crew.name} - Semana ${log.week_number} ${log.year}`)
+    const body = encodeURIComponent(`Adjunto informe tecnico semanal de la cuadrilla ${log.crew.name}, semana ${log.week_number} del ${log.year}.`)
+    window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&su=${sub}&body=${body}`, '_blank')
   }
 
   const isLoading  = loadingLog || loadingReports
@@ -520,17 +535,20 @@ export function ReportGenerate({ logId, crewId, fieldName = '', onBack }: Props)
             <>
               <button
                 onClick={handlePdf}
+                disabled={downloadingPdf}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
-                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)', border: '1px solid var(--color-border)' }}
+                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)', border: '1px solid var(--color-border)', opacity: downloadingPdf ? 0.6 : 1 }}
               >
-                <FileDown size={13} /> Exportar PDF
+                {downloadingPdf ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
+                {downloadingPdf ? 'Generando...' : 'Exportar PDF'}
               </button>
               <button
-                onClick={() => toast.info('Envio por correo: funcionalidad pendiente de configurar en el servidor')}
+                onClick={handleGmail}
+                disabled={downloadingPdf}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
-                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)', border: '1px solid var(--color-border)' }}
+                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)', border: '1px solid var(--color-border)', opacity: downloadingPdf ? 0.6 : 1 }}
               >
-                <Mail size={13} /> Enviar por correo
+                <Mail size={13} /> Enviar Gmail
               </button>
             </>
           )}

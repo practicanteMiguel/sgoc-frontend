@@ -12,8 +12,9 @@ import { useLogs, useCreateLog } from '@/src/hooks/activities/use-logbook'
 import { useTechnicalReports } from '@/src/hooks/activities/use-technical-reports'
 import { CrewModal } from './crew-modal'
 import { LogbookDetail } from './logbook-detail'
-import { ReportGenerate, buildPdfBody, openPrintWindow, PDF_STYLES } from './report-generate'
+import { ReportGenerate, buildPdfBody, downloadPdfFromHtml } from './report-generate'
 import type { ActivityForms } from './report-generate'
+import { fetchLogoBase64, fetchLogoBuffer } from '@/src/lib/report-header'
 import type { Crew, WeeklyLog, WeeklyLogSummary, TechnicalReport } from '@/src/types/activities.types'
 
 type SubTab = 'cuadrillas' | 'bitacoras' | 'informes'
@@ -67,17 +68,19 @@ async function generateWeekExcel(
   setExporting(true)
   try {
     const { api } = await import('@/src/lib/axios')
-    const fullLogs = await Promise.all(
-      logSummaries.map((s) => api.get<WeeklyLog>(`/logbook/${s.id}`).then((r) => r.data)),
-    )
+    const [fullLogs, logoLeftBuf, logoRightBuf] = await Promise.all([
+      Promise.all(logSummaries.map((s) => api.get<WeeklyLog>(`/logbook/${s.id}`).then((r) => r.data))),
+      fetchLogoBuffer('/assets/logo-full.png'),
+      fetchLogoBuffer('/assets/Logo_Ecopetrol.png'),
+    ])
 
     const ExcelJSModule = await import('exceljs')
     const ExcelJS = (ExcelJSModule as any).default ?? ExcelJSModule
     const wb = new ExcelJS.Workbook()
 
-    const HEADERS    = ['Descripción de Actividad', 'Fecha', 'Antes', 'Durante', 'Después', 'Comentarios/Observaciones']
+    const HEADERS    = ['Descripcion de Actividad', 'Fecha', 'Antes', 'Durante', 'Despues', 'Comentarios/Observaciones']
     const COL_WIDTHS = [35, 15, 43, 43, 43, 28]
-    const IMG_COLS   = [2, 3, 4] // 0-indexed col positions (C, D, E)
+    const IMG_COLS   = [2, 3, 4]
     const ROW_H      = 160
 
     const borderSide = { style: 'thin' } as const
@@ -87,18 +90,45 @@ async function generateWeekExcel(
       if (!log?.activities?.length) continue
 
       const ws = wb.addWorksheet(log.crew.name.slice(0, 31))
-      ws.columns = HEADERS.map((header, i) => ({ header, width: COL_WIDTHS[i] }))
+      ws.columns = COL_WIDTHS.map((width) => ({ width }))
 
-      const headerRow = ws.getRow(1)
-      headerRow.height = 28
-      headerRow.eachCell((cell: any) => {
+      // Row 1: logo header
+      ws.getRow(1).height = 68
+      ws.mergeCells('B1:E1')
+      const titleCell = ws.getCell('B1')
+      titleCell.value     = `SERVICIOS ASOCIADOS SAS.\nCampo: ${fieldName}  |  Cuadrilla: ${log.crew.name}  |  Semana ${weekNumber}`
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+      titleCell.font      = { bold: true, size: 10 }
+
+      if (logoLeftBuf) {
+        const id = wb.addImage({ buffer: logoLeftBuf, extension: 'png' })
+        ws.addImage(id, { tl: { col: 0.05, row: 0.05 }, br: { col: 1.1, row: 0.9 } })
+      }
+      if (logoRightBuf) {
+        const id = wb.addImage({ buffer: logoRightBuf, extension: 'png' })
+        ws.addImage(id, { tl: { col: 4.9, row: 0.05 }, br: { col: 5.95, row: 0.9 } })
+      }
+
+      // Row 2: blue separator
+      ws.getRow(2).height = 4
+      for (let c = 1; c <= 6; c++) {
+        ws.getCell(2, c).border = { bottom: { style: 'medium', color: { argb: 'FF1E4A8A' } } }
+      }
+
+      // Row 3: column headers
+      const colHeaderRow = ws.getRow(3)
+      colHeaderRow.height = 28
+      HEADERS.forEach((h, i) => {
+        const cell     = colHeaderRow.getCell(i + 1)
+        cell.value     = h
         cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } }
         cell.font      = { bold: true, size: 10, color: { argb: 'FF000000' } }
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
         cell.border    = allBorders
       })
 
-      let rowIdx = 2
+      // Data rows start at row 4
+      let rowIdx = 4
       for (const act of log.activities) {
         const row  = ws.getRow(rowIdx)
         row.height = ROW_H
@@ -128,7 +158,7 @@ async function generateWeekExcel(
               tl: { col: IMG_COLS[i] + 0.05, row: rowIdx - 1 + 0.05 },
               br: { col: IMG_COLS[i] + 1, row: rowIdx - 1 + 0.95 },
             })
-          } catch { /* CORS o error de red - se omite la imagen */ }
+          } catch { /* CORS o error de red - se omite */ }
         }
 
         rowIdx++
@@ -148,8 +178,7 @@ async function generateWeekExcel(
   }
 }
 
-function generateMonthlyDoc(selectedReports: TechnicalReport[], fieldName: string, crewsMap: Map<string, Crew>) {
-  // Determine dominant month from the weeks covered by selected reports
+async function generateMonthlyDoc(selectedReports: TechnicalReport[], fieldName: string, crewsMap: Map<string, Crew>) {
   const weekNums = selectedReports.map((r) => r.weekly_log?.week_number).filter(Boolean) as number[]
   const monthMap = new Map<string, { count: number; name: string; year: number }>()
   for (const w of weekNums) {
@@ -166,10 +195,9 @@ function generateMonthlyDoc(selectedReports: TechnicalReport[], fieldName: strin
     if (v.count > maxCount) { maxCount = v.count; periodName = v.name; periodYear = v.year }
   }
 
-  const weeksLabel   = [...new Set(weekNums)].sort((a, b) => a - b).map((w) => `Sem. ${w}`).join(', ')
-  const fieldUpper   = fieldName.toUpperCase()
+  const weeksLabel = [...new Set(weekNums)].sort((a, b) => a - b).map((w) => `Sem. ${w}`).join(', ')
+  const fieldUpper = fieldName.toUpperCase()
 
-  // Split reports by crew type - use crewsMap for is_soldadura since API may not embed it
   const facilReports = selectedReports.filter((r) => !crewsMap.get(r.crew?.id ?? '')?.is_soldadura)
   const soldReports  = selectedReports.filter((r) => !!crewsMap.get(r.crew?.id ?? '')?.is_soldadura)
 
@@ -203,6 +231,23 @@ function generateMonthlyDoc(selectedReports: TechnicalReport[], fieldName: strin
     ? `CUADRILLA DE FACILIDADES ${fieldUpper}`
     : `CUADRILLA DE SOLDADURA ${fieldUpper}`
 
+  const [logoLeftB64, logoRightB64] = await Promise.all([
+    fetchLogoBase64('/assets/logo-full.png'),
+    fetchLogoBase64('/assets/Logo_Ecopetrol.png'),
+  ])
+
+  const logoHeader = `
+    <div style="display:flex;align-items:center;gap:16px;padding-bottom:12px;border-bottom:3px solid #1E4A8A;margin-bottom:20px;">
+      ${logoLeftB64  ? `<img src="${logoLeftB64}"  style="height:60px;object-fit:contain;flex-shrink:0;" />` : ''}
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:13pt;font-weight:bold;color:#111;">SERVICIOS ASOCIADOS SAS.</div>
+        <div style="font-size:11pt;font-weight:bold;color:#1E4A8A;margin:4pt 0;">${docTitle}</div>
+        <div style="font-size:10pt;color:#555;">${periodName} ${periodYear} &nbsp;&bull;&nbsp; ${weeksLabel} &nbsp;&bull;&nbsp; Campo: ${fieldUpper}</div>
+        <div style="font-size:10pt;color:#555;">Fecha: ${new Date().toLocaleDateString('es-CO')}</div>
+      </div>
+      ${logoRightB64 ? `<img src="${logoRightB64}" style="height:60px;object-fit:contain;flex-shrink:0;" />` : ''}
+    </div>`
+
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
     xmlns:w="urn:schemas-microsoft-com:office:word"
     xmlns="http://www.w3.org/TR/REC-html40">
@@ -214,6 +259,7 @@ function generateMonthlyDoc(selectedReports: TechnicalReport[], fieldName: strin
     </style>
     </head>
     <body>
+      ${logoHeader}
       ${facilSection}
       ${soldSection}
     </body>
@@ -408,14 +454,14 @@ export function SupervisorActivitiesView() {
     })
   }
 
-  function handleGenerateMonthly() {
+  async function handleGenerateMonthly() {
     const selected = visibleReports.filter((r) => selectedReportIds.has(r.id))
     if (selected.length === 0) return
     const crewsMap = new Map(crews.map((c) => [c.id, c]))
-    generateMonthlyDoc(selected, field?.name ?? '', crewsMap)
+    await generateMonthlyDoc(selected, field?.name ?? '', crewsMap)
   }
 
-  function handleGenerateGeneralizado() {
+  async function handleGenerateGeneralizado() {
     if (visibleReports.length === 0) return
     const sections = visibleReports.map((report) => {
       const acts = report.weekly_log?.activities ?? []
@@ -438,7 +484,7 @@ export function SupervisorActivitiesView() {
       )
     })
     const body = sections.join('<div class="page-break"></div>')
-    openPrintWindow(body, `Informe Generalizado - Semana ${reportWeekFilters[0]}`, PDF_STYLES)
+    await downloadPdfFromHtml(body, `Informe_Generalizado_Semana_${reportWeekFilters[0]}.pdf`)
   }
 
   function handleDeleteCrew(crew: Crew) {

@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
-import { Plus, Calendar, FileText, Loader2, ChevronRight, ChevronLeft, Trash2, Map, List } from 'lucide-react'
+import { Plus, Calendar, FileText, Loader2, ChevronRight, ChevronLeft, Trash2, Map, List, FileDown, Mail, Square, CheckSquare } from 'lucide-react'
 import { useAuthStore } from '@/src/stores/auth.store'
 import { useViaLogs, useCreateViaLog, useDeleteViaLog } from '@/src/hooks/vias/use-via-logs'
 import { useViaReports, useDeleteViaReport } from '@/src/hooks/vias/use-via-reports'
@@ -120,7 +120,10 @@ export function SupervisorViasView() {
   const [filterYear,        setFilterYear]        = useState(NOW.getFullYear())
   const [selectedReportId,  setSelectedReportId]  = useState<string | null>(null)
   const [rightView,         setRightView]         = useState<'map' | 'list'>('map')
-  const [deletingReportId,  setDeletingReportId]  = useState<string | null>(null)
+  const [deletingReportId,     setDeletingReportId]     = useState<string | null>(null)
+  const [downloadingWord,      setDownloadingWord]      = useState(false)
+  // null = all reports selected; Set = only those IDs selected
+  const [selectedViaIds,       setSelectedViaIds]       = useState<Set<string> | null>(null)
 
   // Queries
   const { data: logsData,    isLoading: loadingLogs    } = useViaLogs(fieldId ? { field_id: fieldId } : undefined)
@@ -137,6 +140,39 @@ export function SupervisorViasView() {
   const logs            = logsData?.data    ?? []
   const reports         = reportsData?.data ?? []
   const filteredReports = filteredData?.data ?? []
+
+  const fieldName = filteredReports[0]?.monthly_log?.field?.name ?? logsData?.data[0]?.field?.name ?? 'Campo'
+
+  async function handleDownloadWord() {
+    if (reportsToDownload.length === 0) return
+    setDownloadingWord(true)
+    try {
+      const { generateViaWord } = await import('@/src/lib/generate-via-word')
+      const blob = await generateViaWord(reportsToDownload, filterMonth, filterYear, fieldName)
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `Informe_Vias_${MONTHS[filterMonth - 1]}_${filterYear}.docx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloadingWord(false)
+    }
+  }
+
+  async function handleGmailVia() {
+    if (reportsToDownload.length === 0) return
+    setDownloadingWord(true)
+    try {
+      const { downloadViaPdf } = await import('@/src/lib/generate-via-pdf')
+      await downloadViaPdf(reportsToDownload, filterMonth, filterYear, fieldName)
+      const sub  = encodeURIComponent(`Informe Estado de Vias - ${fieldName} - ${MONTHS[filterMonth - 1]} ${filterYear}`)
+      const body = encodeURIComponent(`Adjunto informe de seguimiento al estado de vias de acceso, periodo ${MONTHS[filterMonth - 1]} ${filterYear}. Campo: ${fieldName}.`)
+      window.open(`https://mail.google.com/mail/u/0/?view=cm&fs=1&su=${sub}&body=${body}`, '_blank')
+    } finally {
+      setDownloadingWord(false)
+    }
+  }
 
   const reportedLogIds = new Set(reports.map((r) => r.monthly_log?.id))
   const monthlyReportedLogIds = new Set(
@@ -158,14 +194,38 @@ export function SupervisorViasView() {
 
   function prevFilterMonth() {
     setSelectedReportId(null)
+    setSelectedViaIds(null)
     if (filterMonth === 1) { setFilterMonth(12); setFilterYear((y) => y - 1) }
     else setFilterMonth((m) => m - 1)
   }
   function nextFilterMonth() {
     setSelectedReportId(null)
+    setSelectedViaIds(null)
     if (filterMonth === 12) { setFilterMonth(1); setFilterYear((y) => y + 1) }
     else setFilterMonth((m) => m + 1)
   }
+
+  function isViaChecked(id: string) {
+    return selectedViaIds === null || selectedViaIds.has(id)
+  }
+
+  function toggleViaId(id: string) {
+    if (selectedViaIds === null) {
+      const next = new Set(filteredReports.map((r) => r.id))
+      next.delete(id)
+      setSelectedViaIds(next.size > 0 ? next : new Set())
+    } else {
+      const next = new Set(selectedViaIds)
+      next.has(id) ? next.delete(id) : next.add(id)
+      setSelectedViaIds(next.size === filteredReports.length ? null : next)
+    }
+  }
+
+  const reportsToDownload = selectedViaIds === null
+    ? filteredReports
+    : filteredReports.filter((r) => selectedViaIds.has(r.id))
+
+  const allViaChecked = selectedViaIds === null
 
   // ── Drill views ──
   if (drillView?.type === 'log') {
@@ -333,32 +393,93 @@ export function SupervisorViasView() {
       {/* ── INFORMES TAB ── */}
       {subTab === 'informes' && (
         <div className="flex flex-col gap-4">
-          {/* Month navigator */}
-          <div
-            className="flex items-center gap-1 rounded-xl p-1 w-fit"
-            style={{ background: 'var(--color-surface-2)' }}
-          >
-            <button
-              onClick={prevFilterMonth}
-              className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
-              style={{ color: 'var(--color-text-600)' }}
+          {/* Month navigator + download */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div
+              className="flex items-center gap-1 rounded-xl p-1"
+              style={{ background: 'var(--color-surface-2)' }}
             >
-              <ChevronLeft size={16} />
-            </button>
-            <span
-              className="px-3 py-1.5 rounded-lg text-sm font-semibold min-w-36 text-center"
-              style={{ background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
-            >
-              {MONTHS[filterMonth - 1]} {filterYear}
-            </span>
-            <button
-              onClick={nextFilterMonth}
-              className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
-              style={{ color: 'var(--color-text-600)' }}
-            >
-              <ChevronRight size={16} />
-            </button>
+              <button
+                onClick={prevFilterMonth}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-text-600)' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold min-w-36 text-center"
+                style={{ background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
+              >
+                {MONTHS[filterMonth - 1]} {filterYear}
+              </span>
+              <button
+                onClick={nextFilterMonth}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-text-600)' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {filteredReports.length > 0 && (
+              <>
+                <button
+                  onClick={handleDownloadWord}
+                  disabled={downloadingWord || reportsToDownload.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{
+                    background: 'var(--color-primary)',
+                    color: '#fff',
+                    opacity: (downloadingWord || reportsToDownload.length === 0) ? 0.5 : 1,
+                  }}
+                >
+                  {downloadingWord
+                    ? <Loader2 size={13} className="animate-spin" />
+                    : <FileDown size={13} />}
+                  {downloadingWord
+                    ? 'Generando...'
+                    : reportsToDownload.length < filteredReports.length
+                      ? `Descargar informe (${reportsToDownload.length})`
+                      : 'Descargar informe'}
+                </button>
+
+                <button
+                  onClick={handleGmailVia}
+                  disabled={downloadingWord || reportsToDownload.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{
+                    background: 'var(--color-surface-1)',
+                    color: 'var(--color-text-700)',
+                    border: '1px solid var(--color-border)',
+                    opacity: (downloadingWord || reportsToDownload.length === 0) ? 0.5 : 1,
+                  }}
+                >
+                  <Mail size={13} /> Enviar Gmail
+                </button>
+              </>
+            )}
           </div>
+
+          {/* Selection banner - only when multiple reports */}
+          {filteredReports.length > 1 && (
+            <div
+              className="flex items-center gap-3 px-3 py-2 rounded-xl flex-wrap"
+              style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}
+            >
+              <span className="text-xs" style={{ color: 'var(--color-text-500)' }}>
+                {reportsToDownload.length} de {filteredReports.length} informes seleccionados
+              </span>
+              <button
+                onClick={() => setSelectedViaIds(allViaChecked ? new Set() : null)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)', border: '1px solid var(--color-border)' }}
+              >
+                {allViaChecked
+                  ? <><Square size={11} /> Deseleccionar todos</>
+                  : <><CheckSquare size={11} /> Seleccionar todos</>}
+              </button>
+            </div>
+          )}
 
           {/* Split layout */}
           <div className="flex flex-col sm:flex-row gap-4 items-start">
@@ -399,12 +520,28 @@ export function SupervisorViasView() {
                     >
                       {/* Card header */}
                       <div className="flex items-center justify-between gap-2">
-                        <span
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
-                          style={{ background: accent.bg, color: accent.label, border: `1px solid ${accent.border}` }}
-                        >
-                          {report.type === 'mensual' ? 'Mensual' : 'Urgente'}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleViaId(report.id) }}
+                            className="w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all"
+                            style={{
+                              background: isViaChecked(report.id) ? 'var(--color-primary)' : 'transparent',
+                              border: `1.5px solid ${isViaChecked(report.id) ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                            }}
+                          >
+                            {isViaChecked(report.id) && (
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </button>
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                            style={{ background: accent.bg, color: accent.label, border: `1px solid ${accent.border}` }}
+                          >
+                            {report.type === 'mensual' ? 'Mensual' : 'Urgente'}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             title="Ver informe completo"
