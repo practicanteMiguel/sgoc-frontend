@@ -53,54 +53,16 @@ function GridLayer({
             className="border-[0.5px] transition-all duration-160"
             style={{
               borderColor: "var(--color-border)",
-              background: w > 0 ? `rgba(232,99,10,${w * 0.08})` : "transparent",
+              background: w > 0 ? `rgba(196,152,0,${w * 0.09})` : "transparent",
               transform: w > 0 ? `scale(${1 + w * 0.05})` : "scale(1)",
               boxShadow:
                 w > 0
-                  ? `0 0 ${w * 18}px rgba(232,99,10,${w * 0.45}),inset 0 0 ${w * 8}px rgba(232,99,10,${w * 0.1})`
+                  ? `0 0 ${w * 18}px rgba(196,152,0,${w * 0.45}),inset 0 0 ${w * 8}px rgba(196,152,0,${w * 0.1})`
                   : "none",
             }}
           />
         );
       })}
-    </div>
-  );
-}
-
-/* ── Logo ─────────────────────────────────────────────────── */
-function Logo({ size = 36 }: { size?: number }) {
-  return (
-    <div
-      className="rounded-lg shrink-0 flex items-center justify-center"
-      style={{ width: size, height: size, background: "var(--color-brand)" }}
-    >
-      <svg
-        width={size * 0.5}
-        height={size * 0.5}
-        viewBox="0 0 18 18"
-        fill="none"
-      >
-        <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white" />
-        <rect
-          x="10"
-          y="2"
-          width="6"
-          height="6"
-          rx="1.5"
-          fill="white"
-          fillOpacity="0.5"
-        />
-        <rect
-          x="2"
-          y="10"
-          width="6"
-          height="6"
-          rx="1.5"
-          fill="white"
-          fillOpacity="0.5"
-        />
-        <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" />
-      </svg>
     </div>
   );
 }
@@ -175,7 +137,7 @@ export function LoginForm() {
         ref={leftPanelRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setMousePos(null)}
-        className="relative grid justify-between items-center p-12  xl:w-1/2 "
+        className="relative flex flex-col items-center justify-center lg:grid lg:justify-between lg:items-center p-6 sm:p-10 lg:p-12 xl:w-1/2"
         style={{
           background: "var(--color-surface-1)",
         }}
@@ -203,22 +165,49 @@ export function LoginForm() {
         />
 
         {/* ── Contenido — pointer-events-none para no romper grid ── */}
-        <div className="relative pointer-events-none  " style={{ zIndex: 2 }}>
-          {/* Logo */}
-          <div className="flex items-center gap-3 mb-6 lg:mb-0 animate-slide-left pointer-events-auto ">
-            <Logo size={32} />
-            <span
-              className="text-[0.65rem] font-mono uppercase tracking-[0.18em]"
-              style={{ color: "var(--color-text-400)" }}
+        <div className="relative pointer-events-none" style={{ zIndex: 2 }}>
+          {/* Logos */}
+          <div className="flex items-center gap-4 mb-6 lg:mb-0 animate-slide-left pointer-events-auto">
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: "10px",
+                padding: "7px 12px",
+                boxShadow: "0 3px 12px rgba(13,59,88,0.20)",
+                flexShrink: 0,
+              }}
             >
-              Gestión Operativa
-            </span>
+              <img
+                src="/assets/logo-full.png"
+                alt="Servicios Asociados SAS"
+                style={{ height: "54px", width: "auto", objectFit: "contain", display: "block" }}
+              />
+            </div>
+            <div
+              className="shrink-0"
+              style={{ width: "1px", height: "40px", background: "var(--color-border)" }}
+            />
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: "8px",
+                padding: "6px 10px",
+                boxShadow: "0 3px 12px rgba(13,59,88,0.20)",
+                flexShrink: 0,
+              }}
+            >
+              <img
+                src="/assets/Logo_Ecopetrol.png"
+                alt="Ecopetrol"
+                style={{ height: "42px", width: "auto", objectFit: "contain", display: "block" }}
+              />
+            </div>
           </div>
         </div>
 
         {/* Copy central — solo en desktop ocupa espacio vertical propio */}
-        <div className="relative stagger  " style={{ zIndex: 2 }}>
-          <div className="pointer-events-none">
+        <div className="relative stagger" style={{ zIndex: 2 }}>
+          <div className="pointer-events-none  lg:text-left">
             {/* Badge */}
             <div className="flex items-center gap-2 mb-4 animate-fade-in">
               <span

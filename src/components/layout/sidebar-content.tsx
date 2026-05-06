@@ -4,6 +4,7 @@ import { useAuthStore } from "@/src/stores/auth.store";
 import { MODULE_CONFIG } from "@/src/config/modules.config";
 import { Loader2 } from "lucide-react";
 import { getInitials, ROLE_LABELS } from "@/src/lib/utils";
+
 export default function SidebarContent({
   collapsed,
   onNavigate,
@@ -22,22 +23,30 @@ export default function SidebarContent({
     <>
       {/* Logo */}
       <div
-        className="flex items-center h-14 px-4 gap-3 shrink-0"
+        className="flex items-center h-14 px-3 gap-2.5 shrink-0"
         style={{ borderBottom: "1px solid var(--sidebar-border)" }}
       >
         <div
-          className="w-7 h-7 rounded flex items-center justify-center font-display font-bold text-sm shrink-0"
-          style={{ background: "var(--sidebar-active-bg)", color: "#fff" }}
+          className="w-8 h-8 rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
+          style={{ background: "#fff", padding: "2px", flexShrink: 0 }}
         >
-          G
+          <img src="/assets/logo-icon.png" alt="SAS" className="w-full h-full object-contain" />
         </div>
         {!collapsed && (
-          <span
-            className="font-display text-sm tracking-widest uppercase truncate"
-            style={{ color: "var(--sidebar-logo-text)" }}
-          >
-            Gestión Op.
-          </span>
+          <div className="min-w-0">
+            <p
+              className="font-display font-bold text-xs tracking-widest uppercase truncate leading-tight"
+              style={{ color: "var(--sidebar-logo-text)" }}
+            >
+              SGOC
+            </p>
+            <p
+              className="text-[9px] font-mono truncate leading-tight mt-0.5"
+              style={{ color: "var(--sidebar-text-muted)" }}
+            >
+              Gest. Operativa Contrato
+            </p>
+          </div>
         )}
       </div>
 
@@ -85,6 +94,41 @@ export default function SidebarContent({
           </p>
         )}
       </nav>
+
+      {/* Alianza Ecopetrol */}
+      <div
+        className="px-3 py-2 shrink-0"
+        style={{ borderTop: "1px solid var(--sidebar-border)" }}
+      >
+        <div
+          className="flex items-center gap-2 rounded-lg px-2 py-1.5"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        >
+          {!collapsed && (
+            <span
+              className="text-[9px] font-mono uppercase tracking-widest shrink-0"
+              style={{ color: "var(--sidebar-text-muted)" }}
+            >
+              Alianza
+            </span>
+          )}
+          <div
+            className="rounded overflow-hidden shrink-0"
+            style={{ background: "#fff", padding: "2px 4px" }}
+          >
+            <img
+              src="/assets/Logo_Ecopetrol.png"
+              alt="Ecopetrol"
+              style={{
+                height: collapsed ? "18px" : "16px",
+                width: "auto",
+                objectFit: "contain",
+                display: "block",
+              }}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Usuario */}
       {user && (

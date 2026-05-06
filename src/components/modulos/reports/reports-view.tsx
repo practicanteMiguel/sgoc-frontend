@@ -32,16 +32,16 @@ export function ReportsView() {
   if (user?.roles?.includes('coordinator') || user?.roles?.includes('module_manager') || user?.roles?.includes('admin')) {
     return (
       <>
-        <div className="max-w-8xl px-6 sm:px-10 pt-6 sm:pt-8 mx-auto">
+        <div className="max-w-8xl px-4 sm:px-10 pt-6 sm:pt-8 mx-auto">
           <div
-            className="flex items-center gap-1 rounded-xl p-1 w-fit"
-            style={{ background: 'var(--color-surface-2)' }}
+            className="flex items-center gap-1 rounded-xl p-1 overflow-x-auto"
+            style={{ background: 'var(--color-surface-2)', scrollbarWidth: 'none' }}
           >
             {(['empleados', 'evidencias', 'actividades', 'vias'] as CoordTab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                className="px-4 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0"
                 style={{
                   background: tab === t ? 'var(--color-surface-0)' : 'transparent',
                   color:      tab === t ? 'var(--color-text-900)' : 'var(--color-text-400)',

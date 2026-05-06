@@ -78,7 +78,7 @@ export function UsersView() {
                 ? {
                     background: 'var(--color-surface-0)',
                     color:      'var(--color-secundary)',
-                    boxShadow:  '0 1px 4px rgba(7,44,44,0.12)',
+                    boxShadow:  '0 1px 4px rgba(13,59,88,0.12)',
                   }
                 : { color: 'var(--color-text-400)' }
             }

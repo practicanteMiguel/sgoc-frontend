@@ -554,12 +554,12 @@ export function ReportsDashboardPanel() {
                         }}
                         connectNulls={false}
                       />
-                      <Line type="monotone" dataKey="proyeccion" name="Proyeccion" stroke="rgba(255,95,3,0.4)" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
+                      <Line type="monotone" dataKey="proyeccion" name="Proyeccion" stroke="rgba(196,152,0,0.4)" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
                     </LineChart>
                   </ResponsiveContainer>
                   <div className="flex items-center gap-4 mt-2 px-1">
                     <LDot color="var(--color-secondary)" label="Promedio real" />
-                    <LDot color="rgba(255,95,3,0.5)" label="Proyeccion" dashed />
+                    <LDot color="rgba(196,152,0,0.5)" label="Proyeccion" dashed />
                     <div className="ml-auto flex items-center gap-3">
                       <LLine color="rgba(22,163,74,0.4)" label="90%" />
                       <LLine color="rgba(202,138,4,0.4)" label="70%" />

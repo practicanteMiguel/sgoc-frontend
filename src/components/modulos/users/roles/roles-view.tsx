@@ -16,7 +16,7 @@ const ROLE_ICONS: Record<string, any> = {
 const ROLE_COLORS: Record<string, { bg: string; color: string; border: string }> = {
   admin:          { bg: 'var(--color-danger-bg)',   color: 'var(--color-danger)',   border: 'rgba(220,38,38,0.2)'   },
   coordinator:    { bg: 'var(--color-info-bg)',     color: 'var(--color-info)',     border: 'rgba(29,78,216,0.2)'   },
-  module_manager: { bg: 'var(--color-secondary-muted)', color: 'var(--color-secondary)', border: 'rgba(255,95,3,0.2)'    },
+  module_manager: { bg: 'var(--color-secondary-muted)', color: 'var(--color-secondary)', border: 'rgba(196,152,0,0.2)'    },
   supervisor:     { bg: 'var(--color-success-bg)',   color: 'var(--color-success)',   border: 'rgba(22,163,74,0.2)'  },
 };
 

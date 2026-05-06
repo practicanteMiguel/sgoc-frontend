@@ -150,7 +150,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               style={{
                 background: "var(--color-surface-0)",
                 border: "1px solid var(--color-border)",
-                boxShadow: "0 8px 32px rgba(7,44,44,0.12)",
+                boxShadow: "0 8px 32px rgba(13,59,88,0.14)",
               }}
             >
               <div

@@ -78,7 +78,7 @@ export function UsersTable({ users, onEdit, onResetPass, onManageAccess }: Users
                         style={{
                           background: 'var(--color-secondary-muted)',
                           color:      'var(--color-secundary)',
-                          border:     '1px solid rgba(7,44,44,0.15)',
+                          border:     '1px solid rgba(13,59,88,0.15)',
                         }}
                       >
                         {roleLabel}

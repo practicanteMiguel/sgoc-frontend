@@ -405,7 +405,7 @@ export function ContractView({ canManage, isAdmin }: ContractViewProps) {
                               style={{
                                 background: 'var(--color-secondary-muted)',
                                 color:      'var(--color-secundary)',
-                                border:     '1px solid rgba(7,44,44,0.12)',
+                                border:     '1px solid rgba(13,59,88,0.12)',
                               }}
                             >
                               {s}
@@ -464,7 +464,7 @@ export function ContractView({ canManage, isAdmin }: ContractViewProps) {
                           style={{
                             background: 'var(--color-secondary-muted)',
                             color:      'var(--color-secundary)',
-                            border:     '1px solid rgba(7,44,44,0.12)',
+                            border:     '1px solid rgba(13,59,88,0.12)',
                           }}
                         >
                           {s}
@@ -667,7 +667,7 @@ function EmployeeDetailModal({ employee, canManage, onClose }: DetailModalProps)
                           style={{
                             background: 'var(--color-secondary-muted)',
                             color:      'var(--color-secundary)',
-                            border:     '1px solid rgba(7,44,44,0.12)',
+                            border:     '1px solid rgba(13,59,88,0.12)',
                           }}
                         >
                           {s}

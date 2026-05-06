@@ -24,7 +24,7 @@ export function useField(id: string | null) {
 export function useCreateField() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; location: string }) =>
+    mutationFn: (data: { name: string; location: string; center_lat?: number | null; center_lng?: number | null }) =>
       api.post<Field>('/fields', data).then((r) => r.data),
     onSuccess: (field) => {
       qc.invalidateQueries({ queryKey: ['fields'] });
@@ -40,7 +40,7 @@ export function useCreateField() {
 export function useUpdateField() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name?: string; location?: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; name?: string; location?: string; center_lat?: number | null; center_lng?: number | null }) =>
       api.patch<Field>(`/fields/${id}`, data).then((r) => r.data),
     onSuccess: (field) => {
       qc.invalidateQueries({ queryKey: ['fields'] });

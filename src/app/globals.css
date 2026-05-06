@@ -4,27 +4,33 @@
 
 
 @theme {
-  /* ── Tipografía Flowloop ─────────────────────────────────────── */
+  /* ── Tipografía ──────────────────────────────────────────────── */
   --font-sans:    'Ubuntu', sans-serif;
   --font-display: 'Oswald', sans-serif;
   --font-mono:    'Ubuntu Mono', monospace;
 
-  /* ── Colores primarios Flowloop ──────────────────────────────── */
-  --color-primary:         #072C2C;   /* deep teal — base de marca */
-  --color-primary-hover:   #0A3D3D;
-  --color-primary-light:   #0F5252;
-  --color-primary-muted:   rgba(7, 44, 44, 0.08);
+  /* ── Primario: azul marino SAS ───────────────────────────────── */
+  --color-primary:         #0D3B58;
+  --color-primary-hover:   #0A4E72;
+  --color-primary-light:   #1A6B8A;
+  --color-primary-muted:   rgba(13, 59, 88, 0.08);
 
-  --color-secondary:       #FF5F03;   /* naranja acento */
-  --color-secondary-hover: #E55200;
-  --color-secondary-muted: rgba(255, 95, 3, 0.10);
+  /* ── Acento: oro Ecopetrol ───────────────────────────────────── */
+  --color-secondary:       #C49800;
+  --color-secondary-hover: #9E7A00;
+  --color-secondary-muted: rgba(196, 152, 0, 0.12);
 
-  /* ── Superficie ──────────────────────────────────────────────── */
-  --color-surface:         #EDEADE;   /* cream — fondo global */
+  --color-brand:       #C49800;
+  --color-brand-light: #E8B400;
+  --color-brand-dark:  #9E7A00;
+  --color-brand-muted: rgba(196, 152, 0, 0.12);
+
+  /* ── Superficie: azul-gris (en vez de crema) ─────────────────── */
+  --color-surface:         #F0F4F8;
   --color-surface-0:       #FFFFFF;
-  --color-surface-1:       #F5F4EE;
-  --color-surface-2:       #EDEADE;
-  --color-surface-3:       #E0DFD7;
+  --color-surface-1:       #F0F4F8;
+  --color-surface-2:       #E4EAF2;
+  --color-surface-3:       #D4DCE8;
 
   /* ── Texto ───────────────────────────────────────────────────── */
   --color-text-900:        #111827;
@@ -33,8 +39,8 @@
   --color-text-200:        #9CA3AF;
 
   /* ── Bordes ──────────────────────────────────────────────────── */
-  --color-border:          #D1CFC5;
-  --color-border-strong:   #A09D92;
+  --color-border:          #C0CBDA;
+  --color-border-strong:   #8898B0;
 
   /* ── Semánticos ──────────────────────────────────────────────── */
   --color-success:         #16A34A;
@@ -43,70 +49,51 @@
   --color-warning-bg:      #FFFBEB;
   --color-danger:          #DC2626;
   --color-danger-bg:       #FEF2F2;
-  --color-info:            #1D4ED8;
+  --color-info:            #0A6E9A;
   --color-info-bg:         #EFF6FF;
 
-   --color-brand:       #FF5F03;   /* = var(--color-secondary) */
-  --color-brand-light: #FF7A2E;
-  --color-brand-dark:  #E55200;
-  --color-brand-muted: rgba(255, 95, 3, 0.10);
-
-    /* --color-primary-* → para sidebar y componentes que usan el teal    */
-  --color-primary:         #072C2C;
-  --color-primary-hover:   #0A3D3D;
-  --color-primary-light:   #0F5252;
-  --color-primary-muted:   rgba(7, 44, 44, 0.08);
-
-  --sidebar-bg:          #072C2C;
-  --sidebar-border:      rgba(255, 255, 255, 0.08);
-  --sidebar-text:        rgba(255, 255, 255, 0.75);
-  --sidebar-text-muted:  rgba(255, 255, 255, 0.45);
+  /* ── Sidebar (navy SAS + oro Ecopetrol) ──────────────────────── */
+  --sidebar-bg:          #0D3B58;
+  --sidebar-border:      rgba(255, 255, 255, 0.10);
+  --sidebar-text:        rgba(255, 255, 255, 0.82);
+  --sidebar-text-muted:  rgba(255, 255, 255, 0.42);
   --sidebar-hover-bg:    rgba(255, 255, 255, 0.08);
-  --sidebar-active-bg:   #FF5F03;
+  --sidebar-active-bg:   #C49800;
   --sidebar-active-text: #ffffff;
-  --sidebar-avatar-bg:   #FF5F03;
-  --sidebar-logo-text:   rgba(255, 255, 255, 0.70);
+  --sidebar-avatar-bg:   #C49800;
+  --sidebar-logo-text:   rgba(255, 255, 255, 0.72);
 }
 
-/* ── Dark mode — mantiene identidad Flowloop ────────────────────── */
+/* ── Dark mode ───────────────────────────────────────────────────── */
 .dark {
-  --color-surface:         #0A1A1A;
-  --color-surface-0:       #0D2020;
-  --color-surface-1:       #102828;
-  --color-surface-2:       #143333;
-  --color-surface-3:       #1A3E3E;
-  --color-text-900:        #F9FAFB;
-  --color-text-600:        #D1D5DB;
-  --color-text-400:        #9CA3AF;
-  --color-text-200:        #4B5563;
-  --color-border:          #1F3E3E;
-  --color-border-strong:   #2D5252;
-  --color-primary-muted:   rgba(7, 44, 44, 0.4);
-  --color-secondary-muted: rgba(255, 95, 3, 0.15);
+  --color-surface:         #07111C;
+  --color-surface-0:       #0A1A28;
+  --color-surface-1:       #0D2035;
+  --color-surface-2:       #112840;
+  --color-surface-3:       #173352;
+  --color-text-900:        #F0F4F8;
+  --color-text-600:        #C8D4E0;
+  --color-text-400:        #8898B0;
+  --color-text-200:        #445566;
+  --color-border:          #1A3550;
+  --color-border-strong:   #2A5070;
+  --color-primary-muted:   rgba(13, 59, 88, 0.40);
+  --color-secondary-muted: rgba(196, 152, 0, 0.18);
+  --color-brand-muted:     rgba(196, 152, 0, 0.15);
   --color-success-bg:      #052e16;
   --color-warning-bg:      #1c0f00;
   --color-danger-bg:       #1a0606;
-  --color-info-bg:         #030d2e;
-   --color-brand:       #FF5F03;   /* = var(--color-secondary) */
-  --color-brand-light: #FF7A2E;
-  --color-brand-dark:  #E55200;
-  --color-brand-muted: rgba(255, 95, 3, 0.10);
+  --color-info-bg:         #031828;
 
-    /* --color-primary-* → para sidebar y componentes que usan el teal    */
-  --color-primary:         #072C2C;
-  --color-primary-hover:   #0A3D3D;
-  --color-primary-light:   #0F5252;
-  --color-primary-muted:   rgba(7, 44, 44, 0.08);
-
-  --sidebar-bg:          #041818;
-  --sidebar-border:      rgba(255, 255, 255, 0.06);
-  --sidebar-text:        rgba(255, 255, 255, 0.80);
-  --sidebar-text-muted:  rgba(255, 255, 255, 0.35);
+  --sidebar-bg:          #060E18;
+  --sidebar-border:      rgba(255, 255, 255, 0.07);
+  --sidebar-text:        rgba(255, 255, 255, 0.82);
+  --sidebar-text-muted:  rgba(255, 255, 255, 0.38);
   --sidebar-hover-bg:    rgba(255, 255, 255, 0.06);
-  --sidebar-active-bg:   #FF5F03;
+  --sidebar-active-bg:   #C49800;
   --sidebar-active-text: #ffffff;
-  --sidebar-avatar-bg:   #FF5F03;
-  --sidebar-logo-text:   rgba(255, 255, 255, 0.60);
+  --sidebar-avatar-bg:   #C49800;
+  --sidebar-logo-text:   rgba(255, 255, 255, 0.62);
 }
 
 /* ── Reset base ─────────────────────────────────────────────────── */
@@ -136,7 +123,7 @@ body {
 
 /* ── Focus ring WCAG 2.2 AA ─────────────────────────────────────── */
 :focus-visible {
-  outline:        2px solid var(--color-secondary);
+  outline:        2px solid var(--color-brand);
   outline-offset: 2px;
 }
 
@@ -150,8 +137,8 @@ body {
   to   { opacity: 1; transform: translateX(0);     }
 }
 @keyframes pulse-secondary {
-  0%, 100% { box-shadow: 0 0 0 0   rgba(255, 95, 3, 0.4); }
-  50%       { box-shadow: 0 0 0 6px rgba(255, 95, 3, 0);   }
+  0%, 100% { box-shadow: 0 0 0 0   rgba(196, 152, 0, 0.45); }
+  50%       { box-shadow: 0 0 0 6px rgba(196, 152, 0, 0);    }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -177,4 +164,3 @@ body {
 .font-display { font-family: var(--font-display); }
 .font-mono    { font-family: var(--font-mono);    }
 .text-balance { text-wrap: balance;               }
-

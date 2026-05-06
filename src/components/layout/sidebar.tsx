@@ -45,7 +45,7 @@ export function Sidebar({ mobileOpen, onMobileToggle }: SidebarProps) {
             background: "var(--color-surface-0)",
             border: "1px solid var(--color-border)",
           
-            boxShadow: "0 2px 6px rgba(7,44,44,0.15)",
+            boxShadow: "0 2px 6px rgba(13,59,88,0.18)",
           }}
         >
           {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
@@ -58,7 +58,7 @@ export function Sidebar({ mobileOpen, onMobileToggle }: SidebarProps) {
         <div
           className="lg:hidden fixed inset-0 z-40"
           style={{
-            background: "rgba(4,24,24,0.6)",
+            background: "rgba(7,24,40,0.65)",
             backdropFilter: "blur(2px)",
           }}
           onClick={onMobileToggle}
@@ -72,7 +72,7 @@ export function Sidebar({ mobileOpen, onMobileToggle }: SidebarProps) {
           width: "260px",
           background: "var(--sidebar-bg)",
           transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
-          boxShadow: mobileOpen ? "4px 0 24px rgba(4,24,24,0.4)" : "none",
+          boxShadow: mobileOpen ? "4px 0 24px rgba(7,24,40,0.45)" : "none",
         }}
       >
         <SidebarContent

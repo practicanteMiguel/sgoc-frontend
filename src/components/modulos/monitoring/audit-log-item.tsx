@@ -40,7 +40,7 @@ const ACTION_CONFIG: Record<string, {
     icon:   LogIn,
     color:  'var(--color-secondary)',
     bg:     'var(--color-secondary-muted)',
-    border: 'rgba(255,95,3,0.2)',
+    border: 'rgba(196,152,0,0.2)',
   },
   LOGOUT: {
     label:  'Cierre de sesión',

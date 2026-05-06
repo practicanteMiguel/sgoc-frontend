@@ -153,7 +153,7 @@ export function UserModuleAccessMatrix({ user, onClose }: Props) {
                         ? {
                             background: 'var(--color-secondary-muted)',
                             color:      'var(--color-secondary)',
-                            border:     '1px solid rgba(255,95,3,0.25)',
+                            border:     '1px solid rgba(196,152,0,0.25)',
                           }
                         : {
                             background: 'var(--color-info-bg)',

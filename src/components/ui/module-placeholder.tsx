@@ -75,7 +75,7 @@ export function ModulePlaceholder({
                   : 'var(--color-text-200)',
                 border: '1px solid',
                 borderColor: p.active
-                  ? 'rgba(255,95,3,0.2)'
+                  ? 'rgba(196,152,0,0.2)'
                   : 'var(--color-border)',
               }}
             >

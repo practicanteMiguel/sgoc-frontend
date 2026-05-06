@@ -94,7 +94,7 @@ export function FieldsManagement() {
               ? {
                   background: 'var(--color-surface-0)',
                   color:      'var(--color-secundary)',
-                  boxShadow:  '0 1px 4px rgba(7,44,44,0.12)',
+                  boxShadow:  '0 1px 4px rgba(13,59,88,0.12)',
                 }
               : { color: 'var(--color-text-400)' }
           }
@@ -112,7 +112,7 @@ export function FieldsManagement() {
               ? {
                   background: 'var(--color-surface-0)',
                   color:      'var(--color-secundary)',
-                  boxShadow:  '0 1px 4px rgba(7,44,44,0.12)',
+                  boxShadow:  '0 1px 4px rgba(13,59,88,0.12)',
                 }
               : { color: 'var(--color-text-400)' }
           }
@@ -134,7 +134,7 @@ export function FieldsManagement() {
                   ? {
                       background: 'var(--color-surface-0)',
                       color:      'var(--color-secundary)',
-                      boxShadow:  '0 1px 4px rgba(7,44,44,0.12)',
+                      boxShadow:  '0 1px 4px rgba(13,59,88,0.12)',
                     }
                   : { color: 'var(--color-text-400)' }
               }
@@ -307,7 +307,7 @@ function FieldTabContent({
                   style={{
                     background: 'var(--color-secondary-muted)',
                     color:      'var(--color-secundary)',
-                    border:     '1px solid rgba(7,44,44,0.12)',
+                    border:     '1px solid rgba(13,59,88,0.12)',
                   }}
                   title="Asignar supervisor"
                 >

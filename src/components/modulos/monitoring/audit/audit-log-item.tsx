@@ -16,7 +16,7 @@ const ACTION_CONFIG: Record<string, {
   CREATE: { label: 'Creacion',        icon: Plus,     color: 'var(--color-success)',    bg: 'var(--color-success-bg)',   border: 'rgba(22,163,74,0.2)'  },
   UPDATE: { label: 'Actualizacion',   icon: Pencil,   color: 'var(--color-info)',       bg: 'var(--color-info-bg)',      border: 'rgba(29,78,216,0.2)'  },
   DELETE: { label: 'Eliminacion',     icon: Trash2,   color: 'var(--color-danger)',     bg: 'var(--color-danger-bg)',    border: 'rgba(220,38,38,0.2)'  },
-  LOGIN:  { label: 'Inicio de sesion',icon: LogIn,    color: 'var(--color-secondary)',  bg: 'var(--color-secondary-muted)', border: 'rgba(255,95,3,0.2)' },
+  LOGIN:  { label: 'Inicio de sesion',icon: LogIn,    color: 'var(--color-secondary)',  bg: 'var(--color-secondary-muted)', border: 'rgba(196,152,0,0.2)' },
   LOGOUT: { label: 'Cierre de sesion',icon: LogOut,   color: 'var(--color-text-400)',   bg: 'var(--color-surface-2)',    border: 'var(--color-border)'  },
 };
 

@@ -3,6 +3,13 @@
 import { useEffect, useRef } from 'react'
 import type { ViaMapPoint } from '@/src/types/vias.types'
 import { VIA_STATE_COLORS, VIA_STATE_LABELS } from '@/src/types/vias.types'
+import { useAuthStore } from '@/src/stores/auth.store'
+
+function applyTileFilter(map: any, dark: boolean) {
+  const pane = map.getPanes().tilePane as HTMLElement | undefined
+  if (!pane) return
+  pane.style.filter = dark ? 'brightness(0.55) saturate(0.85) contrast(1.1)' : ''
+}
 
 interface ViaMapProps {
   points:              ViaMapPoint[]
@@ -66,15 +73,23 @@ function buildMarkers(
 export function ViaMap({
   points, centerLat, centerLng, zoom = 13, height = '400px', highlightedItemIds,
 }: ViaMapProps) {
-  const containerRef  = useRef<HTMLDivElement>(null)
-  const mapRef        = useRef<any>(null)
-  const leafletRef    = useRef<any>(null)
-  const markersRef    = useRef<Map<string, any>>(new Map())
-  const highlightRef  = useRef(highlightedItemIds)
-  const pointsRef     = useRef(points)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef       = useRef<any>(null)
+  const leafletRef   = useRef<any>(null)
+  const markersRef   = useRef<Map<string, any>>(new Map())
+  const highlightRef = useRef(highlightedItemIds)
+  const pointsRef    = useRef(points)
+
+  const { theme } = useAuthStore()
 
   highlightRef.current = highlightedItemIds
   pointsRef.current    = points
+
+  // Apply brightness filter to tile pane only — preserves road/terrain colors
+  useEffect(() => {
+    if (!mapRef.current) return
+    applyTileFilter(mapRef.current, theme === 'dark')
+  }, [theme])
 
   // Update highlight when selection changes
   useEffect(() => {
@@ -100,7 +115,6 @@ export function ViaMap({
       if (cancelled || !containerRef.current) return
 
       const pts = pointsRef.current
-      // Use the first point's position if available; fall back to field center or Colombia default
       const defaultLat = pts[0]?.lat ?? (centerLat != null ? Number(centerLat) : 4.6)
       const defaultLng = pts[0]?.lng ?? (centerLng != null ? Number(centerLng) : -74.1)
 
@@ -111,13 +125,14 @@ export function ViaMap({
       leafletRef.current = L
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
+        attribution: '© OpenStreetMap contributors',
       }).addTo(map)
+
+      applyTileFilter(map, useAuthStore.getState().theme === 'dark')
 
       buildMarkers(L, map, pts, markersRef.current)
       applyHighlight(markersRef.current, highlightRef.current)
 
-      // Always fit to actual point locations when multiple points exist
       if (pts.length > 1) {
         const latlngs = pts.map((p) => L.latLng(p.lat, p.lng))
         map.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30] })
