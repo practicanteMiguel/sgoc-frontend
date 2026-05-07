@@ -44,7 +44,7 @@ export function useUpdateField() {
       api.patch<Field>(`/fields/${id}`, data).then((r) => r.data),
     onSuccess: (field) => {
       qc.invalidateQueries({ queryKey: ['fields'] });
-      toast.success(`Planta "${field.name}" actualizada`);
+      toast.success(field.name ? `Planta "${field.name}" actualizada` : 'Planta actualizada');
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message;

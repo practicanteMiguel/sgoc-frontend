@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -52,6 +52,7 @@ function MapPicker({ lat, lng, onChange }: MapPickerProps) {
   const onChangeRef  = useRef(onChange);
   onChangeRef.current = onChange;
 
+  const [mapReady, setMapReady] = useState(false);
   const { theme } = useAuthStore();
 
   useEffect(() => {
@@ -59,9 +60,10 @@ function MapPicker({ lat, lng, onChange }: MapPickerProps) {
     applyTileFilter(mapRef.current, theme === 'dark');
   }, [theme]);
 
-  // Sync marker when coords change from outside (geolocation)
+  // Runs when map becomes ready OR when coords change — places/moves marker and centers view
   useEffect(() => {
-    if (!mapRef.current || !leafletRef.current || lat == null || lng == null) return;
+    if (!mapReady || !mapRef.current || !leafletRef.current) return;
+    if (lat == null || lng == null) return;
     if (markerRef.current) {
       markerRef.current.setLatLng([lat, lng]);
     } else {
@@ -73,7 +75,7 @@ function MapPicker({ lat, lng, onChange }: MapPickerProps) {
       });
     }
     mapRef.current.setView([lat, lng], Math.max(mapRef.current.getZoom(), 13));
-  }, [lat, lng]);
+  }, [mapReady, lat, lng]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -86,11 +88,7 @@ function MapPicker({ lat, lng, onChange }: MapPickerProps) {
 
       leafletRef.current = L;
 
-      const initLat  = lat ?? 2.93;
-      const initLng  = lng ?? -75.28;
-      const initZoom = lat != null ? 13 : 7;
-
-      const map = L.map(containerRef.current!, { zoomControl: true }).setView([initLat, initLng], initZoom);
+      const map = L.map(containerRef.current!, { zoomControl: true }).setView([2.93, -75.28], 7);
       mapRef.current = map;
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -99,18 +97,9 @@ function MapPicker({ lat, lng, onChange }: MapPickerProps) {
 
       applyTileFilter(map, useAuthStore.getState().theme === 'dark');
 
-      const icon = buildIcon(L);
-
-      if (lat != null && lng != null) {
-        markerRef.current = L.marker([lat, lng], { icon, draggable: true }).addTo(map);
-        markerRef.current.on('dragend', (e: any) => {
-          const pos = e.target.getLatLng();
-          onChangeRef.current(pos.lat, pos.lng);
-        });
-      }
-
       map.on('click', (e: any) => {
         const { lat: cLat, lng: cLng } = e.latlng;
+        const icon = buildIcon(L);
         if (markerRef.current) {
           markerRef.current.setLatLng([cLat, cLng]);
         } else {
@@ -122,6 +111,8 @@ function MapPicker({ lat, lng, onChange }: MapPickerProps) {
         }
         onChangeRef.current(cLat, cLng);
       });
+
+      if (!cancelled) setMapReady(true);
     }
 
     init();
@@ -174,8 +165,8 @@ export function FieldForm({ field, onClose }: FieldFormProps) {
       reset({
         name:       field.name,
         location:   field.location,
-        center_lat: field.center_lat ?? null,
-        center_lng: field.center_lng ?? null,
+        center_lat: field.center_lat != null ? Number(field.center_lat) : null,
+        center_lng: field.center_lng != null ? Number(field.center_lng) : null,
       });
     }
   }, [field, reset]);

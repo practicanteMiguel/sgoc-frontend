@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
 import { Plus, Calendar, FileText, Loader2, ChevronRight, ChevronLeft, Trash2, Map, List, FileDown, Mail, Square, CheckSquare } from 'lucide-react'
 import { useAuthStore } from '@/src/stores/auth.store'
+import { useField } from '@/src/hooks/reports/use-fields'
 import { useViaLogs, useCreateViaLog, useDeleteViaLog } from '@/src/hooks/vias/use-via-logs'
 import { useViaReports, useDeleteViaReport } from '@/src/hooks/vias/use-via-reports'
 import { ViaLogDetail } from './via-log-detail'
@@ -109,6 +110,7 @@ function StateBadge({ state }: { state: ViaState }) {
 export function SupervisorViasView() {
   const { user }   = useAuthStore()
   const fieldId    = user?.field_id ?? null
+  const { data: fieldData } = useField(fieldId)
 
   const [subTab,            setSubTab]            = useState<SubTab>('registros')
   const [drillView,         setDrillView]         = useState<DrillView>(null)
@@ -626,6 +628,8 @@ export function SupervisorViasView() {
                 <div className="flex flex-col gap-3">
                   <ViaMap
                     points={allMonthPoints}
+                    centerLat={fieldData?.center_lat}
+                    centerLng={fieldData?.center_lng}
                     height="420px"
                     highlightedItemIds={highlightedItemIds}
                   />

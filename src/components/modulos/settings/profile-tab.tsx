@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, User, Mail, Phone, Briefcase, MapPin } from "lucide-react";
+import { Loader2, User, Mail, Phone, Briefcase, MapPin, LocateFixed } from "lucide-react";
 import { useAuthStore } from "@/src/stores/auth.store";
 import { useUpdateProfile, useProfile } from "@/src/hooks/settings/use-profile";
+import { useField } from "@/src/hooks/reports/use-fields";
 import { getInitials, ROLE_LABELS } from "@/src/lib/utils";
+import { FieldCoordsModal } from "./field-coords-modal";
 
 const schema = z.object({
   first_name: z.string().min(2, "Mínimo 2 caracteres"),
@@ -33,6 +35,12 @@ export function ProfileTab() {
   const { data: profile, isLoading } = useProfile();
   const { user } = useAuthStore();
   const updateProfile = useUpdateProfile();
+  const [showCoordsModal, setShowCoordsModal] = useState(false);
+
+  const roleSlugEarly = user?.roles?.[0] ?? '';
+  const { data: fieldData } = useField(
+    roleSlugEarly === 'supervisor' ? (user?.field_id ?? null) : null,
+  );
 
   const {
     register,
@@ -223,36 +231,78 @@ export function ProfileTab() {
             ))}
 
             <div className="grid md:grid-cols-2 gap-3">
-              {[
-                { label: "Correo", value: profile?.email, Icon: Mail },
-                ...(roleSlug === 'supervisor' ? [{ label: "Campo", value: (profile?.field as { name?: string } | null)?.name ?? "—", Icon: MapPin }] : []),
-              ].map(({ label, value, Icon }) => (
-                <div key={label} className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  className="text-xs font-medium uppercase tracking-wider"
+                  style={{ color: "var(--color-text-400)" }}
+                >
+                  Correo
+                </label>
+                <div className="relative">
+                  <Mail
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2"
+                    style={{ color: "var(--color-text-400)" }}
+                  />
+                  <div
+                    style={{
+                      ...FIELD_STYLE,
+                      opacity: 0.6,
+                      cursor: "default",
+                      userSelect: "none",
+                    }}
+                  >
+                    {profile?.email}
+                  </div>
+                </div>
+              </div>
+
+              {roleSlug === 'supervisor' && (
+                <div className="flex flex-col gap-1.5">
                   <label
                     className="text-xs font-medium uppercase tracking-wider"
                     style={{ color: "var(--color-text-400)" }}
                   >
-                    {label}
+                    Planta asignada
                   </label>
-                  <div className="relative">
-                    <Icon
-                      size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2"
-                      style={{ color: "var(--color-text-400)" }}
-                    />
-                    <div
-                      style={{
-                        ...FIELD_STYLE,
-                        opacity: 0.6,
-                        cursor: "default",
-                        userSelect: "none",
-                      }}
-                    >
-                      {value}
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <MapPin
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2"
+                        style={{ color: "var(--color-text-400)" }}
+                      />
+                      <div
+                        style={{
+                          ...FIELD_STYLE,
+                          opacity: 0.6,
+                          cursor: "default",
+                          userSelect: "none",
+                        }}
+                      >
+                        {(profile?.field as { name?: string } | null)?.name ?? "—"}
+                      </div>
                     </div>
+                    {fieldData && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCoordsModal(true)}
+                        title="Fijar ubicacion de planta"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity shrink-0"
+                        style={{
+                          background: 'var(--color-surface-2)',
+                          border:     '1px solid var(--color-border)',
+                          color:      'var(--color-text-600)',
+                          height:     '40px',
+                        }}
+                      >
+                        <LocateFixed size={13} />
+                        Ubicacion
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -277,6 +327,13 @@ export function ProfileTab() {
           {updateProfile.isPending ? "Guardando..." : "Guardar cambios"}
         </button>
       </form>
+
+      {showCoordsModal && fieldData && (
+        <FieldCoordsModal
+          field={fieldData}
+          onClose={() => setShowCoordsModal(false)}
+        />
+      )}
     </div>
   );
 }

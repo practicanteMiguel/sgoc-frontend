@@ -104,6 +104,14 @@ export function ViaMap({
     applyHighlight(markersRef.current, highlightRef.current)
   }, [points])
 
+  // Re-center on plant coordinates when there are no points (handles async data load after init)
+  useEffect(() => {
+    if (!mapRef.current) return
+    if (pointsRef.current.length > 0) return
+    if (centerLat == null || centerLng == null) return
+    mapRef.current.setView([Number(centerLat), Number(centerLng)], zoom)
+  }, [centerLat, centerLng, zoom])
+
   // Init map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
