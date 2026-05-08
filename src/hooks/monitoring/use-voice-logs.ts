@@ -11,10 +11,16 @@ export interface VoiceLog {
   updated_at:        string
 }
 
+export interface ReportDay {
+  dayNumber: number
+  date:      string
+  entries:   string[]
+}
+
 export interface VoiceReport {
   title:   string
-  report:  string
   sources: number
+  days:    ReportDay[]
 }
 
 interface ListParams {
@@ -53,6 +59,22 @@ export function useTranscribeAudio() {
     onError: (err: any) => {
       const msg = err?.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al transcribir el audio'))
+    },
+  })
+}
+
+export function useUpdateVoiceTranscription() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, transcription }: { id: string; transcription: string }) =>
+      api.patch<VoiceLog>(`/voice-logs/${id}/transcription`, { transcription }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['voice-logs'] })
+      toast.success('Transcripcion actualizada')
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar la transcripcion'))
     },
   })
 }

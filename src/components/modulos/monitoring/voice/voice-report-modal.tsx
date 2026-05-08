@@ -5,105 +5,115 @@ import { X, Loader2, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
-import { useGenerateVoiceReport } from '@/src/hooks/monitoring/use-voice-logs'
+import { useGenerateVoiceReport, VoiceReport } from '@/src/hooks/monitoring/use-voice-logs'
+
+interface UserInfo {
+  name:     string
+  position: string
+  field:    string | null
+}
 
 interface Props {
-  ids:     string[]
-  onClose: () => void
+  ids:      string[]
+  userInfo: UserInfo
+  onClose:  () => void
 }
 
-function markdownToHtml(text: string): string {
-  const lines  = text.split('\n')
-  const result: string[] = []
-  let inList   = false
-
-  for (const raw of lines) {
-    const line = raw.trim()
-
-    if (line.startsWith('# ')) {
-      if (inList) { result.push('</ul>'); inList = false }
-      result.push(`<h1>${line.slice(2)}</h1>`)
-    } else if (line.startsWith('## ')) {
-      if (inList) { result.push('</ul>'); inList = false }
-      result.push(`<h2>${line.slice(3)}</h2>`)
-    } else if (line.startsWith('### ')) {
-      if (inList) { result.push('</ul>'); inList = false }
-      result.push(`<h3>${line.slice(4)}</h3>`)
-    } else if (line.startsWith('- ') || line.startsWith('* ')) {
-      if (!inList) { result.push('<ul>'); inList = true }
-      result.push(`<li>${line.slice(2)}</li>`)
-    } else if (line === '') {
-      if (inList) { result.push('</ul>'); inList = false }
-      result.push('<br>')
-    } else {
-      if (inList) { result.push('</ul>'); inList = false }
-      // strip remaining bold/italic markers
-      const clean = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '$1')
-      result.push(`<p>${clean}</p>`)
-    }
-  }
-
-  if (inList) result.push('</ul>')
-  return result.join('\n')
+function formatDate(isoDate: string): string {
+  return new Date(isoDate + 'T00:00:00').toLocaleDateString('es-CO', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  })
 }
 
-function buildPdfHtml(title: string, body: string, sources: number): string {
+function buildTableRows(data: VoiceReport): string {
+  return data.days.map((day) => {
+    const entriesHtml = day.entries.length === 1
+      ? `<p style="margin:0;font-size:11px;line-height:1.7;color:#111">${day.entries[0]}</p>`
+      : `<ul style="margin:0;padding-left:16px">${day.entries.map((e) => `<li style="font-size:11px;line-height:1.7;color:#111;margin-bottom:2px">${e}</li>`).join('')}</ul>`
+
+    return `<tr>
+      <td style="padding:10px 12px;vertical-align:top;border:1px solid #d1d5db;white-space:nowrap">
+        <strong style="font-size:11px;color:#111">Dia ${day.dayNumber}</strong><br>
+        <span style="font-size:10px;color:#6b7280">${formatDate(day.date)}</span>
+      </td>
+      <td style="padding:10px 12px;vertical-align:top;border:1px solid #d1d5db">
+        ${entriesHtml}
+      </td>
+    </tr>`
+  }).join('\n')
+}
+
+function buildUserBlock(userInfo: UserInfo): string {
+  const lines = [
+    ['Nombre', userInfo.name     || '—'],
+    ['Cargo',  userInfo.position || '—'],
+    ['Planta', userInfo.field    || '—'],
+  ]
+  return `<div style="margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid #e5e7eb">
+    ${lines.map(([label, value]) =>
+      `<p style="margin:0 0 4px;font-size:11px;color:#111"><strong style="color:#374151">${label}:</strong> ${value}</p>`
+    ).join('')}
+  </div>`
+}
+
+function buildPdfBody(data: VoiceReport, resolvedTitle: string, userInfo: UserInfo): string {
   const now = format(new Date(), "d 'de' MMMM yyyy, HH:mm", { locale: es })
-  return `<!DOCTYPE html><html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>${title}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#111;padding:36px 42px;max-width:760px;margin:0 auto}
-.header{border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:24px}
-.header h1{font-size:22px;font-weight:700;margin-bottom:4px}
-.meta{font-size:10px;color:#6b7280}
-h1{font-size:18px;font-weight:700;margin:20px 0 8px;color:#111}
-h2{font-size:15px;font-weight:700;margin:18px 0 6px;color:#111;border-bottom:1px solid #e5e7eb;padding-bottom:4px}
-h3{font-size:13px;font-weight:600;margin:14px 0 5px;color:#374151}
-p{font-size:12px;line-height:1.7;margin-bottom:8px;color:#111}
-ul{padding-left:20px;margin:6px 0 10px}
-li{font-size:12px;line-height:1.7;margin-bottom:3px;color:#111}
-strong{font-weight:700}
-br{display:block;content:'';margin:6px 0}
-.footer{margin-top:36px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af;display:flex;justify-content:space-between}
-@media print{body{padding:0}}
-</style>
-</head>
-<body>
-<div class="header">
-  <h1>${title}</h1>
-  <div class="meta">${sources} fuente${sources !== 1 ? 's' : ''} &nbsp;·&nbsp; Generado el ${now}</div>
-</div>
-${markdownToHtml(body)}
-<div class="footer">
-  <span>${title}</span>
-  <span>Generado el ${now}</span>
-</div>
-</body></html>`
+  return `
+    <div style="border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:20px">
+      <h1 style="font-size:20px;font-weight:700;margin:0 0 4px">${resolvedTitle}</h1>
+      <span style="font-size:10px;color:#6b7280">${data.sources} fuente${data.sources !== 1 ? 's' : ''} &nbsp;·&nbsp; Generado el ${now}</span>
+    </div>
+    ${buildUserBlock(userInfo)}
+    <table style="width:100%;border-collapse:collapse;margin-top:8px">
+      <thead>
+        <tr>
+          <th style="background:#1a3a3a;color:#fff;padding:9px 12px;font-size:11px;text-align:left;border:1px solid #1a3a3a;width:22%">Dia</th>
+          <th style="background:#1a3a3a;color:#fff;padding:9px 12px;font-size:11px;text-align:left;border:1px solid #1a3a3a">Descripcion</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${buildTableRows(data)}
+      </tbody>
+    </table>
+    <div style="margin-top:36px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af;display:flex;justify-content:space-between">
+      <span>${resolvedTitle}</span>
+      <span>Generado el ${now}</span>
+    </div>`
 }
 
-export function VoiceReportModal({ ids, onClose }: Props) {
-  const [title,   setTitle]   = useState('')
-  const [printed, setPrinted] = useState(false)
+async function downloadReport(data: VoiceReport, resolvedTitle: string, userInfo: UserInfo): Promise<void> {
+  const body = buildPdfBody(data, resolvedTitle, userInfo)
+  const html = `<div style="font-family:'Helvetica Neue',Arial,sans-serif;padding:32px 40px;color:#111;background:#fff;max-width:760px">${body}</div>`
+  const { default: html2pdf } = await import('html2pdf.js')
+  await html2pdf().set({
+    margin:      10,
+    filename:    `${resolvedTitle}.pdf`,
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+  }).from(html).save()
+}
+
+export function VoiceReportModal({ ids, userInfo, onClose }: Props) {
+  const [title,       setTitle]       = useState('')
+  const [downloading, setDownloading] = useState(false)
   const generate = useGenerateVoiceReport()
 
-  function handleGenerate() {
+  async function handleGenerate() {
     const resolvedTitle = title.trim() || 'Informe de transcripciones'
     generate.mutate({ ids, title: resolvedTitle }, {
-      onSuccess: (data) => {
-        const html = buildPdfHtml(data.title || resolvedTitle, data.report, data.sources)
-        const win  = window.open('', '_blank')
-        if (win) {
-          win.document.write(html)
-          win.document.close()
-          setTimeout(() => win.print(), 400)
+      onSuccess: async (data) => {
+        setDownloading(true)
+        try {
+          await downloadReport(data, resolvedTitle, userInfo)
+          onClose()
+        } finally {
+          setDownloading(false)
         }
-        setPrinted(true)
       },
     })
   }
+
+  const busy = generate.isPending || downloading
 
   return (
     <ModalPortal onClose={onClose}>
@@ -136,63 +146,38 @@ export function VoiceReportModal({ ids, onClose }: Props) {
 
         {/* Body */}
         <div className="px-5 py-5 flex flex-col gap-4">
-          {printed ? (
-            <div className="flex flex-col items-center gap-3 py-6">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--color-secondary-muted)', color: 'var(--color-secondary)' }}
-              >
-                <FileText size={22} />
-              </div>
-              <p className="text-sm font-semibold text-center" style={{ color: 'var(--color-secundary)' }}>
-                Informe abierto
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-400)' }}>
+              Titulo del informe (opcional)
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ej: Informe semanal abril 2026"
+              className="w-full outline-none rounded-lg px-3 py-2.5 text-sm"
+              style={{ background: 'var(--color-surface-1)', border: '1.5px solid var(--color-border)', color: 'var(--color-text-900)' }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !busy) handleGenerate() }}
+            />
+          </div>
+
+          {busy ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>
+                {generate.isPending ? 'Generando informe con IA...' : 'Descargando PDF...'}
               </p>
-              <p className="text-xs text-center" style={{ color: 'var(--color-text-400)' }}>
-                Se abrio el dialogo de impresion en una nueva pestana.
-                Guarda como PDF desde ahi.
-              </p>
-              <button
-                onClick={onClose}
-                className="mt-2 w-full py-2.5 rounded-lg text-sm font-medium hover:opacity-70 transition-opacity"
-                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-600)' }}
-              >
-                Cerrar
-              </button>
+              <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>Esto puede tardar unos segundos</p>
             </div>
           ) : (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-400)' }}>
-                  Titulo del informe (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ej: Informe semanal abril 2026"
-                  className="w-full outline-none rounded-lg px-3 py-2.5 text-sm"
-                  style={{ background: 'var(--color-surface-1)', border: '1.5px solid var(--color-border)', color: 'var(--color-text-900)' }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !generate.isPending) handleGenerate() }}
-                />
-              </div>
-
-              {generate.isPending ? (
-                <div className="flex flex-col items-center gap-3 py-8">
-                  <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
-                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>Generando informe con IA...</p>
-                  <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>Esto puede tardar unos segundos</p>
-                </div>
-              ) : (
-                <button
-                  onClick={handleGenerate}
-                  className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
-                  style={{ background: 'var(--color-primary)', color: '#fff' }}
-                >
-                  <FileText size={14} />
-                  Generar y exportar PDF
-                </button>
-              )}
-            </>
+            <button
+              onClick={handleGenerate}
+              className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
+              style={{ background: 'var(--color-primary)', color: '#fff' }}
+            >
+              <FileText size={14} />
+              Generar y descargar PDF
+            </button>
           )}
         </div>
       </div>

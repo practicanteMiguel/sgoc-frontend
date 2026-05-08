@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Mic, Trash2, Loader2, FileText, Check, CheckSquare, X } from 'lucide-react'
+import { Mic, Trash2, Loader2, FileText, Check, CheckSquare, X, Pencil } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useVoiceLogs, useDeleteVoiceLog, VoiceLog } from '@/src/hooks/monitoring/use-voice-logs'
+import { useVoiceLogs, useDeleteVoiceLog, useUpdateVoiceTranscription, VoiceLog } from '@/src/hooks/monitoring/use-voice-logs'
+import { useProfile } from '@/src/hooks/settings/use-profile'
 import { VoiceReportModal } from './voice-report-modal'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 
@@ -28,6 +29,8 @@ export function VoiceLogList() {
   const [reportOpen,  setReportOpen]  = useState(false)
   const [detail,      setDetail]      = useState<VoiceLog | null>(null)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
+
+  const { data: profile } = useProfile()
 
   // Dates go to backend; time filter is applied locally
   const { data: rawLogs = [], isLoading } = useVoiceLogs({
@@ -244,6 +247,11 @@ export function VoiceLogList() {
       {reportOpen && (
         <VoiceReportModal
           ids={Array.from(selected)}
+          userInfo={{
+            name:     profile ? `${profile.first_name} ${profile.last_name}` : '',
+            position: profile?.position ?? '',
+            field:    (profile?.field as any)?.name ?? null,
+          }}
           onClose={handleCloseReport}
         />
       )}
@@ -270,6 +278,26 @@ function Checkbox({ checked }: { checked: boolean }) {
 }
 
 function VoiceDetailModal({ log, onClose }: { log: VoiceLog; onClose: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState(log.transcription)
+  const update = useUpdateVoiceTranscription()
+
+  function handleSave() {
+    const text = draft.trim()
+    if (!text || text === log.transcription) { setEditing(false); return }
+    update.mutate({ id: log.id, transcription: text }, {
+      onSuccess: (updated) => {
+        log.transcription = updated.transcription
+        setEditing(false)
+      },
+    })
+  }
+
+  function handleCancel() {
+    setDraft(log.transcription)
+    setEditing(false)
+  }
+
   return (
     <ModalPortal onClose={onClose}>
       <div
@@ -296,19 +324,68 @@ function VoiceDetailModal({ log, onClose }: { log: VoiceLog; onClose: () => void
               {format(new Date(log.created_at), "d 'de' MMMM yyyy, HH:mm", { locale: es })}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
-            style={{ color: 'var(--color-text-400)' }}
-          >
-            <X size={16} />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-text-400)' }}
+                title="Editar transcripcion"
+              >
+                <Pencil size={14} />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+              style={{ color: 'var(--color-text-400)' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--color-text-900)' }}>
-            {log.transcription}
-          </p>
+        <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-3">
+          {editing ? (
+            <>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={10}
+                autoFocus
+                className="w-full outline-none rounded-lg px-3 py-2.5 text-sm leading-relaxed resize-none"
+                style={{
+                  background: 'var(--color-surface-1)',
+                  border:     '1.5px solid var(--color-primary)',
+                  color:      'var(--color-text-900)',
+                }}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancel}
+                  disabled={update.isPending}
+                  className="px-4 py-2 rounded-lg text-xs font-medium hover:opacity-70 transition-opacity"
+                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-600)' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={update.isPending || !draft.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity"
+                  style={{ background: 'var(--color-primary)', color: '#fff', opacity: update.isPending ? 0.6 : 1 }}
+                >
+                  {update.isPending && <Loader2 size={11} className="animate-spin" />}
+                  Guardar
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--color-text-900)' }}>
+              {log.transcription}
+            </p>
+          )}
         </div>
       </div>
     </ModalPortal>
