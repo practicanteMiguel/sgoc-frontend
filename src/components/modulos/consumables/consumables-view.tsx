@@ -1,37 +1,92 @@
-'use client';
+'use client'
 
-import { Package } from 'lucide-react';
-import { ModulePlaceholder } from '../../ui/module-placeholder';
+import { useState } from 'react'
+import { Package, FileText, BarChart2 } from 'lucide-react'
+import { useAuthStore } from '@/src/stores/auth.store'
+import { InsumosTab } from './insumos/insumos-tab'
+import { RequisicionesTab } from './requisiciones/requisiciones-tab'
+import { MiSolicitudTab } from './solicitudes/mi-solicitud-tab'
+import { InformeComprasTab } from './compras/informe-compras-tab'
+
+type Tab = 'insumos' | 'requisiciones' | 'informe'
+
+const TABS: { id: Tab; label: string; icon: typeof Package }[] = [
+  { id: 'insumos',       label: 'Insumos',       icon: Package   },
+  { id: 'requisiciones', label: 'Requisiciones',  icon: FileText  },
+  { id: 'informe',       label: 'Informe',        icon: BarChart2 },
+]
 
 export function ConsumablesView() {
+  const { user } = useAuthStore()
+  const [activeTab, setActiveTab] = useState<Tab>('insumos')
+
+  const isSupervisor = user?.roles?.includes('supervisor') ?? false
+
+  if (isSupervisor) {
+    return (
+      <div className="max-w-8xl p-6 sm:p-10 mx-auto animate-fade-in">
+        <div className="mb-5">
+          <h2
+            className="font-display text-xl font-semibold"
+            style={{ color: 'var(--color-secundary)' }}
+          >
+            Solicitud de Insumos
+          </h2>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+            Indica las cantidades que necesitas de cada insumo para el mes
+          </p>
+        </div>
+        <MiSolicitudTab />
+      </div>
+    )
+  }
+
   return (
-    <ModulePlaceholder
-      moduleSlug="consumables"
-      icon={Package}
-      title="Gestión de Consumibles"
-      description="Control de entregas y consumo de insumos y EPP por cuadrilla"
-      features={[
-        {
-          label:       'Catálogo de insumos',
-          description: 'Registro de consumibles por categoría: EPP, herramientas menores, víveres, etc.',
-        },
-        {
-          label:       'Solicitudes de insumos',
-          description: 'Supervisores generan solicitudes formales con insumo, cantidad y cuadrilla solicitante',
-        },
-        {
-          label:       'Registro de entregas',
-          description: 'Control de entrega con fecha, responsable y supervisor receptor',
-        },
-        {
-          label:       'Historial de consumo',
-          description: 'Consumo por cuadrilla, supervisor y tipo de insumo para detectar uso excesivo',
-        },
-        {
-          label:       'Control de stock',
-          description: 'Seguimiento de stock disponible y alertas de reabastecimiento',
-        },
-      ]}
-    />
-  );
+    <div className="max-w-8xl p-6 sm:p-10 mx-auto animate-fade-in">
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <h2
+            className="font-display text-xl font-semibold"
+            style={{ color: 'var(--color-secundary)' }}
+          >
+            Gestion de Insumos
+          </h2>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+            Catalogo de insumos y requisiciones del mes
+          </p>
+        </div>
+      </div>
+
+      <div
+        className="flex gap-1 mb-5 p-1 rounded-xl w-fit"
+        style={{ background: 'var(--color-surface-2)' }}
+      >
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            style={
+              activeTab === id
+                ? {
+                    background: 'var(--color-surface-0)',
+                    color:      'var(--color-secundary)',
+                    boxShadow:  '0 1px 4px rgba(13,59,88,0.12)',
+                  }
+                : { color: 'var(--color-text-400)' }
+            }
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="animate-fade-in">
+        {activeTab === 'insumos'       && <InsumosTab />}
+        {activeTab === 'requisiciones' && <RequisicionesTab />}
+        {activeTab === 'informe'       && <InformeComprasTab />}
+      </div>
+    </div>
+  )
 }

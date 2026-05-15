@@ -77,6 +77,9 @@
   --color-text-200:        #445566;
   --color-border:          #1A3550;
   --color-border-strong:   #2A5070;
+  --color-primary:         #4CA8D4;
+  --color-primary-hover:   #3A96C2;
+  --color-primary-light:   #6BBCE0;
   --color-primary-muted:   rgba(13, 59, 88, 0.40);
   --color-secondary-muted: rgba(196, 152, 0, 0.18);
   --color-brand-muted:     rgba(196, 152, 0, 0.15);

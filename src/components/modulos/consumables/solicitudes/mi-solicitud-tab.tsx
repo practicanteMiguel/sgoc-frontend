@@ -1,0 +1,989 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, Send, Clock, Search, Eye, X, Plus, Pencil, Trash2 } from 'lucide-react'
+import {
+  useMiSolicitud, useLlenarMiSolicitud, useSolicitudRequisiciones,
+  useCrearAdicional, useEditarAdicional, useEliminarAdicional,
+} from '@/src/hooks/consumables/use-solicitudes'
+import { useRequisicion } from '@/src/hooks/consumables/use-requisiciones'
+import { useAuthStore } from '@/src/stores/auth.store'
+import { ModalPortal } from '@/src/components/ui/modal-portal'
+import { CATEGORIAS, CATEGORIA_LABELS } from '@/src/types/consumables.types'
+import type { CategoriaInsumo, SolicitudItem } from '@/src/types/consumables.types'
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+type CantidadMap = Record<string, string>
+
+function formatCOP(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === '') return '-'
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value))
+}
+
+/* ─────────────── RQPreviewModal ─────────────── */
+
+function RQPreviewModal({ rqId, onClose }: { rqId: string; onClose: () => void }) {
+  const { data: rq, isLoading } = useRequisicion(rqId)
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-2xl rounded-xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)', maxHeight: '80vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="px-5 py-3.5 flex items-center justify-between gap-3 shrink-0"
+          style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}
+        >
+          <div>
+            {rq && (
+              <>
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+                  RQ #{rq.numero_rq} - {CATEGORIA_LABELS[rq.categoria]}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+                  {rq.lugar} - CC {rq.lote}
+                </p>
+              </>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity shrink-0"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {isLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+            </div>
+          ) : !rq ? null : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
+                    {['Codigo', 'Descripcion', 'Unidad', 'Solicitado'].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                        style={{ color: 'var(--color-text-400)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rq.items.map((item, idx) => (
+                    <tr
+                      key={item.id}
+                      style={{ borderBottom: '1px solid var(--color-border)', background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)' }}
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                        {item.codigo}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs font-medium" style={{ color: 'var(--color-text-900)', minWidth: 200 }}>
+                        {item.descripcion}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                        {item.unidad}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs font-bold text-center whitespace-nowrap" style={{ color: item.solicitado != null ? 'var(--color-text-900)' : 'var(--color-text-400)' }}>
+                        {item.solicitado ?? '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: 'var(--color-surface-1)', borderTop: '2px solid var(--color-border)' }}>
+                    <td colSpan={4} className="px-4 py-2.5 text-xs" style={{ color: 'var(--color-text-400)' }}>
+                      {rq.items.length} item{rq.items.length !== 1 ? 's' : ''}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
+/* ─────────────── AdicionalModal ─────────────── */
+
+function AdicionalModal({
+  solicitudId,
+  catDefault,
+  item,
+  onClose,
+}: {
+  solicitudId: string
+  catDefault: CategoriaInsumo
+  item: SolicitudItem | null
+  onClose: () => void
+}) {
+  const [descripcion, setDescripcion] = useState(item?.descripcion ?? '')
+  const [unidad,      setUnidad]      = useState(item?.unidad      ?? '')
+  const [proveedor,   setProveedor]   = useState(item?.proveedor   ?? '')
+  const [valor,       setValor]       = useState(item?.valor_unitario != null ? String(item.valor_unitario) : '')
+  const [cantidad,    setCantidad]    = useState(item?.solicitado   != null ? String(item.solicitado)      : '')
+  const [categoria,   setCategoria]   = useState<CategoriaInsumo>(catDefault)
+
+  const crear  = useCrearAdicional(solicitudId)
+  const editar = useEditarAdicional(solicitudId)
+  const isPending = crear.isPending || editar.isPending
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (item) {
+      editar.mutate(
+        { adicionalId: item.id, data: { descripcion, unidad, proveedor, valor_unitario: Number(valor), solicitado: Number(cantidad) } },
+        { onSuccess: onClose },
+      )
+    } else {
+      crear.mutate(
+        { descripcion, unidad, proveedor, valor_unitario: Number(valor), solicitado: Number(cantidad), categoria },
+        { onSuccess: onClose },
+      )
+    }
+  }
+
+  const inputCls = 'rounded-lg text-sm outline-none px-3 py-2 w-full'
+  const inputStyle: React.CSSProperties = { border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }
+  const onFocusAmber = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = 'var(--color-secondary)' }
+  const onBlurBorder = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = 'var(--color-border)' }
+
+  return (
+    <ModalPortal onClose={() => !isPending && onClose()}>
+      <div
+        className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="px-6 py-4 flex items-center justify-between gap-3"
+          style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#d97706' }}>
+              Insumo adicional
+            </p>
+            <h2 className="text-sm font-bold mt-0.5" style={{ color: 'var(--color-text-900)' }}>
+              {item ? 'Editar adicional' : 'Agregar adicional'}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => !isPending && onClose()}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-4">
+          {/* Categoria - solo al crear */}
+          {!item && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Categoria</label>
+              <div className="flex gap-2">
+                {CATEGORIAS.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategoria(cat)}
+                    className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={
+                      categoria === cat
+                        ? { background: 'var(--color-primary)', color: '#fff' }
+                        : { background: 'var(--color-surface-2)', color: 'var(--color-text-600)', border: '1px solid var(--color-border)' }
+                    }
+                  >
+                    {CATEGORIA_LABELS[cat]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Descripcion *</label>
+            <input
+              required value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
+              placeholder="Descripcion del insumo" className={inputCls} style={inputStyle}
+              onFocus={onFocusAmber} onBlur={onBlurBorder}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Unidad *</label>
+              <input
+                required value={unidad} onChange={(e) => setUnidad(e.target.value)}
+                placeholder="UND, KG, L..." className={inputCls} style={inputStyle}
+                onFocus={onFocusAmber} onBlur={onBlurBorder}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Cantidad *</label>
+              <input
+                required type="number" min="1" step="1" value={cantidad} onChange={(e) => setCantidad(e.target.value)}
+                placeholder="0" className={inputCls} style={inputStyle}
+                onFocus={onFocusAmber} onBlur={onBlurBorder}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Proveedor *</label>
+            <input
+              required value={proveedor} onChange={(e) => setProveedor(e.target.value)}
+              placeholder="Nombre del proveedor" className={inputCls} style={inputStyle}
+              onFocus={onFocusAmber} onBlur={onBlurBorder}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Valor unitario (COP) *</label>
+            <input
+              required type="number" min="0" step="1" value={valor} onChange={(e) => setValor(e.target.value)}
+              placeholder="0" className={inputCls} style={inputStyle}
+              onFocus={onFocusAmber} onBlur={onBlurBorder}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button" onClick={() => !isPending && onClose()} disabled={isPending}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: 'var(--color-surface-0)', border: '1.5px solid var(--color-border)', color: 'var(--color-text-600)', opacity: isPending ? 0.5 : 1 }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit" disabled={isPending}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
+              style={{ background: '#d97706', color: '#fff', opacity: isPending ? 0.6 : 1 }}
+            >
+              {isPending && <Loader2 size={15} className="animate-spin" />}
+              {item ? 'Guardar' : 'Agregar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </ModalPortal>
+  )
+}
+
+/* ─────────────── MiSolicitudTab ─────────────── */
+
+const TODAY = new Date().toISOString().slice(0, 10)
+const DEFAULT_CONTRATO = 'CW286091'
+
+export function MiSolicitudTab() {
+  const { user } = useAuthStore()
+  const userFullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ')
+
+  const now = new Date()
+  const [mes,  setMes]  = useState(now.getMonth() + 1)
+  const [anio, setAnio] = useState(now.getFullYear())
+
+  const { data: solicitud, isLoading } = useMiSolicitud(mes, anio)
+  const llenar = useLlenarMiSolicitud()
+  const { data: rqsSolicitud = [] } = useSolicitudRequisiciones(
+    solicitud?.estado === 'COMPLETADA' ? (solicitud?.id ?? null) : null
+  )
+
+  const [fecha,        setFecha]        = useState(TODAY)
+  const [nombre,       setNombre]       = useState(userFullName)
+  const [contrato,     setContrato]     = useState(DEFAULT_CONTRATO)
+  const [cantidades,   setCantidades]   = useState<CantidadMap>({})
+  const [catActiva,    setCatActiva]    = useState<CategoriaInsumo | null>(null)
+  const [busqueda,     setBusqueda]     = useState('')
+  const [previewRqId,  setPreviewRqId]  = useState<string | null>(null)
+  const [showConfirm,  setShowConfirm]  = useState(false)
+  const [adicionalModal, setAdicionalModal] = useState<{ item: SolicitudItem | null } | null>(null)
+
+  const eliminarAdicional = useEliminarAdicional(solicitud?.id ?? '')
+
+  useEffect(() => {
+    if (!solicitud) {
+      setFecha(TODAY); setNombre(userFullName); setContrato(DEFAULT_CONTRATO)
+      setCantidades({}); setCatActiva(null)
+      return
+    }
+    const init: CantidadMap = {}
+    for (const item of (solicitud.categorias ?? []).flatMap((c) => c.items)) {
+      if (!item.es_adicional) {
+        init[item.id] = item.solicitado != null ? String(Math.round(Number(item.solicitado))) : ''
+      }
+    }
+    setCantidades(init)
+    setFecha(solicitud.fecha || TODAY)
+    setNombre(solicitud.nombre_solicitante || userFullName)
+    setContrato(solicitud.numero_contrato || DEFAULT_CONTRATO)
+    if (solicitud.categorias?.length) setCatActiva(solicitud.categorias[0].categoria)
+  }, [solicitud, userFullName])
+
+  function adjustPeriod(delta: number) {
+    let m = mes + delta, a = anio
+    if (m < 1)  { m = 12; a-- }
+    if (m > 12) { m = 1;  a++ }
+    setMes(m); setAnio(a)
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setShowConfirm(true)
+  }
+
+  function handleConfirm() {
+    if (!solicitud) return
+    llenar.mutate(
+      {
+        id:                 solicitud.id,
+        fecha,
+        nombre_solicitante: nombre,
+        numero_contrato:    contrato,
+        items:              (solicitud.categorias ?? []).flatMap((c) => c.items)
+          .filter((item) => !item.es_adicional)
+          .map((item) => ({
+            id:         item.id,
+            solicitado: Number(cantidades[item.id] ?? 0),
+          })),
+      },
+      { onSuccess: () => setShowConfirm(false) },
+    )
+  }
+
+  const periodLabel = `${MESES[mes - 1]} ${anio}`
+  const categorias  = solicitud?.categorias ?? []
+
+  function totalItem(item: SolicitudItem) {
+    const cant = item.es_adicional
+      ? Number(item.solicitado ?? 0)
+      : Number(cantidades[item.id] ?? 0)
+    if (!cant || item.valor_unitario === null || item.valor_unitario === undefined || item.valor_unitario === '') return null
+    return cant * Number(item.valor_unitario)
+  }
+
+  function totalCategoria(cat: CategoriaInsumo) {
+    const catData = categorias.find((c) => c.categoria === cat)
+    return (catData?.items ?? []).reduce((sum, item) => {
+      const t = totalItem(item)
+      return t !== null ? sum + t : sum
+    }, 0)
+  }
+
+  function totalGeneral() {
+    return categorias.flatMap((c) => c.items).reduce((sum, item) => {
+      const t = totalItem(item)
+      return t !== null ? sum + t : sum
+    }, 0)
+  }
+
+  const itemsActivos: SolicitudItem[] = catActiva
+    ? [...(categorias.find((c) => c.categoria === catActiva)?.items ?? [])].sort((a, b) => {
+        if (a.es_adicional && !b.es_adicional) return 1
+        if (!a.es_adicional && b.es_adicional) return -1
+        return a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' })
+      })
+    : []
+
+  const itemsFiltrados = busqueda.trim()
+    ? itemsActivos.filter((i) =>
+        i.descripcion.toLowerCase().includes(busqueda.toLowerCase()) ||
+        i.codigo.toLowerCase().includes(busqueda.toLowerCase())
+      )
+    : itemsActivos
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Period navigator */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+          Solicitud de insumos
+        </h3>
+        <div
+          className="flex items-center gap-1 rounded-lg px-2 py-1.5"
+          style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}
+        >
+          <button
+            type="button"
+            onClick={() => adjustPeriod(-1)}
+            className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--color-text-400)' }}
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span
+            className="text-xs font-semibold px-2 whitespace-nowrap"
+            style={{ color: 'var(--color-text-900)', minWidth: 100, textAlign: 'center' }}
+          >
+            {periodLabel}
+          </span>
+          <button
+            type="button"
+            onClick={() => adjustPeriod(1)}
+            className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--color-text-400)' }}
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+        </div>
+      ) : !solicitud ? (
+        <div
+          className="flex flex-col items-center justify-center py-16 rounded-xl"
+          style={{ background: 'var(--color-surface-0)', border: '1px dashed var(--color-border)' }}
+        >
+          <Clock size={28} className="mb-3" style={{ color: 'var(--color-text-400)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>Sin plantilla para {periodLabel}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--color-text-400)' }}>
+            El encargado aun no ha enviado la plantilla de insumos para este mes
+          </p>
+        </div>
+      ) : solicitud.estado === 'COMPLETADA' ? (
+        <div className="flex flex-col gap-4">
+          {/* Confirmacion */}
+          <div
+            className="flex items-center gap-4 px-5 py-4 rounded-xl"
+            style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
+          >
+            <CheckCircle2 size={28} className="text-emerald-500 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+                Solicitud de {periodLabel} enviada
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+                {solicitud.lugar} - CC {solicitud.lote}
+              </p>
+            </div>
+          </div>
+
+          {/* Datos de la solicitud */}
+          <div
+            className="grid grid-cols-1 sm:grid-cols-3 gap-3 px-5 py-4 rounded-xl"
+            style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
+          >
+            {[
+              { label: 'Fecha',       value: solicitud.fecha              ?? '-' },
+              { label: 'Solicitante', value: solicitud.nombre_solicitante ?? '-' },
+              { label: 'Contrato',    value: solicitud.numero_contrato    ?? '-' },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex flex-col gap-0.5">
+                <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>{label}</span>
+                <span className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Trazabilidad de requisiciones */}
+          {(() => {
+            const RQ_INFO: Record<string, { color: string; desc: string }> = {
+              APROBADA:         { color: '#3b82f6', desc: 'Solicitud procesada, pedido en preparacion' },
+              PEDIDO_REALIZADO: { color: '#f59e0b', desc: 'Pedido realizado al proveedor' },
+              EN_BODEGA:        { color: '#0891b2', desc: 'Insumos disponibles en bodega, ya puedes pasar a recoger' },
+              ENTREGADO:        { color: '#16a34a', desc: 'Insumos entregados' },
+            }
+            const RQ_LABELS: Record<string, string> = {
+              APROBADA: 'Aprobada', PEDIDO_REALIZADO: 'Pedido realizado',
+              EN_BODEGA: 'En bodega', ENTREGADO: 'Entregado',
+              ABIERTA: 'Abierta', COMPLETADA: 'Completada',
+            }
+            return (
+              <>
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                  <div className="px-5 py-3" style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
+                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-900)' }}>
+                      Seguimiento de requisiciones
+                    </p>
+                  </div>
+                  {rqsSolicitud.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2">
+                      <Clock size={22} style={{ color: 'var(--color-text-400)' }} />
+                      <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>
+                        Pendiente de procesamiento
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
+                        El encargado esta revisando tu solicitud y generara las requisiciones
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
+                      {rqsSolicitud.map((rq) => {
+                        const info  = RQ_INFO[rq.estado]
+                        const color = info?.color ?? '#6b7280'
+                        return (
+                          <div key={rq.id} className="flex items-center gap-3 px-5 py-3" style={{ background: 'var(--color-surface-0)' }}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold" style={{ color: 'var(--color-text-900)' }}>
+                                  RQ #{rq.numero_rq}
+                                </span>
+                                <span
+                                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                                  style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+                                >
+                                  {CATEGORIA_LABELS[rq.categoria]}
+                                </span>
+                                <span
+                                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                                  style={{ background: `${color}22`, color }}
+                                >
+                                  {RQ_LABELS[rq.estado] ?? rq.estado}
+                                </span>
+                              </div>
+                              {info && (
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+                                  {info.desc}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => setPreviewRqId(rq.id)}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity shrink-0"
+                              title="Ver lo solicitado"
+                              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)', border: '1px solid var(--color-border)' }}
+                            >
+                              <Eye size={13} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+                {previewRqId && <RQPreviewModal rqId={previewRqId} onClose={() => setPreviewRqId(null)} />}
+              </>
+            )
+          })()}
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+          {/* Info + datos + boton */}
+          <div
+            className="rounded-xl px-5 py-4 flex flex-col gap-4"
+            style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
+          >
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-xs font-semibold" style={{ color: 'var(--color-text-900)' }}>
+                  {solicitud.lugar} - CC {solicitud.lote}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>Plantilla de {periodLabel}</p>
+              </div>
+              <button
+                type="submit"
+                disabled={llenar.isPending || !fecha || !nombre || !contrato}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-opacity shrink-0"
+                style={{
+                  background: 'var(--color-primary)',
+                  color: '#fff',
+                  opacity: (llenar.isPending || !fecha || !nombre || !contrato) ? 0.6 : 1,
+                }}
+              >
+                <Send size={15} />
+                Revisar y enviar
+              </button>
+            </div>
+
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-400)' }}>
+              Datos del solicitante
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Fecha</label>
+                <input
+                  required type="date" value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                  className="rounded-lg text-sm outline-none px-3 py-2"
+                  style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)' }}
+                  onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)' }}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Nombre del solicitante</label>
+                <input
+                  required value={nombre} placeholder="Nombre completo"
+                  onChange={(e) => setNombre(e.target.value)}
+                  className="rounded-lg text-sm outline-none px-3 py-2"
+                  style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)' }}
+                  onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)' }}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Numero de contrato</label>
+                <input
+                  required value={contrato} placeholder="CT-2026-001"
+                  onChange={(e) => setContrato(e.target.value)}
+                  className="rounded-lg text-sm outline-none px-3 py-2"
+                  style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)' }}
+                  onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Selector de categorias + tabla */}
+          {categorias.length === 0 ? (
+            <div
+              className="flex flex-col items-center justify-center py-10 rounded-xl"
+              style={{ background: 'var(--color-surface-0)', border: '1px dashed var(--color-border)' }}
+            >
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text-400)' }}>
+                La plantilla no tiene insumos configurados
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {/* Tabs */}
+              <div
+                className="flex gap-1 p-1 rounded-xl w-fit"
+                style={{ background: 'var(--color-surface-2)' }}
+              >
+                {categorias.map(({ categoria }) => (
+                  <button
+                    key={categoria}
+                    type="button"
+                    onClick={() => { setCatActiva(categoria); setBusqueda('') }}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                    style={
+                      catActiva === categoria
+                        ? { background: 'var(--color-surface-0)', color: 'var(--color-primary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
+                        : { color: 'var(--color-text-400)' }
+                    }
+                  >
+                    {CATEGORIA_LABELS[categoria]}
+                    <span
+                      className="ml-1.5 text-xs rounded-full px-1.5 py-0.5"
+                      style={{
+                        background: catActiva === categoria ? 'var(--color-primary)' : 'var(--color-surface-1)',
+                        color: catActiva === categoria ? '#fff' : 'var(--color-text-400)',
+                        fontSize: '10px',
+                      }}
+                    >
+                      {categorias.find((c) => c.categoria === categoria)?.items.length ?? 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Buscador + boton agregar adicional */}
+              <div className="flex gap-2">
+                <div
+                  className="flex-1 flex items-center gap-2 rounded-lg px-3 py-2"
+                  style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}
+                >
+                  <Search size={14} style={{ color: 'var(--color-text-400)', flexShrink: 0 }} />
+                  <input
+                    type="text"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Buscar por codigo o descripcion..."
+                    className="flex-1 text-xs outline-none bg-transparent"
+                    style={{ color: 'var(--color-text-900)' }}
+                  />
+                  {busqueda && (
+                    <button
+                      type="button"
+                      onClick={() => setBusqueda('')}
+                      className="text-xs hover:opacity-70"
+                      style={{ color: 'var(--color-text-400)' }}
+                    >
+                      x
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAdicionalModal({ item: null })}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap hover:opacity-80 transition-opacity"
+                  style={{ background: '#fef3c7', color: '#92400e', border: '1.5px solid #fcd34d' }}
+                >
+                  <Plus size={13} />
+                  Adicional
+                </button>
+              </div>
+
+              {/* Tabla */}
+              {itemsFiltrados.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-10 rounded-xl"
+                  style={{ background: 'var(--color-surface-0)', border: '1px dashed var(--color-border)' }}
+                >
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-400)' }}>
+                    {busqueda ? 'Sin resultados para la busqueda' : 'Esta categoria no tiene insumos'}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
+                          {['Codigo', 'Descripcion', 'Unidad', 'V. Unitario', 'Solicitado', 'Total', ''].map((h) => (
+                            <th
+                              key={h}
+                              className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                              style={{ color: 'var(--color-text-400)' }}
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {itemsFiltrados.map((item, idx) => {
+                          const t          = totalItem(item)
+                          const isAdicional = !!item.es_adicional
+                          return (
+                            <tr
+                              key={item.id}
+                              style={{
+                                borderBottom: '1px solid var(--color-border)',
+                                background: isAdicional
+                                  ? 'rgba(217,119,6,0.06)'
+                                  : (idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)'),
+                              }}
+                            >
+                              {/* Codigo */}
+                              <td
+                                className="px-3 py-2.5 font-mono text-xs font-semibold"
+                                style={{ color: 'var(--color-text-600)', borderLeft: isAdicional ? '3px solid #d97706' : undefined }}
+                              >
+                                {item.codigo}
+                                {isAdicional && (
+                                  <span
+                                    className="ml-1.5 rounded px-1 py-0.5"
+                                    style={{ background: '#fef3c7', color: '#92400e', fontSize: '9px', fontFamily: 'inherit', fontWeight: 700 }}
+                                  >
+                                    ADC
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Descripcion + proveedor si es adicional */}
+                              <td className="px-3 py-2.5 text-xs font-medium" style={{ color: 'var(--color-text-900)', maxWidth: 280 }}>
+                                {item.descripcion}
+                                {isAdicional && item.proveedor && (
+                                  <span className="block text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+                                    {item.proveedor}
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="px-3 py-2.5 text-xs" style={{ color: 'var(--color-text-600)' }}>
+                                {item.unidad}
+                              </td>
+
+                              <td className="px-3 py-2.5 text-xs font-semibold text-right whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                                {formatCOP(item.valor_unitario)}
+                              </td>
+
+                              {/* Solicitado: input para plantilla, texto para adicional */}
+                              <td className="px-3 py-2.5" style={{ minWidth: 96 }}>
+                                {isAdicional ? (
+                                  <span className="text-xs font-semibold block text-right px-2" style={{ color: 'var(--color-text-900)' }}>
+                                    {item.solicitado ?? '-'}
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="number" min="0" step="1"
+                                    value={cantidades[item.id] ?? ''}
+                                    onChange={(e) => setCantidades((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                    placeholder="0"
+                                    className="rounded-lg text-xs outline-none text-right w-full"
+                                    style={{
+                                      border: '1.5px solid var(--color-border)',
+                                      background: 'var(--color-surface-0)',
+                                      color: 'var(--color-text-900)',
+                                      padding: '5px 8px',
+                                    }}
+                                    onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)' }}
+                                    onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)' }}
+                                  />
+                                )}
+                              </td>
+
+                              <td className="px-3 py-2.5 text-xs font-bold text-right whitespace-nowrap" style={{ color: t !== null ? (isAdicional ? '#d97706' : 'var(--color-text-900)') : 'var(--color-text-400)' }}>
+                                {formatCOP(t)}
+                              </td>
+
+                              {/* Acciones para adicionales */}
+                              <td className="px-3 py-2.5">
+                                {isAdicional && (
+                                  <div className="flex gap-1 justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => setAdicionalModal({ item })}
+                                      className="w-6 h-6 rounded flex items-center justify-center hover:opacity-70"
+                                      style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+                                    >
+                                      <Pencil size={11} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => eliminarAdicional.mutate(item.id)}
+                                      className="w-6 h-6 rounded flex items-center justify-center hover:opacity-70"
+                                      style={{ background: '#fef2f2', color: '#ef4444' }}
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                      {catActiva && (
+                        <tfoot>
+                          <tr style={{ background: 'var(--color-surface-1)', borderTop: '2px solid var(--color-border)' }}>
+                            <td colSpan={6} className="px-3 py-2.5 text-xs font-bold text-right" style={{ color: 'var(--color-text-600)' }}>
+                              Subtotal {CATEGORIA_LABELS[catActiva]}
+                            </td>
+                            <td className="px-3 py-2.5 text-xs font-bold text-right whitespace-nowrap" style={{ color: 'var(--color-primary)' }}>
+                              {formatCOP(totalCategoria(catActiva))}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Total general */}
+              <div
+                className="flex items-center justify-between px-4 py-3 rounded-xl"
+                style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
+              >
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-600)' }}>
+                  Total general
+                </span>
+                <span className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
+                  {formatCOP(totalGeneral())}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de confirmacion */}
+          {showConfirm && (
+            <ModalPortal onClose={() => !llenar.isPending && setShowConfirm(false)}>
+              <div
+                className="w-full max-w-sm rounded-2xl flex flex-col gap-0 overflow-hidden"
+                style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  className="px-6 py-5"
+                  style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-secondary)' }}>
+                    Confirmar solicitud
+                  </p>
+                  <h2 className="text-base font-bold" style={{ color: 'var(--color-text-900)' }}>
+                    {solicitud.lugar}
+                  </h2>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+                    CC {solicitud.lote} &middot; {nombre}
+                  </p>
+                </div>
+
+                <div className="px-6 py-5 flex flex-col gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>
+                    Resumen por categoria
+                  </p>
+                  {(solicitud.categorias ?? []).map(({ categoria: cat }) => {
+                    const sub = totalCategoria(cat)
+                    return (
+                      <div key={cat} className="flex items-center justify-between gap-4">
+                        <span className="text-sm" style={{ color: 'var(--color-text-600)' }}>
+                          {CATEGORIA_LABELS[cat]}
+                        </span>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+                          {sub > 0 ? formatCOP(sub) : <span style={{ color: 'var(--color-text-400)' }}>Sin solicitar</span>}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  <div
+                    className="flex items-center justify-between gap-4 pt-4 mt-1"
+                    style={{ borderTop: '1.5px solid var(--color-border)' }}
+                  >
+                    <span className="text-sm font-bold" style={{ color: 'var(--color-text-900)' }}>Total general</span>
+                    <span className="text-lg font-bold" style={{ color: 'var(--color-primary)' }}>
+                      {formatCOP(totalGeneral())}
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  className="px-6 py-4 flex gap-3"
+                  style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm(false)}
+                    disabled={llenar.isPending}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold transition-opacity"
+                    style={{
+                      background: 'var(--color-surface-0)',
+                      border: '1.5px solid var(--color-border)',
+                      color: 'var(--color-text-600)',
+                      opacity: llenar.isPending ? 0.5 : 1,
+                    }}
+                  >
+                    Corregir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirm}
+                    disabled={llenar.isPending}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-opacity"
+                    style={{
+                      background: 'var(--color-primary)',
+                      color: '#fff',
+                      opacity: llenar.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    {llenar.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {llenar.isPending ? 'Enviando...' : 'Confirmar envio'}
+                  </button>
+                </div>
+              </div>
+            </ModalPortal>
+          )}
+
+          {/* Modal de adicional (crear/editar) */}
+          {adicionalModal !== null && catActiva && (
+            <AdicionalModal
+              solicitudId={solicitud.id}
+              catDefault={catActiva}
+              item={adicionalModal.item}
+              onClose={() => setAdicionalModal(null)}
+            />
+          )}
+        </form>
+      )}
+    </div>
+  )
+}
