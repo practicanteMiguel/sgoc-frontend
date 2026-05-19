@@ -45,6 +45,14 @@ export function useEnviarPlantillas() {
   })
 }
 
+export function useMisSolicitudes(mes: number, anio: number) {
+  return useQuery({
+    queryKey: ['solicitudes', 'mis-solicitudes', mes, anio],
+    queryFn: () =>
+      api.get<SolicitudResumen[]>(`/solicitudes/mis-solicitudes?mes=${mes}&anio=${anio}`).then((r) => r.data),
+  })
+}
+
 export function useMiSolicitud(mes: number, anio: number) {
   return useQuery({
     queryKey: ['solicitudes', 'mi-solicitud', mes, anio],
@@ -65,8 +73,9 @@ export function useLlenarMiSolicitud() {
   return useMutation({
     mutationFn: ({ id, fecha, nombre_solicitante, numero_contrato, items }: { id: string } & SolicitudLlenadoDto) =>
       api.patch<Solicitud>(`/solicitudes/${id}/llenado`, { fecha, nombre_solicitante, numero_contrato, items }).then((r) => r.data),
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['solicitudes', 'mi-solicitud'] })
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['solicitudes', id] })
+      qc.invalidateQueries({ queryKey: ['solicitudes', 'mis-solicitudes'] })
       toast.success('Solicitud enviada')
     },
     onError: (err: any) => {
@@ -113,7 +122,7 @@ export function useCrearAdicional(solicitudId: string) {
     mutationFn: (data: CreateAdicionalDto) =>
       api.post(`/solicitudes/${solicitudId}/adicionales`, data).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['solicitudes', 'mi-solicitud'] })
+      qc.invalidateQueries({ queryKey: ['solicitudes'] })
       toast.success('Insumo adicional agregado')
     },
     onError: (err: any) => {
@@ -129,7 +138,7 @@ export function useEditarAdicional(solicitudId: string) {
     mutationFn: ({ adicionalId, data }: { adicionalId: string; data: UpdateAdicionalDto }) =>
       api.patch(`/solicitudes/${solicitudId}/adicionales/${adicionalId}`, data).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['solicitudes', 'mi-solicitud'] })
+      qc.invalidateQueries({ queryKey: ['solicitudes'] })
       toast.success('Insumo adicional actualizado')
     },
     onError: (err: any) => {
@@ -145,7 +154,7 @@ export function useEliminarAdicional(solicitudId: string) {
     mutationFn: (adicionalId: string) =>
       api.delete(`/solicitudes/${solicitudId}/adicionales/${adicionalId}`).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['solicitudes', 'mi-solicitud'] })
+      qc.invalidateQueries({ queryKey: ['solicitudes'] })
       toast.success('Insumo adicional eliminado')
     },
     onError: (err: any) => {
@@ -167,6 +176,22 @@ export function useReabrirSolicitud() {
     onError: (err: any) => {
       const msg = err?.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al re-abrir la solicitud'))
+    },
+  })
+}
+
+export function useCrearSolicitudAdicional() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { mes: number; anio: number; lugar: string }) =>
+      api.post<Solicitud>('/solicitudes/adicional', data).then((r) => r.data),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['solicitudes', 'mis-solicitudes', vars.mes, vars.anio] })
+      toast.success('Solicitud adicional creada')
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear solicitud adicional'))
     },
   })
 }

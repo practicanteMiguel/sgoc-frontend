@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, Send, Clock, Search, Eye, X, Plus, Pencil, Trash2 } from 'lucide-react'
 import {
-  useMiSolicitud, useLlenarMiSolicitud, useSolicitudRequisiciones,
-  useCrearAdicional, useEditarAdicional, useEliminarAdicional,
+  useMisSolicitudes, useSolicitud, useLlenarMiSolicitud, useSolicitudRequisiciones,
+  useCrearAdicional, useEditarAdicional, useEliminarAdicional, useCrearSolicitudAdicional,
 } from '@/src/hooks/consumables/use-solicitudes'
 import { useRequisicion } from '@/src/hooks/consumables/use-requisiciones'
 import { useAuthStore } from '@/src/stores/auth.store'
@@ -282,6 +282,97 @@ function AdicionalModal({
   )
 }
 
+/* ─────────────── NuevaSolicitudModal ─────────────── */
+
+function NuevaSolicitudModal({
+  mes, anio, onSuccess, onClose,
+}: {
+  mes: number; anio: number
+  onSuccess: (id: string) => void; onClose: () => void
+}) {
+  const [lugar, setLugar] = useState('')
+  const crear = useCrearSolicitudAdicional()
+
+  return (
+    <ModalPortal onClose={() => !crear.isPending && onClose()}>
+      <div
+        className="w-full max-w-sm rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="px-6 py-4 flex items-center justify-between gap-3"
+          style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-secondary)' }}>
+              Solicitud adicional
+            </p>
+            <h2 className="text-sm font-bold mt-0.5" style={{ color: 'var(--color-text-900)' }}>
+              Nueva solicitud
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => !crear.isPending && onClose()}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            crear.mutate({ mes, anio, lugar }, { onSuccess: (d) => onSuccess(d.id) })
+          }}
+          className="px-6 py-5 flex flex-col gap-4"
+        >
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>
+              Nombre del lugar *
+            </label>
+            <input
+              required
+              autoFocus
+              value={lugar}
+              onChange={(e) => setLugar(e.target.value)}
+              placeholder="Ej: Estacion Norte, Bloque 3..."
+              className="rounded-lg text-sm outline-none px-3 py-2"
+              style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
+              onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)' }}
+              onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)' }}
+            />
+            <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
+              Este nombre identifica la solicitud adicional
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => !crear.isPending && onClose()}
+              disabled={crear.isPending}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: 'var(--color-surface-0)', border: '1.5px solid var(--color-border)', color: 'var(--color-text-600)', opacity: crear.isPending ? 0.5 : 1 }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={crear.isPending || !lugar.trim()}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
+              style={{ background: 'var(--color-primary)', color: '#fff', opacity: (crear.isPending || !lugar.trim()) ? 0.6 : 1 }}
+            >
+              {crear.isPending ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+              {crear.isPending ? 'Creando...' : 'Crear solicitud'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </ModalPortal>
+  )
+}
+
 /* ─────────────── MiSolicitudTab ─────────────── */
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -295,7 +386,16 @@ export function MiSolicitudTab() {
   const [mes,  setMes]  = useState(now.getMonth() + 1)
   const [anio, setAnio] = useState(now.getFullYear())
 
-  const { data: solicitud, isLoading } = useMiSolicitud(mes, anio)
+  const { data: lista = [], isLoading: listaLoading } = useMisSolicitudes(mes, anio)
+  const [selectedId,        setSelectedId]        = useState<string | null>(null)
+  const [showNuevaSolicitud, setShowNuevaSolicitud] = useState(false)
+
+  useEffect(() => { setSelectedId(null) }, [mes, anio])
+
+  const efectiveId = selectedId ?? lista[0]?.id ?? null
+  const { data: solicitud, isLoading: solLoading } = useSolicitud(efectiveId)
+  const isLoading = listaLoading || (!!efectiveId && solLoading && !solicitud)
+
   const llenar = useLlenarMiSolicitud()
   const { data: rqsSolicitud = [] } = useSolicitudRequisiciones(
     solicitud?.estado === 'COMPLETADA' ? (solicitud?.id ?? null) : null
@@ -411,40 +511,76 @@ export function MiSolicitudTab() {
         <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
           Solicitud de insumos
         </h3>
-        <div
-          className="flex items-center gap-1 rounded-lg px-2 py-1.5"
-          style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}
-        >
-          <button
-            type="button"
-            onClick={() => adjustPeriod(-1)}
-            className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
-            style={{ color: 'var(--color-text-400)' }}
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-1 rounded-lg px-2 py-1.5"
+            style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}
           >
-            <ChevronLeft size={14} />
-          </button>
-          <span
-            className="text-xs font-semibold px-2 whitespace-nowrap"
-            style={{ color: 'var(--color-text-900)', minWidth: 100, textAlign: 'center' }}
-          >
-            {periodLabel}
-          </span>
-          <button
-            type="button"
-            onClick={() => adjustPeriod(1)}
-            className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
-            style={{ color: 'var(--color-text-400)' }}
-          >
-            <ChevronRight size={14} />
-          </button>
+            <button
+              type="button"
+              onClick={() => adjustPeriod(-1)}
+              className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
+              style={{ color: 'var(--color-text-400)' }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span
+              className="text-xs font-semibold px-2 whitespace-nowrap"
+              style={{ color: 'var(--color-text-900)', minWidth: 100, textAlign: 'center' }}
+            >
+              {periodLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => adjustPeriod(1)}
+              className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
+              style={{ color: 'var(--color-text-400)' }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+          {lista.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowNuevaSolicitud(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity"
+              style={{ background: 'var(--color-primary)', color: '#fff' }}
+            >
+              <Plus size={13} /> Nueva solicitud
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Selector de solicitudes */}
+      {lista.length > 1 && (
+        <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--color-surface-2)' }}>
+          {lista.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => { setSelectedId(s.id); setCatActiva(null); setBusqueda(''); setAdicionalModal(null) }}
+              className="px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5"
+              style={
+                efectiveId === s.id
+                  ? { background: 'var(--color-surface-0)', color: 'var(--color-primary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
+                  : { color: 'var(--color-text-400)' }
+              }
+            >
+              {s.lugar}
+              {s.estado === 'COMPLETADA' && (
+                <CheckCircle2 size={10} style={{ color: '#16a34a' }} />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-16">
           <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
         </div>
-      ) : !solicitud ? (
+      ) : lista.length === 0 ? (
         <div
           className="flex flex-col items-center justify-center py-16 rounded-xl"
           style={{ background: 'var(--color-surface-0)', border: '1px dashed var(--color-border)' }}
@@ -455,7 +591,7 @@ export function MiSolicitudTab() {
             El encargado aun no ha enviado la plantilla de insumos para este mes
           </p>
         </div>
-      ) : solicitud.estado === 'COMPLETADA' ? (
+      ) : !solicitud ? null : solicitud.estado === 'COMPLETADA' ? (
         <div className="flex flex-col gap-4">
           {/* Confirmacion */}
           <div
@@ -983,6 +1119,15 @@ export function MiSolicitudTab() {
             />
           )}
         </form>
+      )}
+
+      {showNuevaSolicitud && (
+        <NuevaSolicitudModal
+          mes={mes}
+          anio={anio}
+          onSuccess={(id) => { setSelectedId(id); setShowNuevaSolicitud(false) }}
+          onClose={() => setShowNuevaSolicitud(false)}
+        />
       )}
     </div>
   )
