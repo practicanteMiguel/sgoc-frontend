@@ -145,7 +145,7 @@ api.interceptors.response.use(
       processQueue(refreshError, null);
       clearStoredAuth();
       if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        window.location.href = "/auth/login";
       }
       return Promise.reject(refreshError);
     } finally {

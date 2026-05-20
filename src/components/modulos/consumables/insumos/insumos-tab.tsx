@@ -236,7 +236,7 @@ function EnviarPlantillasModal({ mes, anio, onClose }: { mes: number; anio: numb
               Enviar plantilla de {MESES[mes - 1]} {anio}
             </h3>
             <p className="text-sm mt-1" style={{ color: 'var(--color-text-400)' }}>
-              Cada planta activa recibira la lista de insumos del mes con el campo "solicitado" en blanco para que indiquen sus necesidades.
+              Cada planta activa recibira la lista de insumos del mes con el campo &quot;solicitado&quot; en blanco para que indiquen sus necesidades.
             </p>
           </div>
         </div>

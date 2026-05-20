@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalPortalProps {
@@ -9,11 +9,10 @@ interface ModalPortalProps {
 }
 
 export function ModalPortal({ children, onClose }: ModalPortalProps) {
-  const ref = useRef<Element | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    ref.current = document.body;
-
+    setMounted(true);
     // Bloquear scroll del body mientras el modal está abierto
     document.body.style.overflow = 'hidden';
     return () => {
@@ -30,7 +29,7 @@ export function ModalPortal({ children, onClose }: ModalPortalProps) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  if (!ref.current && typeof window === 'undefined') return null;
+  if (!mounted) return null;
 
   return createPortal(
     <div

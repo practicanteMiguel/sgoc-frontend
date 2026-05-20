@@ -148,7 +148,7 @@ export function FieldCompliancePanel({ field, canManage }: Props) {
           </p>
           {canManage && (
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
-              Usa "Generar mes" para crearlos
+              Usa &quot;Generar mes&quot; para crearlos
             </p>
           )}
         </div>

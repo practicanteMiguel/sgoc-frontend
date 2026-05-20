@@ -600,7 +600,7 @@ export function SupervisorActivitiesView() {
               <Users size={28} className="mb-3" style={{ color: 'var(--color-text-400)' }} />
               <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>Sin cuadrillas</p>
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-400)' }}>
-                Crea la primera cuadrilla con el boton "Nueva cuadrilla".
+                Crea la primera cuadrilla con el boton &quot;Nueva cuadrilla&quot;.
               </p>
             </div>
           ) : (
@@ -885,7 +885,7 @@ export function SupervisorActivitiesView() {
               <FileText size={28} className="mb-3" style={{ color: 'var(--color-text-400)' }} />
               <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>Sin informes</p>
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-400)' }}>
-                Abre una bitacora y usa "Generar informe" para crear el primero.
+                Abre una bitacora y usa &quot;Generar informe&quot; para crear el primero.
               </p>
             </div>
           ) : (

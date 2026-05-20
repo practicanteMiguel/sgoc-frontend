@@ -167,7 +167,7 @@ export function FieldCoordsModal({ field, onClose }: FieldCoordsModalProps) {
         <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
-              Haz clic en el mapa o usa "Mi ubicacion" para fijar las coordenadas de tu planta.
+              Haz clic en el mapa o usa &quot;Mi ubicacion&quot; para fijar las coordenadas de tu planta.
             </p>
             <button
               type="button"

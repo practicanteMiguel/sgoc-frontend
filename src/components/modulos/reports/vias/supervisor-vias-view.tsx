@@ -324,7 +324,7 @@ export function SupervisorViasView() {
               <Calendar size={28} className="mb-3" style={{ color: 'var(--color-text-400)' }} />
               <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>Sin registros</p>
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-400)' }}>
-                Crea el primer registro mensual con el boton "Nuevo registro".
+                Crea el primer registro mensual con el boton &quot;Nuevo registro&quot;.
               </p>
             </div>
           ) : (

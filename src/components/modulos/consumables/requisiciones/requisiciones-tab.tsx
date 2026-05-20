@@ -897,7 +897,7 @@ function SolicitudesSection({ mes, anio }: { mes: number; anio: number }) {
           <FileText size={24} className="mb-2" style={{ color: 'var(--color-text-400)' }} />
           <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>Sin solicitudes</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
-            Usa "Enviar a plantas" en la vista de Insumos para enviar las plantillas de {MESES[mes - 1]} {anio}
+            Usa &quot;Enviar a plantas&quot; en la vista de Insumos para enviar las plantillas de {MESES[mes - 1]} {anio}
           </p>
         </div>
       ) : (
