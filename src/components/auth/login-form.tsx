@@ -261,8 +261,8 @@ export function LoginForm() {
           style={{ zIndex: 2 }}
         >
           {[
-            { label: "Campos activos", value: "12" },
-            { label: "Supervisores", value: "38" },
+            { label: "Campos activos", value: "06" },
+            { label: "Supervisores", value: "06" },
             { label: "Módulos", value: "09" },
           ].map((s) => (
             <div
