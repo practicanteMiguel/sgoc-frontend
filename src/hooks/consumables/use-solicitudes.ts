@@ -183,7 +183,7 @@ export function useReabrirSolicitud() {
 export function useCrearSolicitudAdicional() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { mes: number; anio: number; lugar: string }) =>
+    mutationFn: (data: { mes: number; anio: number; lugar?: string; field_lugar_id?: string }) =>
       api.post<Solicitud>('/solicitudes/adicional', data).then((r) => r.data),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['solicitudes', 'mis-solicitudes', vars.mes, vars.anio] })

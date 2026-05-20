@@ -7,6 +7,7 @@ import {
   useCrearAdicional, useEditarAdicional, useEliminarAdicional, useCrearSolicitudAdicional,
 } from '@/src/hooks/consumables/use-solicitudes'
 import { useRequisicion } from '@/src/hooks/consumables/use-requisiciones'
+import { useFieldLugares } from '@/src/hooks/reports/use-fields'
 import { useAuthStore } from '@/src/stores/auth.store'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { CATEGORIAS, CATEGORIA_LABELS } from '@/src/types/consumables.types'
@@ -282,97 +283,6 @@ function AdicionalModal({
   )
 }
 
-/* ─────────────── NuevaSolicitudModal ─────────────── */
-
-function NuevaSolicitudModal({
-  mes, anio, onSuccess, onClose,
-}: {
-  mes: number; anio: number
-  onSuccess: (id: string) => void; onClose: () => void
-}) {
-  const [lugar, setLugar] = useState('')
-  const crear = useCrearSolicitudAdicional()
-
-  return (
-    <ModalPortal onClose={() => !crear.isPending && onClose()}>
-      <div
-        className="w-full max-w-sm rounded-2xl overflow-hidden flex flex-col"
-        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="px-6 py-4 flex items-center justify-between gap-3"
-          style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}
-        >
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-secondary)' }}>
-              Solicitud adicional
-            </p>
-            <h2 className="text-sm font-bold mt-0.5" style={{ color: 'var(--color-text-900)' }}>
-              Nueva solicitud
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => !crear.isPending && onClose()}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70"
-            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
-          >
-            <X size={14} />
-          </button>
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            crear.mutate({ mes, anio, lugar }, { onSuccess: (d) => onSuccess(d.id) })
-          }}
-          className="px-6 py-5 flex flex-col gap-4"
-        >
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>
-              Nombre del lugar *
-            </label>
-            <input
-              required
-              autoFocus
-              value={lugar}
-              onChange={(e) => setLugar(e.target.value)}
-              placeholder="Ej: Estacion Norte, Bloque 3..."
-              className="rounded-lg text-sm outline-none px-3 py-2"
-              style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
-              onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)' }}
-              onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)' }}
-            />
-            <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
-              Este nombre identifica la solicitud adicional
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => !crear.isPending && onClose()}
-              disabled={crear.isPending}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-              style={{ background: 'var(--color-surface-0)', border: '1.5px solid var(--color-border)', color: 'var(--color-text-600)', opacity: crear.isPending ? 0.5 : 1 }}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={crear.isPending || !lugar.trim()}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
-              style={{ background: 'var(--color-primary)', color: '#fff', opacity: (crear.isPending || !lugar.trim()) ? 0.6 : 1 }}
-            >
-              {crear.isPending ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-              {crear.isPending ? 'Creando...' : 'Crear solicitud'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </ModalPortal>
-  )
-}
-
 /* ─────────────── MiSolicitudTab ─────────────── */
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -387,14 +297,19 @@ export function MiSolicitudTab() {
   const [anio, setAnio] = useState(now.getFullYear())
 
   const { data: lista = [], isLoading: listaLoading } = useMisSolicitudes(mes, anio)
-  const [selectedId,        setSelectedId]        = useState<string | null>(null)
-  const [showNuevaSolicitud, setShowNuevaSolicitud] = useState(false)
+  const { data: lugares = [] } = useFieldLugares(user?.field_id ?? null)
+  const crearAdicional = useCrearSolicitudAdicional()
+  const [activeTab, setActiveTab] = useState<string | null>(null)
 
-  useEffect(() => { setSelectedId(null) }, [mes, anio])
+  useEffect(() => { setActiveTab(null) }, [mes, anio])
 
-  const efectiveId = selectedId ?? lista[0]?.id ?? null
-  const { data: solicitud, isLoading: solLoading } = useSolicitud(efectiveId)
-  const isLoading = listaLoading || (!!efectiveId && solLoading && !solicitud)
+  const mainSolicitud = lista.find((s) => !s.field_lugar_id) ?? lista[0] ?? null
+  const activeSolicitudId = activeTab === null
+    ? (mainSolicitud?.id ?? null)
+    : (lista.find((s) => s.field_lugar_id === activeTab)?.id ?? null)
+  const { data: solicitud, isLoading: solLoading } = useSolicitud(activeSolicitudId)
+  const isLoading  = listaLoading || (!!activeSolicitudId && solLoading && !solicitud)
+  const isWaiting  = !isLoading && activeTab !== null && !activeSolicitudId
 
   const llenar = useLlenarMiSolicitud()
   const { data: rqsSolicitud = [] } = useSolicitudRequisiciones(
@@ -437,6 +352,15 @@ export function MiSolicitudTab() {
     if (m < 1)  { m = 12; a-- }
     if (m > 12) { m = 1;  a++ }
     setMes(m); setAnio(a)
+  }
+
+  function handleTabClick(lugarId: string | null) {
+    if (lugarId === activeTab) return
+    setCatActiva(null); setBusqueda(''); setAdicionalModal(null)
+    setActiveTab(lugarId)
+    if (lugarId !== null && !lista.find((s) => s.field_lugar_id === lugarId)) {
+      crearAdicional.mutate({ mes, anio, field_lugar_id: lugarId })
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -539,44 +463,54 @@ export function MiSolicitudTab() {
               <ChevronRight size={14} />
             </button>
           </div>
-          {lista.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowNuevaSolicitud(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity"
-              style={{ background: 'var(--color-primary)', color: '#fff' }}
-            >
-              <Plus size={13} /> Nueva solicitud
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Selector de solicitudes */}
-      {lista.length > 1 && (
-        <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--color-surface-2)' }}>
-          {lista.map((s) => (
+      {/* Tabs: main + lugares configurados por el encargado */}
+      {lista.length > 0 && lugares.length > 0 && (
+        <div className="flex gap-1 p-1 rounded-xl flex-wrap" style={{ background: 'var(--color-surface-2)' }}>
+          {mainSolicitud && (
             <button
-              key={s.id}
               type="button"
-              onClick={() => { setSelectedId(s.id); setCatActiva(null); setBusqueda(''); setAdicionalModal(null) }}
+              onClick={() => handleTabClick(null)}
               className="px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5"
               style={
-                efectiveId === s.id
+                activeTab === null
                   ? { background: 'var(--color-surface-0)', color: 'var(--color-primary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
                   : { color: 'var(--color-text-400)' }
               }
             >
-              {s.lugar}
-              {s.estado === 'COMPLETADA' && (
-                <CheckCircle2 size={10} style={{ color: '#16a34a' }} />
-              )}
+              {mainSolicitud.lugar}
+              {mainSolicitud.estado === 'COMPLETADA' && <CheckCircle2 size={10} style={{ color: '#16a34a' }} />}
             </button>
-          ))}
+          )}
+          {lugares.map((lugar) => {
+            const sol      = lista.find((s) => s.field_lugar_id === lugar.id)
+            const isActive  = activeTab === lugar.id
+            const isCreating = crearAdicional.isPending && activeTab === lugar.id
+            return (
+              <button
+                key={lugar.id}
+                type="button"
+                onClick={() => handleTabClick(lugar.id)}
+                disabled={crearAdicional.isPending}
+                className="px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5"
+                style={
+                  isActive
+                    ? { background: 'var(--color-surface-0)', color: 'var(--color-primary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
+                    : { color: 'var(--color-text-400)' }
+                }
+              >
+                {lugar.nombre}
+                {!isCreating && sol?.estado === 'COMPLETADA' && <CheckCircle2 size={10} style={{ color: '#16a34a' }} />}
+                {isCreating && <Loader2 size={10} className="animate-spin" />}
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {isLoading ? (
+      {(isLoading || isWaiting) ? (
         <div className="flex justify-center py-16">
           <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
         </div>
@@ -1121,14 +1055,6 @@ export function MiSolicitudTab() {
         </form>
       )}
 
-      {showNuevaSolicitud && (
-        <NuevaSolicitudModal
-          mes={mes}
-          anio={anio}
-          onSuccess={(id) => { setSelectedId(id); setShowNuevaSolicitud(false) }}
-          onClose={() => setShowNuevaSolicitud(false)}
-        />
-      )}
     </div>
   )
 }

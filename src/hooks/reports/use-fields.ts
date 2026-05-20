@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/src/lib/axios';
-import type { Field } from '@/src/types/reports.types';
+import type { Field, FieldLugar } from '@/src/types/reports.types';
 import type { PaginatedResponse } from '@/src/types/user.types';
 
 export function useFields(page = 1, limit = 100) {
@@ -96,6 +96,75 @@ export function useRemoveSupervisor() {
     onError: (err: any) => {
       const msg = err?.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al remover supervisor'));
+    },
+  });
+}
+
+export function useActualizarPresupuesto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, presupuesto }: { id: string; presupuesto: number | null }) =>
+      api.patch<{ id: string; name: string; presupuesto: number | null }>(`/fields/${id}/presupuesto`, { presupuesto }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['fields'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar presupuesto'));
+    },
+  });
+}
+
+export function useFieldLugares(fieldId: string | null) {
+  return useQuery({
+    queryKey: ['field-lugares', fieldId],
+    queryFn: () => api.get<FieldLugar[]>(`/fields/${fieldId}/lugares`).then((r) => r.data),
+    enabled: !!fieldId,
+  });
+}
+
+export function useCreateFieldLugar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fieldId, nombre }: { fieldId: string; nombre: string }) =>
+      api.post<FieldLugar>(`/fields/${fieldId}/lugares`, { nombre }).then((r) => r.data),
+    onSuccess: (_, { fieldId }) => {
+      qc.invalidateQueries({ queryKey: ['field-lugares', fieldId] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear lugar'));
+    },
+  });
+}
+
+export function useActualizarFieldLugarPresupuesto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fieldId, lugarId, presupuesto }: { fieldId: string; lugarId: string; presupuesto: number | null }) =>
+      api.patch<FieldLugar>(`/fields/${fieldId}/lugares/${lugarId}/presupuesto`, { presupuesto }).then((r) => r.data),
+    onSuccess: (_, { fieldId }) => {
+      qc.invalidateQueries({ queryKey: ['field-lugares', fieldId] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar presupuesto'));
+    },
+  });
+}
+
+export function useDeleteFieldLugar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fieldId, lugarId }: { fieldId: string; lugarId: string }) =>
+      api.delete(`/fields/${fieldId}/lugares/${lugarId}`).then((r) => r.data),
+    onSuccess: (_, { fieldId }) => {
+      qc.invalidateQueries({ queryKey: ['field-lugares', fieldId] });
+      toast.success('Lugar eliminado');
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar lugar'));
     },
   });
 }

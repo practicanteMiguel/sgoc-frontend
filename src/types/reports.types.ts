@@ -10,11 +10,20 @@ export interface Field {
   id: string;
   name: string;
   location: string;
+  presupuesto: number | null;
   supervisor: FieldSupervisor | null;
   center_lat: number | null;
   center_lng: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FieldLugar {
+  id: string;
+  field_id: string;
+  nombre: string;
+  presupuesto: number | null;
+  created_at: string;
 }
 
 export interface EmployeeField {

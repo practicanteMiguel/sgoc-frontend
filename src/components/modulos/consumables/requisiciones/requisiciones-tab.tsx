@@ -3,11 +3,17 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
   Plus, Loader2, Eye, Trash2, AlertTriangle, FileText,
-  ChevronLeft, ChevronRight, ClipboardCheck, ExternalLink, CheckCircle2, RotateCcw,
+  ChevronLeft, ChevronRight, ChevronDown, ClipboardCheck, ExternalLink, CheckCircle2, RotateCcw,
+  Pencil, Check, X, Banknote, MapPin,
 } from 'lucide-react'
 import { useRequisiciones, useDeleteRequisicion } from '@/src/hooks/consumables/use-requisiciones'
 import { useInformeFacturas } from '@/src/hooks/consumables/use-informe'
 import { useSolicitudes, useSolicitud, useGenerarRQs, useSolicitudRequisiciones, useReabrirSolicitud } from '@/src/hooks/consumables/use-solicitudes'
+import {
+  useFields, useActualizarPresupuesto,
+  useFieldLugares, useCreateFieldLugar, useActualizarFieldLugarPresupuesto, useDeleteFieldLugar,
+} from '@/src/hooks/reports/use-fields'
+import type { Field } from '@/src/types/reports.types'
 import { RequisicionModal } from './requisicion-modal'
 import { RequisicionDetail } from './requisicion-detail'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
@@ -281,6 +287,20 @@ function RevisionSolicitudModal({ solicitudId, onClose }: { solicitudId: string;
 
         {/* Body: items grouped by category */}
         <div className="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-5">
+          {solicitud.excede_presupuesto && (
+            <div
+              className="flex items-start gap-2.5 px-4 py-3 rounded-xl shrink-0"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
+            >
+              <AlertTriangle size={14} style={{ color: '#ef4444', flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <p className="text-xs font-semibold" style={{ color: '#dc2626' }}>Excede el presupuesto</p>
+                <p className="text-xs mt-0.5" style={{ color: '#b91c1c' }}>
+                  El total solicitado supera el tope de {formatCOP(solicitud.presupuesto)} asignado a esta planta
+                </p>
+              </div>
+            </div>
+          )}
           {categoriasConItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2">
               <FileText size={28} style={{ color: 'var(--color-text-400)' }} />
@@ -395,9 +415,22 @@ function RevisionSolicitudModal({ solicitudId, onClose }: { solicitudId: string;
                 <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-400)' }}>
                   Asignar numero RQ por categoria
                 </p>
-                <p className="text-xs font-bold whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
-                  Total: {formatCOP(categoriasConItems.reduce((sum, cat) => sum + subtotalCategoria(cat), 0))}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <p className="text-xs font-bold whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
+                    Total: {formatCOP(categoriasConItems.reduce((sum, cat) => sum + subtotalCategoria(cat), 0))}
+                  </p>
+                  {solicitud.presupuesto != null && (
+                    <span
+                      className="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+                      style={{
+                        background: solicitud.excede_presupuesto ? 'rgba(239,68,68,0.12)' : 'rgba(22,163,74,0.12)',
+                        color: solicitud.excede_presupuesto ? '#dc2626' : '#16a34a',
+                      }}
+                    >
+                      Tope: {formatCOP(solicitud.presupuesto)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex flex-wrap gap-3">
                 {categoriasConItems.map((cat) => (
@@ -513,10 +546,336 @@ function DeleteConfirm({ rq, onClose }: { rq: RequisicionSummary; onClose: () =>
   )
 }
 
+// ── Field row with expandable sublocations ────────────────────────────────────
+function FieldPresupuestoRow({ field }: { field: Field }) {
+  const [expanded,        setExpanded]        = useState(false)
+  const [editingBudget,   setEditingBudget]   = useState(false)
+  const [editValue,       setEditValue]       = useState('')
+  const [editingLugarId,  setEditingLugarId]  = useState<string | null>(null)
+  const [editLugarValue,  setEditLugarValue]  = useState('')
+  const [showAdd,         setShowAdd]         = useState(false)
+  const [newNombre,       setNewNombre]       = useState('')
+
+  const { data: lugares = [], isLoading: lugaresLoading } = useFieldLugares(expanded ? field.id : null)
+  const actualizarField  = useActualizarPresupuesto()
+  const actualizarLugar  = useActualizarFieldLugarPresupuesto()
+  const createLugar      = useCreateFieldLugar()
+  const deleteLugar      = useDeleteFieldLugar()
+
+  function saveFieldBudget() {
+    const presupuesto = editValue.trim() === '' ? null : Number(editValue.trim())
+    actualizarField.mutate({ id: field.id, presupuesto }, { onSuccess: () => setEditingBudget(false) })
+  }
+
+  function saveLugarBudget(lugarId: string) {
+    const presupuesto = editLugarValue.trim() === '' ? null : Number(editLugarValue.trim())
+    actualizarLugar.mutate({ fieldId: field.id, lugarId, presupuesto }, { onSuccess: () => setEditingLugarId(null) })
+  }
+
+  function handleAddLugar() {
+    if (!newNombre.trim()) return
+    createLugar.mutate(
+      { fieldId: field.id, nombre: newNombre.trim() },
+      { onSuccess: () => { setNewNombre(''); setShowAdd(false) } },
+    )
+  }
+
+  return (
+    <>
+      {/* Plant row */}
+      <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setExpanded((p) => !p)}
+              className="w-5 h-5 flex items-center justify-center rounded hover:opacity-70 transition-opacity shrink-0"
+            >
+              <ChevronDown
+                size={13}
+                style={{
+                  transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                  transition: 'transform 0.15s',
+                  color: 'var(--color-text-400)',
+                }}
+              />
+            </button>
+            <span className="text-xs font-medium" style={{ color: 'var(--color-text-900)' }}>{field.name}</span>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-text-600)' }}>{field.location}</td>
+        <td className="px-4 py-3">
+          {editingBudget ? (
+            <input
+              autoFocus type="text" inputMode="numeric" value={editValue}
+              onChange={(e) => { if (/^\d*$/.test(e.target.value)) setEditValue(e.target.value) }}
+              placeholder="Sin limite"
+              className="rounded-lg text-xs outline-none"
+              style={{ border: '1.5px solid var(--color-secondary)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)', padding: '5px 9px', width: 140 }}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveFieldBudget(); if (e.key === 'Escape') setEditingBudget(false) }}
+            />
+          ) : (
+            <span className="text-xs font-semibold" style={{ color: field.presupuesto != null ? 'var(--color-text-900)' : 'var(--color-text-400)' }}>
+              {field.presupuesto != null ? formatCOP(field.presupuesto) : 'Sin limite'}
+            </span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {editingBudget ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={saveFieldBudget} disabled={actualizarField.isPending}
+                className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ background: 'var(--color-primary)', color: '#fff' }}
+              >
+                {actualizarField.isPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+              </button>
+              <button
+                onClick={() => setEditingBudget(false)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setEditingBudget(true); setEditValue(field.presupuesto != null ? String(field.presupuesto) : '') }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+            >
+              <Pencil size={11} />
+            </button>
+          )}
+        </td>
+      </tr>
+
+      {/* Expanded sublocations */}
+      {expanded && (
+        <>
+          {lugaresLoading ? (
+            <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+              <td colSpan={4} className="px-10 py-3">
+                <Loader2 size={13} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+              </td>
+            </tr>
+          ) : (
+            <>
+              {lugares.map((lugar) => (
+                <tr key={lugar.id} style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                  <td className="py-2.5 pr-4" style={{ paddingLeft: 40 }}>
+                    <div className="flex items-center gap-2">
+                      <MapPin size={10} style={{ color: 'var(--color-text-400)', flexShrink: 0 }} />
+                      <span className="text-xs" style={{ color: 'var(--color-text-700)' }}>{lugar.nombre}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--color-text-400)' }}>Sublocation</td>
+                  <td className="px-4 py-2.5">
+                    {editingLugarId === lugar.id ? (
+                      <input
+                        autoFocus type="text" inputMode="numeric" value={editLugarValue}
+                        onChange={(e) => { if (/^\d*$/.test(e.target.value)) setEditLugarValue(e.target.value) }}
+                        placeholder="Sin limite"
+                        className="rounded-lg text-xs outline-none"
+                        style={{ border: '1.5px solid var(--color-secondary)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)', padding: '5px 9px', width: 140 }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveLugarBudget(lugar.id); if (e.key === 'Escape') setEditingLugarId(null) }}
+                      />
+                    ) : (
+                      <span className="text-xs font-semibold" style={{ color: lugar.presupuesto != null ? 'var(--color-text-900)' : 'var(--color-text-400)' }}>
+                        {lugar.presupuesto != null ? formatCOP(lugar.presupuesto) : 'Sin limite'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {editingLugarId === lugar.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => saveLugarBudget(lugar.id)} disabled={actualizarLugar.isPending}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                          style={{ background: 'var(--color-primary)', color: '#fff' }}
+                        >
+                          {actualizarLugar.isPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                        </button>
+                        <button
+                          onClick={() => setEditingLugarId(null)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                          style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => { setEditingLugarId(lugar.id); setEditLugarValue(lugar.presupuesto != null ? String(lugar.presupuesto) : '') }}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                          style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          onClick={() => deleteLugar.mutate({ fieldId: field.id, lugarId: lugar.id })}
+                          disabled={deleteLugar.isPending}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                          style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+
+              {/* Add sublocation */}
+              {showAdd ? (
+                <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                  <td className="py-2.5 pr-4" style={{ paddingLeft: 40 }} colSpan={2}>
+                    <input
+                      autoFocus type="text" value={newNombre}
+                      onChange={(e) => setNewNombre(e.target.value)}
+                      placeholder="Nombre del lugar"
+                      className="rounded-lg text-xs outline-none w-full"
+                      style={{ border: '1.5px solid var(--color-secondary)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)', padding: '5px 9px' }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddLugar()
+                        if (e.key === 'Escape') { setShowAdd(false); setNewNombre('') }
+                      }}
+                    />
+                  </td>
+                  <td className="px-4 py-2.5" colSpan={2}>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={handleAddLugar}
+                        disabled={createLugar.isPending || !newNombre.trim()}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-70 transition-opacity"
+                        style={{ background: 'var(--color-primary)', color: '#fff', opacity: !newNombre.trim() ? 0.5 : 1 }}
+                      >
+                        {createLugar.isPending ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                        Guardar
+                      </button>
+                      <button
+                        onClick={() => { setShowAdd(false); setNewNombre('') }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-70 transition-opacity"
+                        style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                  <td colSpan={4} className="py-2" style={{ paddingLeft: 40 }}>
+                    <button
+                      onClick={() => setShowAdd(true)}
+                      className="flex items-center gap-1.5 text-xs hover:opacity-70 transition-opacity"
+                      style={{ color: 'var(--color-primary)' }}
+                    >
+                      <Plus size={11} /> Agregar lugar
+                    </button>
+                  </td>
+                </tr>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
+// ── Presupuestos modal ────────────────────────────────────────────────────────
+function PresupuestosModal({ onClose }: { onClose: () => void }) {
+  const { data, isLoading } = useFields(1, 100)
+  const fields: Field[] = data?.data ?? []
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-2xl rounded-xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)', maxHeight: '80vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 flex items-center justify-between gap-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div className="flex items-center gap-2.5">
+            <Banknote size={16} style={{ color: 'var(--color-primary)' }} />
+            <h3 className="font-semibold text-base" style={{ color: 'var(--color-text-900)' }}>
+              Presupuestos por planta
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+          >
+            Cerrar
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+            </div>
+          ) : fields.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 px-6">
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>Sin plantas registradas</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
+                  {['Planta', 'Ubicacion', 'Presupuesto mensual', ''].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                      style={{ color: 'var(--color-text-400)' }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {fields.map((field) => (
+                  <FieldPresupuestoRow key={field.id} field={field} />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
 // ── Solicitudes section ───────────────────────────────────────────────────────
 function SolicitudesSection({ mes, anio }: { mes: number; anio: number }) {
-  const [revisar, setRevisar] = useState<string | null>(null)
+  const [revisar,      setRevisar]      = useState<string | null>(null)
+  const [expandedIds,  setExpandedIds]  = useState<Set<string>>(new Set())
   const { data: solicitudes = [], isLoading } = useSolicitudes(mes, anio)
+
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  // Group: mains (no field_lugar_id) + adicionales keyed by field_id
+  const mainSolicitudes = solicitudes.filter((s) => !s.field_lugar_id)
+  const adicionales     = solicitudes.filter((s) => !!s.field_lugar_id)
+  const adicionalesByFieldId = adicionales.reduce<Record<string, typeof adicionales>>((acc, s) => {
+    const key = s.field_id ?? '__orphan__'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(s)
+    return acc
+  }, {})
+  const mainFieldIds      = new Set(mainSolicitudes.map((s) => s.field_id).filter(Boolean) as string[])
+  const orphanAdicionales = (adicionalesByFieldId['__orphan__'] ?? []).concat(
+    adicionales.filter((s) => s.field_id && !mainFieldIds.has(s.field_id)),
+  )
 
   return (
     <div className="flex flex-col gap-3">
@@ -546,7 +905,7 @@ function SolicitudesSection({ mes, anio }: { mes: number; anio: number }) {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
-                {['Planta', 'C. Costo', 'Estado', 'Acciones'].map((h) => (
+                {['Planta', 'C. Costo', 'Presupuesto', 'Estado', 'Acciones'].map((h) => (
                   <th
                     key={h}
                     className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
@@ -558,20 +917,96 @@ function SolicitudesSection({ mes, anio }: { mes: number; anio: number }) {
               </tr>
             </thead>
             <tbody>
-              {solicitudes.map((s) => (
-                <tr
-                  key={s.id}
-                  style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}
-                >
-                  <td className="px-4 py-3 font-medium text-xs max-w-48 truncate" style={{ color: 'var(--color-text-900)' }}>
-                    {s.lugar}
+              {mainSolicitudes.map((s) => {
+                const children = s.field_id ? (adicionalesByFieldId[s.field_id] ?? []) : []
+                const expanded = expandedIds.has(s.id)
+                return (
+                  <>
+                    <tr key={s.id} style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+                      <td className="py-3 pr-4 pl-2">
+                        <div className="flex items-center gap-1">
+                          {children.length > 0 ? (
+                            <button
+                              onClick={() => toggleExpand(s.id)}
+                              className="w-5 h-5 flex items-center justify-center rounded hover:opacity-70 transition-opacity shrink-0"
+                            >
+                              <ChevronDown
+                                size={12}
+                                style={{
+                                  transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                                  transition: 'transform 0.15s',
+                                  color: 'var(--color-text-400)',
+                                }}
+                              />
+                            </button>
+                          ) : (
+                            <span className="w-5 shrink-0" />
+                          )}
+                          <span className="font-medium text-xs max-w-44 truncate" style={{ color: 'var(--color-text-900)' }}>{s.lugar}</span>
+                          {children.length > 0 && (
+                            <span
+                              className="text-xs font-semibold px-1.5 py-0.5 rounded-full ml-1 shrink-0"
+                              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-400)' }}
+                            >
+                              +{children.length}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-text-600)' }}>{s.lote}</td>
+                      <td className="px-4 py-3 text-xs font-semibold" style={{ color: s.presupuesto != null ? 'var(--color-text-900)' : 'var(--color-text-300)' }}>
+                        {s.presupuesto != null ? formatCOP(s.presupuesto) : '-'}
+                      </td>
+                      <td className="px-4 py-3"><EstadoBadge estado={s.estado} /></td>
+                      <td className="px-4 py-3">
+                        {s.estado === 'COMPLETADA' && (
+                          <button
+                            onClick={() => setRevisar(s.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
+                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                          >
+                            <ClipboardCheck size={12} /> Revisar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {expanded && children.map((child) => (
+                      <tr key={child.id} style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                        <td className="py-2.5 pr-4" style={{ paddingLeft: 40 }}>
+                          <div className="flex items-center gap-2">
+                            <MapPin size={10} style={{ color: 'var(--color-text-400)', flexShrink: 0 }} />
+                            <span className="text-xs max-w-44 truncate" style={{ color: 'var(--color-text-700)' }}>{child.lugar}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--color-text-600)' }}>{child.lote}</td>
+                        <td className="px-4 py-2.5 text-xs font-semibold" style={{ color: child.presupuesto != null ? 'var(--color-text-900)' : 'var(--color-text-300)' }}>
+                          {child.presupuesto != null ? formatCOP(child.presupuesto) : '-'}
+                        </td>
+                        <td className="px-4 py-2.5"><EstadoBadge estado={child.estado} /></td>
+                        <td className="px-4 py-2.5">
+                          {child.estado === 'COMPLETADA' && (
+                            <button
+                              onClick={() => setRevisar(child.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
+                              style={{ background: 'var(--color-primary)', color: '#fff' }}
+                            >
+                              <ClipboardCheck size={12} /> Revisar
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )
+              })}
+              {orphanAdicionales.map((s) => (
+                <tr key={s.id} style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+                  <td className="px-4 py-3 font-medium text-xs max-w-48 truncate" style={{ color: 'var(--color-text-900)' }}>{s.lugar}</td>
+                  <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-text-600)' }}>{s.lote}</td>
+                  <td className="px-4 py-3 text-xs font-semibold" style={{ color: s.presupuesto != null ? 'var(--color-text-900)' : 'var(--color-text-300)' }}>
+                    {s.presupuesto != null ? formatCOP(s.presupuesto) : '-'}
                   </td>
-                  <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-text-600)' }}>
-                    {s.lote}
-                  </td>
-                  <td className="px-4 py-3">
-                    <EstadoBadge estado={s.estado} />
-                  </td>
+                  <td className="px-4 py-3"><EstadoBadge estado={s.estado} /></td>
                   <td className="px-4 py-3">
                     {s.estado === 'COMPLETADA' && (
                       <button
@@ -617,9 +1052,10 @@ export function RequisicionesTab() {
     }
     return set
   }, [informe])
-  const [showCreate, setShowCreate] = useState(false)
-  const [deleteRq,   setDeleteRq]   = useState<RequisicionSummary | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showCreate,       setShowCreate]       = useState(false)
+  const [deleteRq,         setDeleteRq]         = useState<RequisicionSummary | null>(null)
+  const [selectedId,       setSelectedId]       = useState<string | null>(null)
+  const [showPresupuestos, setShowPresupuestos] = useState(false)
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -631,24 +1067,34 @@ export function RequisicionesTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Period navigator shared across both sections */}
-      <div className="flex items-center gap-1 rounded-lg px-2 py-1.5 w-fit" style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+      {/* Period navigator + presupuestos button */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 rounded-lg px-2 py-1.5" style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+          <button
+            onClick={() => adjustPeriod(-1)}
+            className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--color-text-400)' }}
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span className="text-xs font-semibold px-2 whitespace-nowrap" style={{ color: 'var(--color-text-900)', minWidth: 100, textAlign: 'center' }}>
+            {MESES[mes - 1]} {anio}
+          </span>
+          <button
+            onClick={() => adjustPeriod(1)}
+            className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--color-text-400)' }}
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
         <button
-          onClick={() => adjustPeriod(-1)}
-          className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
-          style={{ color: 'var(--color-text-400)' }}
+          onClick={() => setShowPresupuestos(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity"
+          style={{ background: 'var(--color-surface-0)', border: '1.5px solid var(--color-border)', color: 'var(--color-text-700)' }}
         >
-          <ChevronLeft size={14} />
-        </button>
-        <span className="text-xs font-semibold px-2 whitespace-nowrap" style={{ color: 'var(--color-text-900)', minWidth: 100, textAlign: 'center' }}>
-          {MESES[mes - 1]} {anio}
-        </span>
-        <button
-          onClick={() => adjustPeriod(1)}
-          className="w-6 h-6 flex items-center justify-center rounded hover:opacity-70 transition-opacity"
-          style={{ color: 'var(--color-text-400)' }}
-        >
-          <ChevronRight size={14} />
+          <Banknote size={13} />
+          Presupuestos
         </button>
       </div>
 
@@ -774,8 +1220,9 @@ export function RequisicionesTab() {
         )}
       </div>
 
-      {showCreate && <RequisicionModal onClose={() => setShowCreate(false)} />}
-      {deleteRq   && <DeleteConfirm rq={deleteRq} onClose={() => setDeleteRq(null)} />}
+      {showCreate       && <RequisicionModal onClose={() => setShowCreate(false)} />}
+      {deleteRq         && <DeleteConfirm rq={deleteRq} onClose={() => setDeleteRq(null)} />}
+      {showPresupuestos && <PresupuestosModal onClose={() => setShowPresupuestos(false)} />}
     </div>
   )
 }

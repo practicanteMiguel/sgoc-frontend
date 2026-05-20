@@ -209,11 +209,14 @@ export interface Solicitud {
   mes: number
   anio: number
   field_id?: string
+  field_lugar_id?: string | null
   estado: EstadoSolicitud
   fecha: string | null
   nombre_solicitante: string | null
   numero_contrato: string | null
   total_general: number
+  presupuesto: number | null
+  excede_presupuesto: boolean | null
   categorias: SolicitudCategoria[]
 }
 
@@ -223,8 +226,11 @@ export interface SolicitudResumen {
   lote: number
   mes: number
   anio: number
+  field_id?: string
+  field_lugar_id?: string | null
   estado: EstadoSolicitud
   created_at: string
+  presupuesto: number | null
 }
 
 export interface EnviarPlantillasDto {
