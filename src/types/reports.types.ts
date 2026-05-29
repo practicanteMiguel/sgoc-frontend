@@ -22,6 +22,7 @@ export interface FieldLugar {
   id: string;
   field_id: string;
   nombre: string;
+  lote: number;
   presupuesto: number | null;
   created_at: string;
 }

@@ -4,14 +4,14 @@ import { useState } from 'react'
 import {
   ShoppingCart, Package, FileText,
   Plus, Search, Loader2, Trash2, AlertTriangle, ChevronLeft, ChevronRight,
-  XCircle, Lock, Bell, Clock,
+  XCircle, Lock, Bell, Clock, PackageCheck, FileDown,
 } from 'lucide-react'
 import { useInsumos, useCreateInsumo, useDeleteInsumo, useCerrarMes, usePeriodosCerrados, useBorradores, useGuardarBorrador } from '@/src/hooks/consumables/use-insumos'
 import { useRequisiciones, useRequisicion, useCambiarEstadoRQ } from '@/src/hooks/consumables/use-requisiciones'
 import { InsumoModal } from '@/src/components/modulos/consumables/insumos/insumo-modal'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { CATEGORIAS, CATEGORIA_LABELS, ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
-import type { Insumo, CategoriaInsumo, CerrarMesResult, InsumoBorrador } from '@/src/types/consumables.types'
+import type { Insumo, CategoriaInsumo, CerrarMesResult, InsumoBorrador, Requisicion } from '@/src/types/consumables.types'
 
 // Override CSS variables for light-mode-safe rendering on a public page
 const CSS_VARS: React.CSSProperties = {
@@ -614,15 +614,142 @@ function InsumosComprasTab() {
   )
 }
 
+// ── PDF constancia entrega ────────────────────────────────────────────────
+async function exportConstanciaPdf(rq: Requisicion) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const items  = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
+
+  const header = `
+<div style="display:flex;align-items:center;padding-bottom:14px;border-bottom:3px solid #1E4A8A;margin-bottom:20px;">
+  <div style="flex:1;">
+    <img src="${origin}/assets/logo-full.png" style="height:62px;width:auto;object-fit:contain;display:block;" onerror="this.style.visibility='hidden'" />
+  </div>
+  <div style="flex:1;text-align:center;">
+    <div style="font-size:13px;font-weight:bold;color:#111;margin-bottom:3px;">SERVICIOS ASOCIADOS SAS.</div>
+    <div style="font-size:12px;font-weight:bold;color:#1E4A8A;margin-bottom:4px;">Constancia de Entrega de Insumos</div>
+    <div style="font-size:11px;color:#555;">RQ #<strong>${rq.numero_rq}</strong> &nbsp;&middot;&nbsp; ${CATEGORIA_LABELS[rq.categoria]}</div>
+    <div style="font-size:11px;color:#555;margin-top:1px;">CC: <strong>${rq.lote}</strong> &nbsp;&middot;&nbsp; Lugar: <strong>${rq.lugar}</strong></div>
+  </div>
+  <div style="flex:1;text-align:right;">
+    <div style="font-size:9px;color:#6b7280;">Generado: ${new Date().toLocaleDateString('es-CO')}</div>
+    <div style="display:inline-block;margin-top:4px;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:bold;background:${rq.entrega_completa ? 'rgba(22,163,74,0.15)' : 'rgba(245,158,11,0.15)'};color:${rq.entrega_completa ? '#15803d' : '#b45309'};">
+      ${rq.entrega_completa ? 'Entrega completa' : 'Entrega parcial'}
+    </div>
+  </div>
+</div>`
+
+  const infoHtml = `
+    <div style="display:flex;gap:10px;margin-bottom:18px;">
+      ${[
+        ['Receptor',         rq.nombre_solicitante ?? '-'],
+        ['Contrato',         rq.numero_contrato    ?? '-'],
+        ['Fecha de entrega', rq.fecha_entrega       ?? '-'],
+        ['Total solicitado', rq.total_solicitado != null ? `${rq.total_solicitado} uds` : '-'],
+        ['Total recibido',   rq.total_recibido   != null ? `${rq.total_recibido} uds`   : '-'],
+      ].map(([label, value]) => `
+        <div style="flex:1;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;">
+          <div style="font-size:9px;color:#6b7280;margin-bottom:2px;">${label}</div>
+          <div style="font-size:11px;font-weight:600;color:#111;">${value}</div>
+        </div>`).join('')}
+    </div>`
+
+  const totalEstCOP = items.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.solicitado ?? 0)) * i.valor_unitario : s, 0)
+  const totalRecCOP = items.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.recibido   ?? 0)) * i.valor_unitario : s, 0)
+
+  const rows = items.map((item, i) => {
+    const sol      = Math.round(Number(item.solicitado ?? 0))
+    const rec      = Math.round(Number(item.recibido   ?? 0))
+    const diff     = rec - sol
+    const totEst   = item.valor_unitario != null ? sol * item.valor_unitario : null
+    const totRec   = item.valor_unitario != null ? rec * item.valor_unitario : null
+    const recColor  = rec === sol ? '#16a34a' : rec < sol ? '#ef4444' : '#3b82f6'
+    const diffColor = diff === 0  ? '#16a34a' : diff < 0  ? '#ef4444' : '#3b82f6'
+    const td = (val: string, extra = '') => `<td style="padding:6px 5px;border:1px solid #e5e7eb;font-size:9px;${extra}">${val}</td>`
+    const fmt = (v: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v)
+    return `<tr style="${i % 2 === 1 ? 'background:#f9fafb;' : ''}">
+      ${td(item.codigo,      'font-family:monospace;')}
+      ${td(item.descripcion, 'word-break:break-word;')}
+      ${td(item.unidad,      'text-align:center;')}
+      ${td(item.valor_unitario != null ? fmt(item.valor_unitario) : '-', 'text-align:right;')}
+      ${td(String(sol),      'text-align:center;font-weight:bold;')}
+      ${td(totEst != null ? fmt(totEst) : '-', 'text-align:right;')}
+      ${td(String(rec),      `text-align:center;font-weight:bold;color:${recColor};`)}
+      ${td(totRec != null ? fmt(totRec) : '-', `text-align:right;font-weight:bold;color:${totRec != null && totEst != null && totRec < totEst ? '#ef4444' : '#16a34a'};`)}
+      ${td(diff === 0 ? '=' : (diff > 0 ? '+' : '') + String(diff), `text-align:center;font-weight:bold;color:${diffColor};`)}
+    </tr>`
+  }).join('')
+
+  const fmt = (v: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v)
+  const tableHtml = `
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-family:Arial,sans-serif;margin-bottom:20px;">
+      <colgroup>
+        <col style="width:9%"><col style="width:26%"><col style="width:6%">
+        <col style="width:11%"><col style="width:8%"><col style="width:11%">
+        <col style="width:8%"><col style="width:11%"><col style="width:10%">
+      </colgroup>
+      <thead>
+        <tr style="background:#1a3a3a;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+          <th style="padding:7px 5px;text-align:left;font-size:9px;border:1px solid #1a3a3a;">Codigo</th>
+          <th style="padding:7px 5px;text-align:left;font-size:9px;border:1px solid #1a3a3a;">Descripcion</th>
+          <th style="padding:7px 5px;text-align:center;font-size:9px;border:1px solid #1a3a3a;">Unidad</th>
+          <th style="padding:7px 5px;text-align:right;font-size:9px;border:1px solid #1a3a3a;">V. Unitario</th>
+          <th style="padding:7px 5px;text-align:center;font-size:9px;border:1px solid #1a3a3a;">Solicitado</th>
+          <th style="padding:7px 5px;text-align:right;font-size:9px;border:1px solid #1a3a3a;">Total Est.</th>
+          <th style="padding:7px 5px;text-align:center;font-size:9px;border:1px solid #1a3a3a;">Recibido</th>
+          <th style="padding:7px 5px;text-align:right;font-size:9px;border:1px solid #1a3a3a;">Total Rec.</th>
+          <th style="padding:7px 5px;text-align:center;font-size:9px;border:1px solid #1a3a3a;">Diferencia</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr style="background:#f3f4f6;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+          <td colspan="4" style="padding:8px 5px;text-align:right;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:#374151;">TOTALES</td>
+          <td style="padding:8px 5px;text-align:center;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:#111;">${rq.total_solicitado ?? '-'} uds</td>
+          <td style="padding:8px 5px;text-align:right;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:#1a3a3a;">${fmt(totalEstCOP)}</td>
+          <td style="padding:8px 5px;text-align:center;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:${rq.entrega_completa ? '#16a34a' : '#ef4444'};">${rq.total_recibido ?? '-'} uds</td>
+          <td style="padding:8px 5px;text-align:right;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:${rq.entrega_completa ? '#16a34a' : '#ef4444'};">${fmt(totalRecCOP)}</td>
+          <td style="border:1px solid #e5e7eb;"></td>
+        </tr>
+      </tfoot>
+    </table>`
+
+  const sigHtml = rq.firma_recepcion_url
+    ? `<img src="${rq.firma_recepcion_url}" crossorigin="anonymous" style="max-height:100px;width:auto;object-fit:contain;display:block;margin-top:8px;" />`
+    : '<div style="height:80px;border-bottom:2px solid #374151;margin:8px 0 0;"></div>'
+
+  const footer = `
+<div style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+  <div style="padding:16px 20px;">
+    <div style="font-size:10px;font-weight:bold;color:#374151;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">
+      FIRMA DEL RECEPTOR
+    </div>
+    <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">Nombre: <span style="color:#111;font-weight:600;">${rq.nombre_solicitante ?? ''}</span></div>
+    <div style="font-size:10px;color:#6b7280;margin-bottom:6px;">Fecha de entrega: <span style="color:#111;font-weight:600;">${rq.fecha_entrega ?? '-'}</span></div>
+    ${sigHtml}
+  </div>
+</div>`
+
+  const html = `<div style="font-family:Arial,sans-serif;padding:20px;color:#111;background:#fff;">${header}${infoHtml}${tableHtml}${footer}</div>`
+  const { default: html2pdf } = await import('html2pdf.js')
+  await html2pdf().set({
+    margin:      8,
+    filename:    `Constancia-Entrega-RQ-${rq.numero_rq}.pdf`,
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+  }).from(html).save()
+}
+
 // ── Detalle RQ compras ─────────────────────────────────────────────────────
 function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => void }) {
   const { data: rq, isLoading } = useRequisicion(rqId)
+  const [loadingConstancia, setLoadingConstancia] = useState(false)
+  const [showRecepcion, setShowRecepcion] = useState(false)
 
   if (isLoading) {
     return (
       <ModalPortal onClose={onClose}>
         <div
-          className="w-full max-w-6xl rounded-xl flex items-center justify-center py-24 bg-white"
+          className="w-full max-w-7xl rounded-xl flex items-center justify-center py-24 bg-white"
           style={{ border: '1px solid #d1d5db', boxShadow: '0 24px 64px rgba(4,24,24,0.25)' }}
         >
           <Loader2 size={24} className="animate-spin text-[#1a6b6b]" />
@@ -634,14 +761,25 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
   if (!rq) return null
 
   const estadoColor = ESTADO_COLORS[rq.estado] ?? '#6b7280'
+  const sortedItems = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
+  const isEntregado = rq.recepcion_completada || rq.estado === 'ENTREGADO'
+  const totalEstCOP = sortedItems.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.solicitado ?? 0)) * i.valor_unitario : s, 0)
+  const totalRecCOP = sortedItems.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.recibido   ?? 0)) * i.valor_unitario : s, 0)
+  const showEv      = showRecepcion && isEntregado
+
+  async function handleConstancia() {
+    setLoadingConstancia(true)
+    try { await exportConstanciaPdf(rq!) } finally { setLoadingConstancia(false) }
+  }
 
   return (
     <ModalPortal onClose={onClose}>
       <div
-        className="w-full max-w-6xl rounded-xl overflow-hidden flex flex-col bg-white"
+        className="w-full max-w-7xl rounded-xl overflow-hidden flex flex-col bg-white"
         style={{ border: '1px solid #d1d5db', boxShadow: '0 24px 64px rgba(4,24,24,0.25)', maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
         <div className="px-6 py-4 flex items-start justify-between gap-3 shrink-0" style={{ borderBottom: '1px solid #e5e7eb' }}>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -652,6 +790,11 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
               >
                 {ESTADO_LABELS[rq.estado]}
               </span>
+              {isEntregado && rq.fecha_entrega && (
+                <span className="text-xs text-gray-400">
+                  &middot; Entregado el <strong className="text-gray-700">{rq.fecha_entrega}</strong>
+                </span>
+              )}
             </div>
             <p className="text-xs mt-0.5 text-gray-400">
               {CATEGORIA_LABELS[rq.categoria]} &middot; CC {rq.lote} &middot; {rq.lugar}
@@ -669,55 +812,193 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
 
         <div className="overflow-y-auto flex-1 px-6 py-5">
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-[#1a3a3a] text-white">
-                  {['Codigo', 'Descripcion', 'Unidad', 'Proveedor Ord.', 'Proveedor Ext.', 'V. Unitario', 'Solicitado', 'Total'].map((h) => (
-                    <th key={h} className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
-                      {h}
-                    </th>
+
+            {/* Toggle bar - solo cuando hay entrega */}
+            {isEntregado && (
+              <div
+                className="flex items-center gap-2 px-4 py-2.5 flex-wrap"
+                style={{ background: showEv ? 'rgba(22,163,74,0.05)' : '#f8fafc', borderBottom: '1px solid #e5e7eb' }}
+              >
+                <PackageCheck size={14} style={{ color: showEv ? '#16a34a' : '#9ca3af' }} />
+                <span className="text-xs font-semibold" style={{ color: showEv ? '#15803d' : '#6b7280' }}>
+                  Evidencia de recepcion
+                </span>
+                {showEv && (
+                  <span
+                    className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                    style={rq.entrega_completa
+                      ? { background: 'rgba(22,163,74,0.15)', color: '#15803d' }
+                      : { background: 'rgba(245,158,11,0.15)', color: '#b45309' }}
+                  >
+                    {rq.entrega_completa ? 'Entrega completa' : 'Entrega parcial'}
+                  </span>
+                )}
+                {showEv && (
+                  <button
+                    onClick={handleConstancia}
+                    disabled={loadingConstancia}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity"
+                    style={{ background: '#f1f5f9', border: '1px solid #d1d5db', color: '#374151', opacity: loadingConstancia ? 0.6 : 1 }}
+                  >
+                    {loadingConstancia ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
+                    Constancia PDF
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowRecepcion((v) => !v)}
+                  className="ml-auto relative rounded-full shrink-0"
+                  style={{ width: 40, height: 22, background: showEv ? '#16a34a' : '#d1d5db', border: 'none', padding: 0, cursor: 'pointer' }}
+                >
+                  <span
+                    className="absolute top-1 w-4 h-4 bg-white rounded-full"
+                    style={{ left: showEv ? 20 : 2, transition: 'left 0.15s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
+                  />
+                </button>
+              </div>
+            )}
+
+            {/* Items table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[#1a3a3a] text-white">
+                    {['Codigo', 'Descripcion', 'Unidad', 'Proveedor Ord.', 'Proveedor Ext.', 'V. Unitario', 'Solicitado', 'Total'].map((h) => (
+                      <th key={h} className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                    {showEv && (
+                      <>
+                        <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: '#86efac', borderLeft: '2px solid rgba(255,255,255,0.2)' }}>
+                          Recibido
+                        </th>
+                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: '#86efac' }}>
+                          Total Rec.
+                        </th>
+                        <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
+                          Diferencia
+                        </th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedItems.map((item, idx) => {
+                    const itemTotal = item.valor_unitario != null && item.solicitado != null
+                      ? item.valor_unitario * Math.round(Number(item.solicitado))
+                      : null
+                    const sol      = Math.round(Number(item.solicitado ?? 0))
+                    const rec      = Math.round(Number(item.recibido   ?? 0))
+                    const diff     = rec - sol
+                    const totRec   = item.valor_unitario != null ? rec * item.valor_unitario : null
+                    const recColor  = rec === sol ? '#16a34a' : rec < sol ? '#ef4444' : '#3b82f6'
+                    const diffColor = diff === 0  ? '#16a34a' : diff < 0  ? '#ef4444' : '#3b82f6'
+                    return (
+                      <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb', background: idx % 2 === 0 ? '#fff' : '#f9fafb' }}>
+                        <td className="px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap text-gray-500">{item.codigo}</td>
+                        <td className="px-3 py-2.5 text-xs font-medium text-gray-900" style={{ minWidth: 220 }}>{item.descripcion}</td>
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap text-gray-500">{item.unidad}</td>
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap text-gray-500">{item.proveedor_ordinario ?? '-'}</td>
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap text-gray-500">{item.proveedor_extraordinario ?? '-'}</td>
+                        <td className="px-3 py-2.5 text-xs font-semibold text-right whitespace-nowrap text-gray-900">
+                          {item.valor_unitario != null ? formatCOP(item.valor_unitario) : '-'}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-center font-bold whitespace-nowrap text-gray-900">
+                          {item.solicitado != null ? Math.round(Number(item.solicitado)) : '-'}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs font-semibold text-right whitespace-nowrap text-gray-900">
+                          {itemTotal != null ? formatCOP(itemTotal) : '-'}
+                        </td>
+                        {showEv && (
+                          <>
+                            <td className="px-3 py-2.5 text-xs text-center font-bold whitespace-nowrap" style={{ color: recColor, borderLeft: '2px solid #e5e7eb' }}>
+                              {rec}
+                            </td>
+                            <td className="px-3 py-2.5 text-xs text-right font-semibold whitespace-nowrap" style={{ color: totRec != null && itemTotal != null && totRec < itemTotal ? '#ef4444' : '#16a34a' }}>
+                              {totRec != null ? formatCOP(totRec) : '-'}
+                            </td>
+                            <td className="px-3 py-2.5 text-xs text-center font-bold whitespace-nowrap" style={{ color: diffColor }}>
+                              {diff === 0 ? '=' : (diff > 0 ? '+' : '') + diff}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: '#f3f4f6', borderTop: '2px solid #e5e7eb' }}>
+                    <td colSpan={showEv ? 6 : 7} className="px-3 py-3 text-xs font-bold text-right text-gray-700">
+                      TOTAL ESTIMADO
+                    </td>
+                    {showEv && (
+                      <td className="px-3 py-3 text-xs text-center font-bold text-gray-900">
+                        {rq.total_solicitado != null ? `${rq.total_solicitado} uds` : '-'}
+                      </td>
+                    )}
+                    <td className="px-3 py-3 text-sm font-bold text-right" style={{ color: '#1a3a3a' }}>
+                      {formatCOP(totalEstCOP)}
+                    </td>
+                    {showEv && (
+                      <>
+                        <td className="px-3 py-3 text-xs text-center font-bold whitespace-nowrap" style={{ color: rq.entrega_completa ? '#16a34a' : '#f59e0b', borderLeft: '2px solid #e5e7eb' }}>
+                          {rq.total_recibido != null ? `${rq.total_recibido} uds` : '-'}
+                        </td>
+                        <td className="px-3 py-3 text-sm font-bold text-right whitespace-nowrap" style={{ color: rq.entrega_completa ? '#16a34a' : '#f59e0b' }}>
+                          {formatCOP(totalRecCOP)}
+                        </td>
+                        <td />
+                      </>
+                    )}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Info cards + firma cuando esta activa la evidencia */}
+            {showEv && (
+              <>
+                <div className="px-4 pt-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-4" style={{ borderTop: '1px solid #e5e7eb' }}>
+                  {[
+                    { label: 'Receptor',         value: rq.nombre_solicitante ?? '-' },
+                    { label: 'Fecha de entrega', value: rq.fecha_entrega       ?? '-' },
+                    { label: 'Total solicitado', value: rq.total_solicitado != null ? `${rq.total_solicitado} uds` : '-' },
+                    { label: 'Total recibido',   value: rq.total_recibido   != null ? `${rq.total_recibido} uds`   : '-' },
+                  ].map(({ label, value }, i) => (
+                    <div key={label}>
+                      <p className="text-xs text-gray-400">{label}</p>
+                      <p className="text-sm font-semibold mt-0.5" style={{ color: i === 3 ? (rq.entrega_completa ? '#16a34a' : '#f59e0b') : '#111827' }}>
+                        {value}
+                      </p>
+                    </div>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rq.items.map((item, idx) => {
-                  const itemTotal = item.valor_unitario != null && item.solicitado != null
-                    ? item.valor_unitario * item.solicitado
-                    : null
-                  return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb', background: idx % 2 === 0 ? '#fff' : '#f9fafb' }}>
-                      <td className="px-3 py-2.5 font-mono text-xs font-semibold text-gray-500">{item.codigo}</td>
-                      <td className="px-3 py-2.5 text-xs font-medium text-gray-900">{item.descripcion}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-500">{item.unidad}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-500">{item.proveedor_ordinario ?? '-'}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-500">{item.proveedor_extraordinario ?? '-'}</td>
-                      <td className="px-3 py-2.5 text-xs font-semibold text-right text-gray-900">
-                        {item.valor_unitario != null ? formatCOP(item.valor_unitario) : '-'}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-center font-bold text-gray-900">
-                        {item.solicitado ?? '-'}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs font-semibold text-right text-gray-900">
-                        {itemTotal != null ? formatCOP(itemTotal) : '-'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              <tfoot>
-                <tr style={{ background: '#f3f4f6', borderTop: '2px solid #e5e7eb' }}>
-                  <td colSpan={7} className="px-3 py-3 text-xs font-bold text-right text-gray-700">
-                    TOTAL ESTIMADO
-                  </td>
-                  <td className="px-3 py-3 text-sm font-bold text-right" style={{ color: '#1a3a3a' }}>
-                    {formatCOP(rq.items.reduce((sum, item) => {
-                      if (item.valor_unitario == null || item.solicitado == null) return sum
-                      return sum + item.valor_unitario * item.solicitado
-                    }, 0))}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                </div>
+                <div className="px-4 py-4 flex flex-col gap-1.5" style={{ borderTop: '1px solid #e5e7eb' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Firma del receptor</p>
+                  {rq.fecha_entrega && (
+                    <p className="text-xs text-gray-400">
+                      Fechado el: <strong className="text-gray-900">{rq.fecha_entrega}</strong>
+                    </p>
+                  )}
+                  {rq.firma_recepcion_url ? (
+                    <div
+                      className="rounded-lg inline-flex items-center justify-center p-3 mt-1"
+                      style={{ background: '#fff', border: '1px solid #e5e7eb', alignSelf: 'flex-start' }}
+                    >
+                      <img src={rq.firma_recepcion_url} alt="Firma receptor" style={{ maxHeight: 80, objectFit: 'contain' }} />
+                    </div>
+                  ) : (
+                    <div
+                      className="h-16 rounded-lg mt-1 flex items-center justify-center"
+                      style={{ border: '1px dashed #d1d5db', background: '#f9fafb' }}
+                    >
+                      <span className="text-xs text-gray-400">Sin firma registrada</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       </div>

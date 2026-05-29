@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { User, ShieldCheck, Send, Bell } from 'lucide-react';
+import { User, ShieldCheck, Send, Bell, PenLine } from 'lucide-react';
 import { useUnreadCount } from '@/src/hooks/settings/use-notifications';
 import { ProfileTab }       from './profile-tab';
 import { PasswordTab }       from './password-tab';
 import { MessagingTab }      from './messaging-tab';
 import { NotificationsTab }  from './notifications-tab';
+import { FirmaTab }          from './firma-tab';
 
-type Tab = 'profile' | 'password' | 'messaging' | 'notifications';
+type Tab = 'profile' | 'password' | 'messaging' | 'notifications' | 'firma';
 
 export function SettingsView() {
   const [active, setActive]       = useState<Tab>('profile');
@@ -20,6 +21,7 @@ export function SettingsView() {
     { id: 'password',      label: 'Contraseña',      icon: ShieldCheck  },
     { id: 'messaging',     label: 'Enviar mensaje',  icon: Send         },
     { id: 'notifications', label: 'Notificaciones', icon: Bell, badge: unread  },
+    { id: 'firma',         label: 'Mi firma',       icon: PenLine              },
   ];
 
   return (
@@ -90,6 +92,7 @@ export function SettingsView() {
           {active === 'password'      && <PasswordTab />}
           {active === 'messaging'     && <MessagingTab />}
           {active === 'notifications' && <NotificationsTab />}
+          {active === 'firma'         && <FirmaTab />}
         </div>
       </div>
     </div>

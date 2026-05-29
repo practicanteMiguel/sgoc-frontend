@@ -1,6 +1,6 @@
 export type CategoriaInsumo = 'PAPELERIA' | 'CONSUMIBLE' | 'EPP'
 export type EstadoRQ = 'ABIERTA' | 'COMPLETADA' | 'APROBADA' | 'PEDIDO_REALIZADO' | 'EN_BODEGA' | 'ENTREGADO'
-export type EstadoSolicitud = 'PENDIENTE' | 'COMPLETADA'
+export type EstadoSolicitud = 'PENDIENTE' | 'COMPLETADA' | 'GENERADA'
 
 export interface Insumo {
   id: string
@@ -41,6 +41,7 @@ export interface RQItem {
   proveedor_ordinario: string | null
   proveedor_extraordinario: string | null
   solicitado: number | null
+  recibido: number | null
   total: number | null
   numero_factura: string | null
   precio_real: number | null
@@ -71,6 +72,24 @@ export interface Requisicion {
   total_general: number | null
   items: RQItem[]
   created_at: string
+  firma_supervisor_url?: string | null
+  recepcion_completada?: boolean | null
+  fecha_entrega?: string | null
+  firma_recepcion_url?: string | null
+  total_solicitado?: number | null
+  total_recibido?: number | null
+  entrega_completa?: boolean | null
+}
+
+export interface RecepcionItemDto {
+  id: string
+  recibido: number
+  es_adicional?: boolean
+}
+
+export interface RecepcionDto {
+  fecha_entrega: string
+  items: RecepcionItemDto[]
 }
 
 export interface RequisicionSummary {
@@ -231,6 +250,7 @@ export interface SolicitudResumen {
   estado: EstadoSolicitud
   created_at: string
   presupuesto: number | null
+  total_general?: number | null
 }
 
 export interface EnviarPlantillasDto {

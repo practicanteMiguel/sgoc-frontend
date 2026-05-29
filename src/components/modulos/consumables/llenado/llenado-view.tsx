@@ -215,7 +215,7 @@ export function LlenadoView({ id }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {rq.items.map((item, idx) => {
+                  {[...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' })).map((item, idx) => {
                     const t = totalItem(item)
                     return (
                       <tr
@@ -225,7 +225,7 @@ export function LlenadoView({ id }: Props) {
                         <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-500">
                           {item.codigo}
                         </td>
-                        <td className="px-4 py-3 font-medium text-gray-900 max-w-56">
+                        <td className="px-4 py-3 font-medium text-gray-900" style={{ minWidth: 200 }}>
                           {item.descripcion}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">

@@ -1,17 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, Send, Clock, Search, Eye, X, Plus, Pencil, Trash2 } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, Send, Clock, Search, Eye, X, Plus, Pencil, Trash2, PenLine, FileText, Package } from 'lucide-react'
 import {
   useMisSolicitudes, useSolicitud, useLlenarMiSolicitud, useSolicitudRequisiciones,
   useCrearAdicional, useEditarAdicional, useEliminarAdicional, useCrearSolicitudAdicional,
 } from '@/src/hooks/consumables/use-solicitudes'
 import { useRequisicion } from '@/src/hooks/consumables/use-requisiciones'
+import { RecepcionModal } from '../supervisor/recepcion-modal'
 import { useFieldLugares } from '@/src/hooks/reports/use-fields'
 import { useAuthStore } from '@/src/stores/auth.store'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { CATEGORIAS, CATEGORIA_LABELS } from '@/src/types/consumables.types'
 import type { CategoriaInsumo, SolicitudItem } from '@/src/types/consumables.types'
+import { fetchFirmaUrl, uploadFirma, getCargo, saveCargo } from '@/src/lib/firma'
+import { generarPdfsSolicitud } from '@/src/lib/solicitud-pdf'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -26,6 +29,7 @@ function formatCOP(value: string | number | null | undefined) {
 
 function RQPreviewModal({ rqId, onClose }: { rqId: string; onClose: () => void }) {
   const { data: rq, isLoading } = useRequisicion(rqId)
+  const isEntregado = rq?.estado === 'ENTREGADO' || rq?.recepcion_completada
   return (
     <ModalPortal onClose={onClose}>
       <div
@@ -45,6 +49,9 @@ function RQPreviewModal({ rqId, onClose }: { rqId: string; onClose: () => void }
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
                   {rq.lugar} - CC {rq.lote}
+                  {isEntregado && rq.fecha_entrega && (
+                    <> &middot; Recibido el <strong style={{ color: 'var(--color-text-700)' }}>{rq.fecha_entrega}</strong></>
+                  )}
                 </p>
               </>
             )}
@@ -77,10 +84,18 @@ function RQPreviewModal({ rqId, onClose }: { rqId: string; onClose: () => void }
                         {h}
                       </th>
                     ))}
+                    {isEntregado && (
+                      <th
+                        className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                        style={{ color: '#16a34a', borderLeft: '2px solid var(--color-border)' }}
+                      >
+                        Recibido
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {rq.items.map((item, idx) => (
+                  {[...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' })).map((item, idx) => (
                     <tr
                       key={item.id}
                       style={{ borderBottom: '1px solid var(--color-border)', background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)' }}
@@ -95,14 +110,24 @@ function RQPreviewModal({ rqId, onClose }: { rqId: string; onClose: () => void }
                         {item.unidad}
                       </td>
                       <td className="px-4 py-2.5 text-xs font-bold text-center whitespace-nowrap" style={{ color: item.solicitado != null ? 'var(--color-text-900)' : 'var(--color-text-400)' }}>
-                        {item.solicitado ?? '-'}
+                        {item.solicitado != null ? Math.round(Number(item.solicitado)) : '-'}
                       </td>
+                      {isEntregado && (() => {
+                        const sol = Math.round(Number(item.solicitado ?? 0))
+                        const rec = Math.round(Number(item.recibido   ?? 0))
+                        const color = rec === sol ? '#16a34a' : rec < sol ? '#ef4444' : '#3b82f6'
+                        return (
+                          <td className="px-4 py-2.5 text-xs font-bold text-center whitespace-nowrap" style={{ color, borderLeft: '2px solid var(--color-border)' }}>
+                            {rec}
+                          </td>
+                        )
+                      })()}
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr style={{ background: 'var(--color-surface-1)', borderTop: '2px solid var(--color-border)' }}>
-                    <td colSpan={4} className="px-4 py-2.5 text-xs" style={{ color: 'var(--color-text-400)' }}>
+                    <td colSpan={isEntregado ? 5 : 4} className="px-4 py-2.5 text-xs" style={{ color: 'var(--color-text-400)' }}>
                       {rq.items.length} item{rq.items.length !== 1 ? 's' : ''}
                     </td>
                   </tr>
@@ -283,6 +308,433 @@ function AdicionalModal({
   )
 }
 
+/* ─────────────── FirmaStepModal ─────────────── */
+
+function InlineCanvas({ cargo, onCargoChange, onGuardar }: {
+  cargo: string
+  onCargoChange: (v: string) => void
+  onGuardar: (dataUrl: string) => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing   = useRef(false)
+  const [hasStrokes, setHasStrokes] = useState(false)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.strokeStyle = '#111'
+    ctx.lineWidth   = 2
+    ctx.lineCap     = 'round'
+    ctx.lineJoin    = 'round'
+  }, [])
+
+  function getPos(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current!
+    const rect   = canvas.getBoundingClientRect()
+    const scaleX = canvas.width  / rect.width
+    const scaleY = canvas.height / rect.height
+    if ('touches' in e) {
+      const t = e.touches[0]
+      return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY }
+    }
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }
+  }
+
+  const startDraw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    drawing.current = true
+    const { x, y } = getPos(e)
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+  }, [])
+
+  const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    if (!drawing.current) return
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    const { x, y } = getPos(e)
+    ctx.lineTo(x, y)
+    ctx.stroke()
+    setHasStrokes(true)
+  }, [])
+
+  const endDraw = useCallback(() => { drawing.current = false }, [])
+
+  function handleLimpiar() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    setHasStrokes(false)
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Cargo *</label>
+        <input
+          value={cargo}
+          onChange={(e) => onCargoChange(e.target.value)}
+          placeholder="Ej: Supervisor de Planta"
+          className="rounded-lg text-sm outline-none px-3 py-2"
+          style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-1)', color: 'var(--color-text-900)' }}
+          onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)' }}
+          onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)' }}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Firma *</label>
+        <div style={{ border: '1.5px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', background: '#fff', touchAction: 'none' }}>
+          <canvas
+            ref={canvasRef}
+            width={500}
+            height={180}
+            style={{ display: 'block', width: '100%', cursor: 'crosshair', touchAction: 'none' }}
+            onMouseDown={startDraw}
+            onMouseMove={draw}
+            onMouseUp={endDraw}
+            onMouseLeave={endDraw}
+            onTouchStart={startDraw}
+            onTouchMove={draw}
+            onTouchEnd={endDraw}
+          />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleLimpiar}
+          className="px-3 py-2 rounded-lg text-xs font-semibold"
+          style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)', border: '1px solid var(--color-border)' }}
+        >
+          Limpiar
+        </button>
+        <button
+          type="button"
+          onClick={() => { if (hasStrokes && cargo.trim()) onGuardar(canvasRef.current!.toDataURL('image/png')) }}
+          disabled={!hasStrokes || !cargo.trim()}
+          className="flex-1 py-2 rounded-lg text-xs font-bold"
+          style={{ background: 'var(--color-primary)', color: '#fff', opacity: (!hasStrokes || !cargo.trim()) ? 0.5 : 1 }}
+        >
+          Usar esta firma
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FirmaStepModal({
+  userId,
+  userPosition,
+  onConfirm,
+  onCancel,
+}: {
+  userId: string
+  userPosition: string
+  onConfirm: (firmaUrl: string, cargo: string) => void
+  onCancel: () => void
+}) {
+  const [mode,      setMode]      = useState<'loading' | 'preview' | 'draw'>('loading')
+  const [firmaUrl,  setFirmaUrl]  = useState<string | null>(null)
+  const [cargo,     setCargo]     = useState(userPosition ?? '')
+  const [uploading, setUploading] = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchFirmaUrl().then((url) => {
+      const saved = getCargo(userId)
+      if (saved) setCargo(saved)
+      setFirmaUrl(url)
+      setMode(url ? 'preview' : 'draw')
+    })
+  }, [userId])
+
+  function handleUsarGuardada() {
+    if (!firmaUrl || !cargo.trim()) return
+    saveCargo(userId, cargo.trim())
+    onConfirm(firmaUrl, cargo.trim())
+  }
+
+  async function handleNuevaFirma(dataUrl: string) {
+    setUploading(true)
+    setError(null)
+    try {
+      const blob = await (await fetch(dataUrl)).blob()
+      const url  = await uploadFirma(blob)
+      saveCargo(userId, cargo.trim())
+      onConfirm(url, cargo.trim())
+    } catch {
+      setError('Error al subir la firma. Intentalo de nuevo.')
+      setUploading(false)
+    }
+  }
+
+  return (
+    <ModalPortal onClose={onCancel}>
+      <div
+        className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="px-6 py-4 flex items-center justify-between gap-3"
+          style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-primary)' }}>Firma</p>
+            <h2 className="text-sm font-bold mt-0.5" style={{ color: 'var(--color-text-900)' }}>
+              Confirmar con firma
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 flex flex-col gap-4">
+          {/* Loading */}
+          {mode === 'loading' && (
+            <div className="flex justify-center py-8">
+              <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+            </div>
+          )}
+
+          {/* Firma guardada en servidor */}
+          {mode === 'preview' && firmaUrl && (
+            <>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>Firma guardada</p>
+                <div
+                  className="rounded-lg flex items-center justify-center py-3"
+                  style={{ background: '#fff', border: '1px solid var(--color-border)' }}
+                >
+                  <img src={firmaUrl} alt="Firma" style={{ maxHeight: 100, objectFit: 'contain' }} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Cargo</label>
+                  <input
+                    value={cargo}
+                    onChange={(e) => setCargo(e.target.value)}
+                    placeholder="Ej: Supervisor de Planta"
+                    className="rounded-lg text-sm outline-none px-3 py-2"
+                    style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-1)', color: 'var(--color-text-900)' }}
+                    onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)' }}
+                    onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)' }}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setMode('draw'); setError(null) }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold hover:opacity-80"
+                  style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)', border: '1px solid var(--color-border)' }}
+                >
+                  <PenLine size={13} />
+                  Dibujar otra
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUsarGuardada}
+                  disabled={!cargo.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold"
+                  style={{ background: 'var(--color-primary)', color: '#fff', opacity: !cargo.trim() ? 0.5 : 1 }}
+                >
+                  <Send size={14} />
+                  Usar esta firma
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Canvas para dibujar */}
+          {mode === 'draw' && (
+            uploading ? (
+              <div className="flex flex-col items-center gap-2 py-8">
+                <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+                <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>Subiendo firma...</span>
+              </div>
+            ) : (
+              <>
+                <InlineCanvas cargo={cargo} onCargoChange={setCargo} onGuardar={handleNuevaFirma} />
+                {firmaUrl && (
+                  <button
+                    type="button"
+                    onClick={() => { setMode('preview'); setError(null) }}
+                    className="text-xs hover:opacity-75"
+                    style={{ color: 'var(--color-text-400)', textAlign: 'left' }}
+                  >
+                    Volver a la firma guardada
+                  </button>
+                )}
+              </>
+            )
+          )}
+
+          {error && (
+            <p className="text-xs font-semibold" style={{ color: '#ef4444' }}>{error}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={onCancel}
+            className="py-2 rounded-xl text-sm font-semibold"
+            style={{ background: 'var(--color-surface-0)', border: '1.5px solid var(--color-border)', color: 'var(--color-text-600)' }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
+/* ─────────────── ProgressModal ─────────────── */
+
+type ProgressStep = 'sending' | 'generating' | 'done'
+
+const STEP_LABEL: Record<ProgressStep, { label: string; sub: string }> = {
+  sending:    { label: 'Enviando solicitud',  sub: 'Registrando los datos en el servidor...' },
+  generating: { label: 'Generando PDFs',      sub: 'Preparando los documentos de solicitud...' },
+  done:       { label: 'Solicitud enviada',   sub: 'Los documentos fueron generados correctamente.' },
+}
+
+// Techo por paso: la barra nunca supera este valor mientras el paso siga activo
+const STEP_CAP: Record<ProgressStep, number> = {
+  sending:    46,
+  generating: 88,
+  done:       100,
+}
+
+const STEPS: ProgressStep[] = ['sending', 'generating', 'done']
+
+function ProgressModal({ step }: { step: ProgressStep }) {
+  const [pct, setPct] = useState(0)
+  const cap = STEP_CAP[step]
+  const isDone = step === 'done'
+
+  // Incremento continuo con desaceleracion exponencial hacia el techo del paso actual
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPct((cur) => {
+        const gap = cap - cur
+        if (gap <= 0.05) return cur
+        const inc = Math.max(0.18, gap * 0.042)
+        return Math.min(cap, cur + inc)
+      })
+    }, 48)
+    return () => clearInterval(id)
+  }, [cap])
+
+  const display = Math.min(100, Math.round(pct))
+
+  return (
+    <ModalPortal onClose={() => {}}>
+      <div
+        className="w-full max-w-sm rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 pt-8 pb-6 flex flex-col items-center gap-5">
+
+          {/* Icono */}
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center"
+            style={{ background: isDone ? '#dcfce7' : 'var(--color-surface-2)' }}
+          >
+            {isDone
+              ? <CheckCircle2 size={28} style={{ color: '#16a34a' }} />
+              : <FileText size={28} style={{ color: 'var(--color-primary)' }} />
+            }
+          </div>
+
+          {/* Texto */}
+          <div className="text-center flex flex-col gap-1">
+            <p className="text-sm font-bold" style={{ color: 'var(--color-text-900)' }}>
+              {STEP_LABEL[step].label}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
+              {STEP_LABEL[step].sub}
+            </p>
+          </div>
+
+          {/* Barra de progreso */}
+          <div className="w-full flex flex-col gap-2">
+            <div className="w-full rounded-full overflow-hidden" style={{ height: 8, background: 'var(--color-surface-2)' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${display}%`,
+                  background: isDone ? '#16a34a' : 'var(--color-primary)',
+                  borderRadius: 9999,
+                  transition: 'background 0.3s',
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>
+                {isDone ? 'Completado' : 'En progreso...'}
+              </span>
+              <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--color-text-600)' }}>
+                {display}%
+              </span>
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div className="w-full flex flex-col gap-2 pt-1">
+            {STEPS.map((s, idx) => {
+              const stepIdx    = STEPS.indexOf(step)
+              const sIdx       = idx
+              const isActive   = s === step
+              const isComplete = sIdx < stepIdx
+              return (
+                <div key={s} className="flex items-center gap-3">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
+                    style={
+                      isComplete
+                        ? { background: '#16a34a', color: '#fff' }
+                        : isActive
+                        ? { background: 'var(--color-primary)', color: '#fff' }
+                        : { background: 'var(--color-surface-2)', color: 'var(--color-text-400)' }
+                    }
+                  >
+                    {isComplete ? <CheckCircle2 size={12} /> : idx + 1}
+                  </div>
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: isActive ? 'var(--color-text-900)' : isComplete ? '#16a34a' : 'var(--color-text-400)' }}
+                  >
+                    {STEP_LABEL[s].label}
+                  </span>
+                  {isActive && !isDone && (
+                    <Loader2 size={12} className="animate-spin ml-auto" style={{ color: 'var(--color-text-400)' }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
 /* ─────────────── MiSolicitudTab ─────────────── */
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -312,8 +764,9 @@ export function MiSolicitudTab() {
   const isWaiting  = !isLoading && activeTab !== null && !activeSolicitudId
 
   const llenar = useLlenarMiSolicitud()
+  const solicitudCerrada = solicitud?.estado === 'COMPLETADA' || solicitud?.estado === 'GENERADA'
   const { data: rqsSolicitud = [] } = useSolicitudRequisiciones(
-    solicitud?.estado === 'COMPLETADA' ? (solicitud?.id ?? null) : null
+    solicitudCerrada ? (solicitud?.id ?? null) : null
   )
 
   const [fecha,        setFecha]        = useState(TODAY)
@@ -322,8 +775,12 @@ export function MiSolicitudTab() {
   const [cantidades,   setCantidades]   = useState<CantidadMap>({})
   const [catActiva,    setCatActiva]    = useState<CategoriaInsumo | null>(null)
   const [busqueda,     setBusqueda]     = useState('')
-  const [previewRqId,  setPreviewRqId]  = useState<string | null>(null)
-  const [showConfirm,  setShowConfirm]  = useState(false)
+  const [previewRqId,   setPreviewRqId]   = useState<string | null>(null)
+  const [recibiendoRqId, setRecibiendoRqId] = useState<string | null>(null)
+  const ESTADOS_RECIBIBLES = new Set(['PEDIDO_REALIZADO', 'EN_BODEGA'])
+  const [showConfirm,   setShowConfirm]   = useState(false)
+  const [showFirmaStep, setShowFirmaStep] = useState(false)
+  const [progressStep,  setProgressStep]  = useState<ProgressStep | null>(null)
   const [adicionalModal, setAdicionalModal] = useState<{ item: SolicitudItem | null } | null>(null)
 
   const eliminarAdicional = useEliminarAdicional(solicitud?.id ?? '')
@@ -347,6 +804,12 @@ export function MiSolicitudTab() {
     if (solicitud.categorias?.length) setCatActiva(solicitud.categorias[0].categoria)
   }, [solicitud, userFullName])
 
+  useEffect(() => {
+    if (progressStep !== 'done') return
+    const t = setTimeout(() => setProgressStep(null), 900)
+    return () => clearTimeout(t)
+  }, [progressStep])
+
   function adjustPeriod(delta: number) {
     let m = mes + delta, a = anio
     if (m < 1)  { m = 12; a-- }
@@ -369,7 +832,14 @@ export function MiSolicitudTab() {
   }
 
   function handleConfirm() {
+    setShowConfirm(false)
+    setShowFirmaStep(true)
+  }
+
+  async function handleConfirmarConFirma(firmaUrl: string, cargo: string) {
     if (!solicitud) return
+    setShowFirmaStep(false)
+    setProgressStep('sending')
     llenar.mutate(
       {
         id:                 solicitud.id,
@@ -383,7 +853,39 @@ export function MiSolicitudTab() {
             solicitado: Number(cantidades[item.id] ?? 0),
           })),
       },
-      { onSuccess: () => setShowConfirm(false) },
+      {
+        onSuccess: async () => {
+          setProgressStep('generating')
+          // Build current-state solicitud for PDF — don't use the cached object
+          // which still holds pre-mutation values (old quantities, old fields)
+          const pdfSolicitud = {
+            ...solicitud,
+            fecha,
+            nombre_solicitante: nombre,
+            numero_contrato:    contrato,
+            categorias: (solicitud.categorias ?? []).map((catData) => ({
+              ...catData,
+              items: catData.items.map((item) => ({
+                ...item,
+                solicitado: item.es_adicional
+                  ? item.solicitado
+                  : Number(cantidades[item.id] ?? 0),
+              })),
+            })),
+          }
+          for (const { categoria } of pdfSolicitud.categorias) {
+            try {
+              await generarPdfsSolicitud({ solicitud: pdfSolicitud, categoria, mes, anio, firmaUrl, cargo, formatCOP })
+            } catch {
+              // continue with other categories
+            }
+          }
+          setProgressStep('done')
+        },
+        onError: () => {
+          setProgressStep(null)
+        },
+      },
     )
   }
 
@@ -525,7 +1027,7 @@ export function MiSolicitudTab() {
             El encargado aun no ha enviado la plantilla de insumos para este mes
           </p>
         </div>
-      ) : !solicitud ? null : solicitud.estado === 'COMPLETADA' ? (
+      ) : !solicitud ? null : solicitudCerrada ? (
         <div className="flex flex-col gap-4">
           {/* Confirmacion */}
           <div
@@ -566,11 +1068,11 @@ export function MiSolicitudTab() {
               APROBADA:         { color: '#3b82f6', desc: 'Solicitud procesada, pedido en preparacion' },
               PEDIDO_REALIZADO: { color: '#f59e0b', desc: 'Pedido realizado al proveedor' },
               EN_BODEGA:        { color: '#0891b2', desc: 'Insumos disponibles en bodega, ya puedes pasar a recoger' },
-              ENTREGADO:        { color: '#16a34a', desc: 'Insumos entregados' },
+              ENTREGADO:        { color: '#16a34a', desc: 'Insumos recibidos' },
             }
             const RQ_LABELS: Record<string, string> = {
               APROBADA: 'Aprobada', PEDIDO_REALIZADO: 'Pedido realizado',
-              EN_BODEGA: 'En bodega', ENTREGADO: 'Entregado',
+              EN_BODEGA: 'En bodega', ENTREGADO: 'Recibido',
               ABIERTA: 'Abierta', COMPLETADA: 'Completada',
             }
             return (
@@ -597,7 +1099,7 @@ export function MiSolicitudTab() {
                         const info  = RQ_INFO[rq.estado]
                         const color = info?.color ?? '#6b7280'
                         return (
-                          <div key={rq.id} className="flex items-center gap-3 px-5 py-3" style={{ background: 'var(--color-surface-0)' }}>
+                          <div key={rq.id} className="flex items-center gap-3 px-5 py-3 flex-wrap" style={{ background: 'var(--color-surface-0)' }}>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-bold" style={{ color: 'var(--color-text-900)' }}>
@@ -622,21 +1124,34 @@ export function MiSolicitudTab() {
                                 </p>
                               )}
                             </div>
-                            <button
-                              onClick={() => setPreviewRqId(rq.id)}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity shrink-0"
-                              title="Ver lo solicitado"
-                              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)', border: '1px solid var(--color-border)' }}
-                            >
-                              <Eye size={13} />
-                            </button>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {ESTADOS_RECIBIBLES.has(rq.estado) && (
+                                <button
+                                  onClick={() => setRecibiendoRqId(rq.id)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity"
+                                  style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                >
+                                  <Package size={12} />
+                                  Recibir insumos
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setPreviewRqId(rq.id)}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity shrink-0"
+                                title="Ver lo solicitado"
+                                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)', border: '1px solid var(--color-border)' }}
+                              >
+                                <Eye size={13} />
+                              </button>
+                            </div>
                           </div>
                         )
                       })}
                     </div>
                   )}
                 </div>
-                {previewRqId && <RQPreviewModal rqId={previewRqId} onClose={() => setPreviewRqId(null)} />}
+                {previewRqId    && <RQPreviewModal  rqId={previewRqId}    onClose={() => setPreviewRqId(null)} />}
+                {recibiendoRqId && <RecepcionModal   rqId={recibiendoRqId} onClose={() => setRecibiendoRqId(null)} />}
               </>
             )
           })()}
@@ -850,7 +1365,7 @@ export function MiSolicitudTab() {
                               </td>
 
                               {/* Descripcion + proveedor si es adicional */}
-                              <td className="px-3 py-2.5 text-xs font-medium" style={{ color: 'var(--color-text-900)', maxWidth: 280 }}>
+                              <td className="px-3 py-2.5 text-xs font-medium" style={{ color: 'var(--color-text-900)', minWidth: 200 }}>
                                 {item.descripcion}
                                 {isAdicional && item.proveedor && (
                                   <span className="block text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
@@ -1042,6 +1557,19 @@ export function MiSolicitudTab() {
               </div>
             </ModalPortal>
           )}
+
+          {/* Modal de firma */}
+          {showFirmaStep && user?.id && (
+            <FirmaStepModal
+              userId={user.id}
+              userPosition={user.position ?? ''}
+              onConfirm={handleConfirmarConFirma}
+              onCancel={() => { setShowFirmaStep(false); setShowConfirm(true) }}
+            />
+          )}
+
+          {/* Modal de progreso de envio */}
+          {progressStep && <ProgressModal step={progressStep} />}
 
           {/* Modal de adicional (crear/editar) */}
           {adicionalModal !== null && catActiva && (

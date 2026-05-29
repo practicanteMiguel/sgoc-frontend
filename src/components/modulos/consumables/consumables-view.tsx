@@ -25,16 +25,18 @@ export function ConsumablesView() {
   if (isSupervisor) {
     return (
       <div className="max-w-8xl p-6 sm:p-10 mx-auto animate-fade-in">
-        <div className="mb-5">
-          <h2
-            className="font-display text-xl font-semibold"
-            style={{ color: 'var(--color-secundary)' }}
-          >
-            Solicitud de Insumos
-          </h2>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-400)' }}>
-            Indica las cantidades que necesitas de cada insumo para el mes
-          </p>
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+          <div>
+            <h2
+              className="font-display text-xl font-semibold"
+              style={{ color: 'var(--color-secundary)' }}
+            >
+              Insumos
+            </h2>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+              Gestiona tu solicitud mensual y revisa tus requisiciones
+            </p>
+          </div>
         </div>
         <MiSolicitudTab />
       </div>

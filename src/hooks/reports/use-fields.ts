@@ -126,8 +126,8 @@ export function useFieldLugares(fieldId: string | null) {
 export function useCreateFieldLugar() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ fieldId, nombre }: { fieldId: string; nombre: string }) =>
-      api.post<FieldLugar>(`/fields/${fieldId}/lugares`, { nombre }).then((r) => r.data),
+    mutationFn: ({ fieldId, nombre, lote }: { fieldId: string; nombre: string; lote?: number }) =>
+      api.post<FieldLugar>(`/fields/${fieldId}/lugares`, { nombre, ...(lote != null ? { lote } : {}) }).then((r) => r.data),
     onSuccess: (_, { fieldId }) => {
       qc.invalidateQueries({ queryKey: ['field-lugares', fieldId] });
     },

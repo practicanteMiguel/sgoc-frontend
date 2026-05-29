@@ -10,6 +10,7 @@ import type {
   EnvioMasivoResult,
   EstadoRQ,
   FacturaItemDto,
+  RecepcionDto,
 } from '@/src/types/consumables.types'
 
 export function useRequisiciones(params?: { mes?: number; anio?: number }) {
@@ -106,6 +107,23 @@ export function useCambiarEstadoRQ() {
     onError: (err: any) => {
       const msg = err?.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al cambiar estado'))
+    },
+  })
+}
+
+export function useRecepcionRQ() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & RecepcionDto) =>
+      api.patch<Requisicion>(`/requisiciones/${id}/recepcion`, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requisiciones'] })
+      qc.invalidateQueries({ queryKey: ['solicitudes'] })
+      toast.success('Recepcion registrada correctamente')
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al registrar la recepcion'))
     },
   })
 }
