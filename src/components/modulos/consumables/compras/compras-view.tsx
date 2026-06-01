@@ -947,7 +947,16 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
                         <td className="px-3 py-3 text-sm font-bold text-right whitespace-nowrap" style={{ color: rq.entrega_completa ? '#16a34a' : '#f59e0b' }}>
                           {formatCOP(totalRecCOP)}
                         </td>
-                        <td />
+                        {(() => {
+                          const valDiff  = totalRecCOP - totalEstCOP
+                          const valColor = valDiff === 0 ? '#16a34a' : valDiff < 0 ? '#ef4444' : '#3b82f6'
+                          const valLabel = valDiff === 0 ? '=' : (valDiff > 0 ? '+' : '-') + formatCOP(Math.abs(valDiff))
+                          return (
+                            <td className="px-3 py-3 text-xs text-center font-bold whitespace-nowrap" style={{ color: valColor }}>
+                              {valLabel}
+                            </td>
+                          )
+                        })()}
                       </>
                     )}
                   </tr>

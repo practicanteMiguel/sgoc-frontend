@@ -85,12 +85,20 @@ function RQPreviewModal({ rqId, onClose }: { rqId: string; onClose: () => void }
                       </th>
                     ))}
                     {isEntregado && (
-                      <th
-                        className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
-                        style={{ color: '#16a34a', borderLeft: '2px solid var(--color-border)' }}
-                      >
-                        Recibido
-                      </th>
+                      <>
+                        <th
+                          className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                          style={{ color: '#16a34a', borderLeft: '2px solid var(--color-border)' }}
+                        >
+                          Recibido
+                        </th>
+                        <th
+                          className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                          style={{ color: 'var(--color-text-400)' }}
+                        >
+                          Diferencia
+                        </th>
+                      </>
                     )}
                   </tr>
                 </thead>
@@ -113,13 +121,20 @@ function RQPreviewModal({ rqId, onClose }: { rqId: string; onClose: () => void }
                         {item.solicitado != null ? Math.round(Number(item.solicitado)) : '-'}
                       </td>
                       {isEntregado && (() => {
-                        const sol = Math.round(Number(item.solicitado ?? 0))
-                        const rec = Math.round(Number(item.recibido   ?? 0))
-                        const color = rec === sol ? '#16a34a' : rec < sol ? '#ef4444' : '#3b82f6'
+                        const sol   = Math.round(Number(item.solicitado ?? 0))
+                        const rec   = Math.round(Number(item.recibido   ?? 0))
+                        const diff  = rec - sol
+                        const recColor  = rec === sol ? '#16a34a' : rec < sol ? '#ef4444' : '#3b82f6'
+                        const diffColor = diff === 0  ? '#16a34a' : diff < 0  ? '#ef4444' : '#3b82f6'
                         return (
-                          <td className="px-4 py-2.5 text-xs font-bold text-center whitespace-nowrap" style={{ color, borderLeft: '2px solid var(--color-border)' }}>
-                            {rec}
-                          </td>
+                          <>
+                            <td className="px-4 py-2.5 text-xs font-bold text-center whitespace-nowrap" style={{ color: recColor, borderLeft: '2px solid var(--color-border)' }}>
+                              {rec}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs font-bold text-center whitespace-nowrap" style={{ color: diffColor }}>
+                              {diff === 0 ? '=' : (diff > 0 ? '+' : '') + diff}
+                            </td>
+                          </>
                         )
                       })()}
                     </tr>
@@ -127,7 +142,7 @@ function RQPreviewModal({ rqId, onClose }: { rqId: string; onClose: () => void }
                 </tbody>
                 <tfoot>
                   <tr style={{ background: 'var(--color-surface-1)', borderTop: '2px solid var(--color-border)' }}>
-                    <td colSpan={isEntregado ? 5 : 4} className="px-4 py-2.5 text-xs" style={{ color: 'var(--color-text-400)' }}>
+                    <td colSpan={isEntregado ? 6 : 4} className="px-4 py-2.5 text-xs" style={{ color: 'var(--color-text-400)' }}>
                       {rq.items.length} item{rq.items.length !== 1 ? 's' : ''}
                     </td>
                   </tr>

@@ -1033,10 +1033,25 @@ export function RequisicionDetail({ id, onBack }: Props) {
                       <td className="px-4 py-3 text-xs text-center font-bold whitespace-nowrap" style={{ color: rq.entrega_completa ? '#16a34a' : '#f59e0b', borderLeft: '2px solid var(--color-border)' }}>
                         {rq.total_recibido != null ? `${rq.total_recibido} uds` : '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm font-bold text-right whitespace-nowrap" style={{ color: rq.entrega_completa ? '#16a34a' : '#f59e0b' }}>
-                        {formatCOP(sortedItems.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.recibido ?? 0)) * i.valor_unitario : s, 0))}
-                      </td>
-                      <td />
+                      {(() => {
+                        const totalRecCOP = sortedItems.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.recibido ?? 0)) * i.valor_unitario : s, 0)
+                        return (
+                          <td className="px-4 py-3 text-sm font-bold text-right whitespace-nowrap" style={{ color: rq.entrega_completa ? '#16a34a' : '#f59e0b' }}>
+                            {formatCOP(totalRecCOP)}
+                          </td>
+                        )
+                      })()}
+                      {(() => {
+                        const totalRecCOP = sortedItems.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.recibido ?? 0)) * i.valor_unitario : s, 0)
+                        const valDiff     = totalRecCOP - total
+                        const valColor    = valDiff === 0 ? '#16a34a' : valDiff < 0 ? '#ef4444' : '#3b82f6'
+                        const valLabel    = valDiff === 0 ? '=' : (valDiff > 0 ? '+' : '-') + formatCOP(Math.abs(valDiff))
+                        return (
+                          <td className="px-4 py-3 text-xs text-center font-bold whitespace-nowrap" style={{ color: valColor }}>
+                            {valLabel}
+                          </td>
+                        )
+                      })()}
                     </>
                   )}
                 </tr>
