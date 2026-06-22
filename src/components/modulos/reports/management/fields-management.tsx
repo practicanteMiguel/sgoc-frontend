@@ -19,9 +19,8 @@ import { ComplianceDashboard } from '../compliance/coordinator/compliance-dashbo
 import { FieldCompliancePanel } from '../compliance/coordinator/field-compliance-panel';
 import type { Field, Employee } from '@/src/types/reports.types';
 
-const CONTRACT_TAB    = '__contract__';
-const COMPLIANCE_TAB  = '__compliance__';
-const CONTRACT_FIELD_ID = 'dc9c6e07-e9f9-4184-ad1e-65386a7986be';
+const CONTRACT_TAB   = '__contract__';
+const COMPLIANCE_TAB = '__compliance__';
 
 export function FieldsManagement() {
   const { user } = useAuthStore();
@@ -37,6 +36,8 @@ export function FieldsManagement() {
 
   const { data: fieldsData, isLoading: fieldsLoading } = useFields();
   const fields = fieldsData?.data ?? [];
+  const contractField = fields.find((f) => f.name.toLowerCase() === 'contrato');
+  const contractFieldId = contractField?.id;
 
   const isContractView   = activeFieldId === CONTRACT_TAB;
   const isComplianceView = activeFieldId === COMPLIANCE_TAB;
@@ -122,7 +123,7 @@ export function FieldsManagement() {
         </button>
 
         {/* Plant tabs */}
-        {fields.filter((f) => f.id !== CONTRACT_FIELD_ID).map((f) => {
+        {fields.filter((f) => f.id !== contractFieldId).map((f) => {
           const active = !isContractView && (activeFieldId ?? fields[0]?.id) === f.id;
           return (
             <button
@@ -148,7 +149,7 @@ export function FieldsManagement() {
 
       {/* Content */}
       {isContractView ? (
-        <ContractView canManage={canManage} isAdmin={isAdmin} />
+        <ContractView canManage={canManage} isAdmin={isAdmin} contractFieldId={contractFieldId} />
       ) : isComplianceView ? (
         <ComplianceDashboard />
       ) : fields.length === 0 ? (

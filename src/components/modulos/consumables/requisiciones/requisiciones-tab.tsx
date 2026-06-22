@@ -322,7 +322,7 @@ function RevisionSolicitudModal({ solicitudId, onClose }: { solicitudId: string;
 
   const yaGeneradas = rqsExistentes.length > 0
 
-  const porCategoria: Record<CategoriaInsumo, SolicitudItem[]> = { PAPELERIA: [], CONSUMIBLE: [], EPP: [] }
+  const porCategoria: Record<CategoriaInsumo, SolicitudItem[]> = { PAPELERIA: [], CONSUMIBLE: [], EPP: [], DOTACION: [] }
   for (const catData of (solicitud.categorias ?? [])) {
     porCategoria[catData.categoria] = catData.items
       .filter(i => (i.solicitado ?? 0) > 0)

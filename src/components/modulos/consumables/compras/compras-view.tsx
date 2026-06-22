@@ -1016,7 +1016,10 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
 }
 
 // ── Requisiciones compras tab ──────────────────────────────────────────────
-function RQsComprasTab() {
+function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
+  onlyCategoria?:    CategoriaInsumo
+  excludeCategoria?: CategoriaInsumo
+} = {}) {
   const now = new Date()
   const [mes,  setMes]  = useState(now.getMonth() + 1)
   const [anio, setAnio] = useState(now.getFullYear())
@@ -1031,7 +1034,11 @@ function RQsComprasTab() {
   const { data: requisiciones = [], isLoading } = useRequisiciones({ mes, anio })
   const cambiar = useCambiarEstadoRQ()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const rqs = Array.isArray(requisiciones) ? requisiciones : []
+  const rqs = (Array.isArray(requisiciones) ? requisiciones : []).filter(r => {
+    if (onlyCategoria    && r.categoria !== onlyCategoria)    return false
+    if (excludeCategoria && r.categoria === excludeCategoria) return false
+    return true
+  })
 
   const BADGE_COLORS: Record<string, string> = {
     ABIERTA: '#6b7280', COMPLETADA: '#22c55e', APROBADA: '#3b82f6',
@@ -1171,10 +1178,12 @@ interface Props {
   valid: boolean
 }
 
-type Tab = 'insumos' | 'requisiciones'
+type MainTab   = 'insumos' | 'dotacion'
+type InsumoSub = 'lista' | 'requisiciones'
 
 export function ComprasView({ valid }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('insumos')
+  const [mainTab,   setMainTab]   = useState<MainTab>('insumos')
+  const [insumoSub, setInsumoSub] = useState<InsumoSub>('lista')
 
   if (!valid) {
     return (
@@ -1206,18 +1215,18 @@ export function ComprasView({ valid }: Props) {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Main tabs */}
         <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: '#e4eaf2' }}>
           {([
-            { id: 'insumos'       as Tab, label: 'Insumos',      icon: Package  },
-            { id: 'requisiciones' as Tab, label: 'Requisiciones', icon: FileText },
+            { id: 'insumos'  as MainTab, label: 'Insumos',   icon: Package      },
+            { id: 'dotacion' as MainTab, label: 'Dotacion',  icon: ShoppingCart },
           ]).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => setMainTab(id)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
               style={
-                activeTab === id
+                mainTab === id
                   ? { background: '#fff', color: '#1a3a3a', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }
                   : { color: '#9ca3af' }
               }
@@ -1228,10 +1237,45 @@ export function ComprasView({ valid }: Props) {
           ))}
         </div>
 
+        {/* Sub-tabs */}
+        {mainTab === 'insumos' && (
+          <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+            {([
+              { id: 'lista'         as InsumoSub, label: 'Lista de insumos' },
+              { id: 'requisiciones' as InsumoSub, label: 'Requisiciones'    },
+            ]).map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setInsumoSub(id)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                style={
+                  insumoSub === id
+                    ? { background: '#fff', color: '#1a3a3a', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                    : { color: '#9ca3af' }
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mainTab === 'dotacion' && (
+          <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+            <button
+              className="px-3 py-1.5 rounded-md text-xs font-medium"
+              style={{ background: '#fff', color: '#1a3a3a', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
+            >
+              Requisiciones
+            </button>
+          </div>
+        )}
+
         {/* Content */}
         <div className="animate-fade-in">
-          {activeTab === 'insumos'       && <InsumosComprasTab />}
-          {activeTab === 'requisiciones' && <RQsComprasTab />}
+          {mainTab === 'insumos'  && insumoSub === 'lista'         && <InsumosComprasTab />}
+          {mainTab === 'insumos'  && insumoSub === 'requisiciones' && <RQsComprasTab excludeCategoria="DOTACION" />}
+          {mainTab === 'dotacion'                                  && <RQsComprasTab onlyCategoria="DOTACION" />}
         </div>
       </div>
     </div>

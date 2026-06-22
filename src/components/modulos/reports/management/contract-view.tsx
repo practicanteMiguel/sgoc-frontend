@@ -11,7 +11,6 @@ import { getInitials } from '@/src/lib/utils';
 import { EmployeeForm } from './employee-form';
 import type { Employee } from '@/src/types/reports.types';
 
-const CONTRACT_FIELD_ID = 'dc9c6e07-e9f9-4184-ad1e-65386a7986be';
 const PAGE_SIZE = 20;
 
 const fmt = new Intl.NumberFormat('es-CO', {
@@ -73,19 +72,21 @@ function AuxTags({ emp }: { emp: Employee }) {
 
 // ── Main view ─────────────────────────────────────────────────────
 interface ContractViewProps {
-  canManage: boolean;
-  isAdmin:   boolean;
+  canManage:       boolean;
+  isAdmin:         boolean;
+  contractFieldId?: string;
 }
 
-export function ContractView({ canManage, isAdmin }: ContractViewProps) {
-  const { data: contractData, isLoading: contractLoading } = useEmployees({
-    field_id: CONTRACT_FIELD_ID,
-    limit:    200,
-  });
+export function ContractView({ canManage, isAdmin, contractFieldId }: ContractViewProps) {
   const { data: allData, isLoading: allLoading } = useEmployees({ limit: 1000 });
 
-  const contractEmployees = contractData?.data ?? [];
-  const allEmployees      = (allData?.data ?? []).filter((e) => e.field_id !== CONTRACT_FIELD_ID);
+  const allRaw            = allData?.data ?? [];
+  const contractEmployees = contractFieldId
+    ? allRaw.filter((e) => e.field?.id === contractFieldId)
+    : [];
+  const allEmployees      = contractFieldId
+    ? allRaw.filter((e) => e.field?.id !== contractFieldId)
+    : allRaw;
 
   const [search,       setSearch]       = useState('');
   const [filterPos,    setFilterPos]    = useState('');
@@ -167,7 +168,7 @@ export function ContractView({ canManage, isAdmin }: ContractViewProps) {
           )}
         </div>
 
-        {contractLoading ? (
+        {allLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-secondary)' }} />
           </div>

@@ -1,4 +1,4 @@
-export type CategoriaInsumo = 'PAPELERIA' | 'CONSUMIBLE' | 'EPP'
+export type CategoriaInsumo = 'PAPELERIA' | 'CONSUMIBLE' | 'EPP' | 'DOTACION'
 export type EstadoRQ = 'ABIERTA' | 'COMPLETADA' | 'APROBADA' | 'PEDIDO_REALIZADO' | 'EN_BODEGA' | 'ENTREGADO'
 export type EstadoSolicitud = 'PENDIENTE' | 'COMPLETADA' | 'GENERADA'
 
@@ -181,6 +181,7 @@ export const CATEGORIA_LABELS: Record<CategoriaInsumo, string> = {
   PAPELERIA:  'Papeleria',
   CONSUMIBLE: 'Consumible',
   EPP:        'EPP',
+  DOTACION:   'Dotacion',
 }
 
 export const ESTADO_COLORS: Record<EstadoRQ, string> = {
