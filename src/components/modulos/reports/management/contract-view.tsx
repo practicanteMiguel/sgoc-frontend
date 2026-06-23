@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Search, Loader2, ChevronLeft, ChevronRight,
   Pencil, X as XIcon,
@@ -98,32 +98,24 @@ export function ContractView({ canManage, isAdmin, contractFieldId }: ContractVi
   const [detailEmp,    setDetailEmp]    = useState<Employee | null>(null);
   const [addOpen,      setAddOpen]      = useState(false);
 
-  const positions = useMemo(
-    () => Array.from(new Set(allEmployees.map((e) => e.position))).sort(),
-    [allEmployees],
-  );
-  const schedules = useMemo(
-    () => Array.from(new Set(allEmployees.flatMap((e) => e.schedules))).sort(),
-    [allEmployees],
-  );
+  const positions = Array.from(new Set(allEmployees.map((e) => e.position))).sort();
+  const schedules = Array.from(new Set(allEmployees.flatMap((e) => e.schedules))).sort();
 
-  const filtered = useMemo(() => {
-    const q   = search.toLowerCase().trim();
-    const min = salaryMin ? Number(salaryMin) : null;
-    const max = salaryMax ? Number(salaryMax) : null;
-    return allEmployees.filter((emp) => {
-      if (q) {
-        const name = `${emp.first_name} ${emp.last_name}`.toLowerCase();
-        if (!name.includes(q) && !emp.identification_number.toLowerCase().includes(q)) return false;
-      }
-      if (filterPos   && emp.position !== filterPos) return false;
-      if (filterSched && !emp.schedules.includes(filterSched)) return false;
-      if (min !== null && emp.salario_base < min) return false;
-      if (max !== null && emp.salario_base > max) return false;
-      if (filterAux.length > 0 && !filterAux.some((k) => emp[k])) return false;
-      return true;
-    });
-  }, [allEmployees, search, filterPos, filterSched, salaryMin, salaryMax, filterAux]);
+  const q      = search.toLowerCase().trim();
+  const min    = salaryMin ? Number(salaryMin) : null;
+  const max    = salaryMax ? Number(salaryMax) : null;
+  const filtered = allEmployees.filter((emp) => {
+    if (q) {
+      const name = `${emp.first_name} ${emp.last_name}`.toLowerCase();
+      if (!name.includes(q) && !emp.identification_number.toLowerCase().includes(q)) return false;
+    }
+    if (filterPos   && emp.position !== filterPos) return false;
+    if (filterSched && !emp.schedules.includes(filterSched)) return false;
+    if (min !== null && emp.salario_base < min) return false;
+    if (max !== null && emp.salario_base > max) return false;
+    if (filterAux.length > 0 && !filterAux.some((k) => emp[k])) return false;
+    return true;
+  });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

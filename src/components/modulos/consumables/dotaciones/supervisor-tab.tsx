@@ -1,23 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Loader2, Link2, Copy, Check, Plus, ChevronDown, ChevronUp, User, Calendar, FileText, Eye, X, Image as ImageIcon, FileDown, FileSpreadsheet } from 'lucide-react'
 import { useMyDotacionSpace, useCreateOrGetDotacionSpace, useDotacionSolicitudesByToken } from '@/src/hooks/dotaciones/use-dotaciones'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { ESTADO_DOTACION_LABELS, ESTADO_DOTACION_COLORS } from '@/src/types/dotaciones.types'
 import type { DotacionSolicitud, Reposicion } from '@/src/types/dotaciones.types'
 import { exportDotacionPdf, exportDotacionExcel } from '@/src/lib/dotacion-export'
-
-const FIELD: React.CSSProperties = {
-  background:   'var(--color-surface-0)',
-  border:       '1.5px solid var(--color-border)',
-  borderRadius: '8px',
-  padding:      '9px 13px',
-  fontSize:     '13px',
-  width:        '100%',
-  outline:      'none',
-  color:        'var(--color-text-900)',
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -83,7 +73,7 @@ function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {
                     className="relative overflow-hidden rounded-lg"
                     style={{ width: 72, height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
                   >
-                    <img src={img.url} alt={img.original_name} className="w-full h-full object-cover" />
+                    <Image src={img.url} alt={img.original_name} fill className="object-cover" unoptimized />
                   </button>
                 ))}
               </div>
@@ -105,12 +95,15 @@ function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {
           >
             <X size={18} color="#fff" />
           </button>
-          <img
+          <Image
             src={lightbox}
             alt="foto"
+            width={1200}
+            height={900}
             className="max-w-full max-h-full rounded-xl"
             style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
             onClick={e => e.stopPropagation()}
+            unoptimized
           />
         </div>
       )}

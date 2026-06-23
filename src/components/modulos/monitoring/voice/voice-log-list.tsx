@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type CSSProperties } from 'react'
 import { Mic, Trash2, Loader2, FileText, Check, CheckSquare, X, Pencil } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -63,7 +63,7 @@ export function VoiceLogList() {
   function toggleSelect(id: string) {
     setSelected((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }
@@ -192,7 +192,7 @@ export function VoiceLogList() {
               </div>
             )}
 
-            <div className="divide-y" style={{ ['--tw-divide-color' as any]: 'var(--color-border)' }}>
+            <div className="divide-y" style={{ '--tw-divide-color': 'var(--color-border)' } as CSSProperties}>
               {logs.map((log) => {
                 const isSelected = selected.has(log.id)
                 return (
@@ -250,7 +250,7 @@ export function VoiceLogList() {
           userInfo={{
             name:     profile ? `${profile.first_name} ${profile.last_name}` : '',
             position: profile?.position ?? '',
-            field:    (profile?.field as any)?.name ?? null,
+            field:    (profile?.field as { name?: string } | null | undefined)?.name ?? null,
           }}
           onClose={handleCloseReport}
         />

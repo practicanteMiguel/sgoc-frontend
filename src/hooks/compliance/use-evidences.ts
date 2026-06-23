@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type { Evidence, EvidenceCategory, EvidenceUploadResult } from '@/src/types/compliance.types'
 
@@ -54,8 +55,8 @@ export function useUploadEvidences() {
       qc.invalidateQueries({ queryKey: ['evidences'] })
       toast.success(`${data.uploaded} archivo${data.uploaded !== 1 ? 's' : ''} subido${data.uploaded !== 1 ? 's' : ''} correctamente`)
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al subir archivos'))
     },
   })
@@ -74,8 +75,8 @@ export function useClearEvidenceCache() {
       qc.invalidateQueries({ queryKey: ['evidences'] })
       toast.success(field_id ? 'Cache de la planta limpiado' : 'Cache general limpiado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al limpiar cache'))
     },
   })
@@ -89,8 +90,8 @@ export function useDeleteEvidence() {
       qc.invalidateQueries({ queryKey: ['evidences'] })
       toast.success('Archivo eliminado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'))
     },
   })

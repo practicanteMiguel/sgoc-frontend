@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type {
   TaxiRecord,
@@ -44,8 +45,8 @@ export function useSaveTaxi() {
       qc.invalidateQueries({ queryKey: ['compliance-taxi', vars.deliverableId] })
       toast.success('Formato taxi guardado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al guardar taxi'))
     },
   })
@@ -80,8 +81,8 @@ export function useSavePernoctacion() {
       qc.invalidateQueries({ queryKey: ['compliance-pernoctacion', vars.deliverableId] })
       toast.success('Formato pernoctacion guardado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al guardar'))
     },
   })
@@ -123,8 +124,8 @@ export function useSaveDisponibilidad() {
       qc.invalidateQueries({ queryKey: ['compliance-disponibilidad', vars.deliverableId] })
       toast.success('Formato disponibilidad guardado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al guardar'))
     },
   })
@@ -171,8 +172,8 @@ export function useSaveHorasExtra() {
       qc.invalidateQueries({ queryKey: ['compliance-horas-extra', vars.deliverableId] })
       toast.success('Formato horas extra guardado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al guardar'))
     },
   })

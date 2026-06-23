@@ -75,7 +75,7 @@ async function generateWeekExcel(
     ])
 
     const ExcelJSModule = await import('exceljs')
-    const ExcelJS = (ExcelJSModule as any).default ?? ExcelJSModule
+    const ExcelJS = (ExcelJSModule as { default?: typeof ExcelJSModule }).default ?? ExcelJSModule
     const wb = new ExcelJS.Workbook()
 
     const HEADERS    = ['Descripcion de Actividad', 'Fecha', 'Antes', 'Durante', 'Despues', 'Comentarios/Observaciones']
@@ -395,6 +395,7 @@ export function SupervisorActivitiesView() {
   }, [reportWeekFilters, monthlyMode])
 
   const { data: crewsData, isLoading: loadingCrews } = useCrews({ field_id: fieldId ?? undefined })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const crews = crewsData?.data ?? []
 
   const { data: logs = [], isLoading: loadingLogs } = useLogs()
@@ -449,7 +450,7 @@ export function SupervisorActivitiesView() {
   function toggleReportSelection(id: string) {
     setSelectedReportIds((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }

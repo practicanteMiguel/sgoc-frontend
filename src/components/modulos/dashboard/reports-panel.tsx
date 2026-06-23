@@ -50,13 +50,16 @@ function linearRegression(pts: number[]) {
 }
 
 // ── Custom tooltip ─────────────────────────────────────────────────────────────
-function ChartTip({ active, payload, label }: any) {
+type ChartPayload = { dataKey: string; name: string; value: number | string | null; color: string }
+type ChartTipProps = { active?: boolean; payload?: ChartPayload[]; label?: string }
+
+function ChartTip({ active, payload, label }: ChartTipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="px-3 py-2 rounded-lg text-xs flex flex-col gap-1"
          style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 4px 16px rgba(4,24,24,0.2)' }}>
       <p className="font-semibold mb-0.5" style={{ color: 'var(--color-text-600)' }}>{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
           <span style={{ color: 'var(--color-text-400)' }}>{p.name}:</span>
@@ -79,7 +82,7 @@ function buildPdfHtml(
   employeesInFields: number,
   avgYear: number | null,
   yearTotals: { on_time: number; tarde: number; pendiente: number; no_aplica: number },
-  byField: Record<string, { name: string; months: Record<number, any> }>,
+  byField: Record<string, { name: string; months: Record<number, { score?: number | null | string }> }>,
 ) {
   const now  = new Date()
   const sc   = (s: string | number | null) => {
@@ -296,8 +299,10 @@ export function ReportsDashboardPanel() {
   // Current real month deliverables (always today's month, independent of year selector)
   const { data: currentDelivs,     isLoading: loadCurrent  } = useDeliverables({ mes: nowMonth, anio: nowYear })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fields    = fieldsPage?.data ?? []
   const employees = empPage?.data    ?? []
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const rows      = summary          ?? []
 
   // ── Derived data ────────────────────────────────────────────────────────────
@@ -444,7 +449,7 @@ export function ReportsDashboardPanel() {
     ]
     const body = encodeURIComponent(lines.join('\n'))
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${body}`)
-  }, [anio, fields, employees, avgYear, yearTotals, byField, fieldIds, employeesInFields])
+  }, [anio, fields, avgYear, yearTotals, byField, fieldIds, employeesInFields])
 
   const tickStyle = { fontSize: 11, fill: 'var(--color-text-400)' }
   const isLoading = loadSummary || loadFields
@@ -548,7 +553,7 @@ export function ReportsDashboardPanel() {
                       <ReferenceLine y={90} stroke="rgba(22,163,74,0.25)" strokeDasharray="4 4" />
                       <ReferenceLine y={70} stroke="rgba(202,138,4,0.25)" strokeDasharray="4 4" />
                       <Line type="monotone" dataKey="avg" name="Promedio" stroke="var(--color-secondary)" strokeWidth={2.5}
-                        dot={(p: any) => {
+                        dot={(p: { cx: number; cy: number; payload: { hasData: boolean; avg: number | null } }) => {
                           if (!p.payload.hasData || p.payload.avg === null) return <g key={`d-${p.cx}`}/>
                           return <circle key={`d-${p.cx}`} cx={p.cx} cy={p.cy} r={4} fill="var(--color-secondary)" stroke="var(--color-surface-0)" strokeWidth={2}/>
                         }}
@@ -665,7 +670,7 @@ export function ReportsDashboardPanel() {
                     <LineChart
                       data={MONTHS_SHORT.map((label, i) => {
                         const mes = i + 1
-                        const row: Record<string,any> = { label }
+                        const row: Record<string, number | null | string> = { label }
                         fieldIds.forEach(fid => {
                           const s = byField[fid].months[mes]?.score
                           row[fid] = s !== undefined ? Number(s) : null

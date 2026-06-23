@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
-import type { ViaMonthlyLog, ViaMonthlyLogSummary, PaginatedViaLogs } from '@/src/types/vias.types'
+import type { ViaMonthlyLog, PaginatedViaLogs } from '@/src/types/vias.types'
 
 export function useViaLogs(params?: { field_id?: string; year?: number; month?: number }) {
   const search = new URLSearchParams()
@@ -41,8 +42,8 @@ export function useCreateViaLog() {
       qc.invalidateQueries({ queryKey: ['via-logs'] })
       toast.success('Registro mensual creado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear el registro'))
     },
   })
@@ -56,8 +57,8 @@ export function useDeleteViaLog() {
       qc.invalidateQueries({ queryKey: ['via-logs'] })
       toast.success('Registro eliminado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'))
     },
   })

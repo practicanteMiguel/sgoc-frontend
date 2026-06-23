@@ -121,9 +121,6 @@ function toDateInput(val?: string | null) {
   return val.split("T")[0];
 }
 
-function empty(val?: string | null): undefined {
-  return val && val.trim() !== "" ? (val as any) : undefined;
-}
 
 export function EmployeeForm({
   employee,
@@ -131,6 +128,7 @@ export function EmployeeForm({
   onClose,
   onSuccess,
 }: EmployeeFormProps) {
+  "use no memo";
   const isEdit = !!employee;
   const create = useCreateEmployee();
   const update = useUpdateEmployee();
@@ -144,7 +142,7 @@ export function EmployeeForm({
     watch,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: zodResolver(schema) as any,
+    resolver: zodResolver(schema),
     defaultValues: {
       aux_trans: false,
       aux_hab: false,
@@ -203,8 +201,6 @@ export function EmployeeForm({
       reset((prev) => ({ ...prev, field_id: defaultFieldId }));
     }
   }, [employee, defaultFieldId, reset]);
-
-  const selectedSchedules = watch("schedules") ?? [];
 
   const onSubmit = (data: FormData) => {
     const clean = (v?: string | null) => (v && v.trim() !== "" ? v : undefined);
@@ -277,7 +273,7 @@ export function EmployeeForm({
       borderColor: hasError ? "var(--color-danger)" : "var(--color-border)",
     },
     onFocus: fieldFocus,
-    onBlur: (e: any) => fieldBlur(e, hasError),
+    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => fieldBlur(e, hasError),
   });
 
   return (
@@ -740,6 +736,7 @@ export function EmployeeForm({
                 />
                 <span
                   className="text-sm font-medium"
+                  // eslint-disable-next-line react-hooks/incompatible-library
                   style={{ color: watch("is_active") ? "#16a34a" : "#dc2626" }}
                 >
                   {watch("is_active") ? "Empleado activo" : "Empleado inactivo"}

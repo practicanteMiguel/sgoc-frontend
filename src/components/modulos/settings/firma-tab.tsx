@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import { PenLine, Upload, RefreshCw, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/src/stores/auth.store'
-import { fetchFirmaUrl, uploadFirma, getCargo, saveCargo, clearCargo } from '@/src/lib/firma'
+import { fetchFirmaUrl, uploadFirma, getCargo, saveCargo } from '@/src/lib/firma'
 import { FirmaCanvas } from '@/src/components/ui/firma-canvas'
 
 type Mode = 'idle' | 'draw' | 'upload'
@@ -73,13 +74,6 @@ export function FirmaTab() {
     }
   }
 
-  function handleEliminarLocal() {
-    if (!user?.id) return
-    clearCargo(user.id)
-    setFirmaUrl(null)
-    setCargo(user.position ?? '')
-  }
-
   const cardStyle: React.CSSProperties = {
     background: 'var(--color-surface-0)',
     border: '1px solid var(--color-border)',
@@ -128,7 +122,7 @@ export function FirmaTab() {
             className="rounded-lg overflow-hidden flex items-center justify-center"
             style={{ background: '#fff', border: '1px solid var(--color-border)', padding: 12 }}
           >
-            <img src={firmaUrl} alt="Firma" style={{ maxHeight: 120, objectFit: 'contain' }} />
+            <Image src={firmaUrl} alt="Firma" width={300} height={120} style={{ maxHeight: 120, width: 'auto', objectFit: 'contain' }} unoptimized />
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>Cargo</span>
@@ -243,7 +237,7 @@ export function FirmaTab() {
             onClick={() => fileRef.current?.click()}
           >
             {preview ? (
-              <img src={preview} alt="Preview" style={{ maxHeight: 120, objectFit: 'contain' }} />
+              <Image src={preview} alt="Preview" width={300} height={120} style={{ maxHeight: 120, width: 'auto', objectFit: 'contain' }} unoptimized />
             ) : (
               <>
                 <Upload size={24} style={{ color: 'var(--color-text-400)' }} />

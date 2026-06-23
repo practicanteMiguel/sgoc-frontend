@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import {
   MapPin, Users, BookOpen, FileText, Loader2, ChevronRight,
   TrendingUp, CheckCircle2, AlertTriangle,
@@ -35,10 +35,7 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
   )
 }
 
-function fmt(d: string) {
-  const [y, m, day] = d.split('-')
-  return `${day}/${m}/${y}`
-}
+
 
 export function CoordinatorActivitiesView() {
   const [fieldId,   setFieldId]   = useState('')
@@ -246,7 +243,7 @@ export function CoordinatorActivitiesView() {
                     {crewLogs.length > 0 && (
                       <div
                         className="divide-y"
-                        style={{ background: 'var(--color-surface-0)', ['--tw-divide-color' as any]: 'var(--color-border)' }}
+                        style={{ background: 'var(--color-surface-0)', '--tw-divide-color': 'var(--color-border)' } as CSSProperties}
                       >
                         {crewLogs.map((log) => (
                           <button

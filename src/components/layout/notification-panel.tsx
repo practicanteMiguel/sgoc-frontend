@@ -14,6 +14,7 @@ interface NotificationPanelProps {
   onClose: () => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function NotificationPanel({ onClose }: NotificationPanelProps) {
   const { data, isLoading }  = useNotifications();
   const markOne              = useMarkAsRead();

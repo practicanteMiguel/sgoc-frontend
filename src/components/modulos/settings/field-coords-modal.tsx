@@ -6,14 +6,16 @@ import { useUpdateField } from '@/src/hooks/reports/use-fields';
 import { ModalPortal } from '@/src/components/ui/modal-portal';
 import { useAuthStore } from '@/src/stores/auth.store';
 import type { Field } from '@/src/types/reports.types';
+import type * as LeafletLib from 'leaflet';
+import type { Map as LeafletMap, Marker as LeafletMarker, LeafletMouseEvent, DragEndEvent } from 'leaflet';
 
-function applyTileFilter(map: any, dark: boolean) {
+function applyTileFilter(map: LeafletMap, dark: boolean) {
   const pane = map.getPanes().tilePane as HTMLElement | undefined;
   if (!pane) return;
   pane.style.filter = dark ? 'brightness(0.55) saturate(0.85) contrast(1.1)' : '';
 }
 
-function buildIcon(L: any) {
+function buildIcon(L: typeof LeafletLib) {
   return L.divIcon({
     className: '',
     html: `<div style="width:18px;height:18px;background:#0D3B58;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>`,
@@ -38,9 +40,9 @@ export function FieldCoordsModal({ field, onClose }: FieldCoordsModalProps) {
   const isDirty = lat !== initialLat || lng !== initialLng;
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef       = useRef<any>(null);
-  const leafletRef   = useRef<any>(null);
-  const markerRef    = useRef<any>(null);
+  const mapRef       = useRef<LeafletMap | null>(null);
+  const leafletRef   = useRef<typeof LeafletLib | null>(null);
+  const markerRef    = useRef<LeafletMarker | null>(null);
   const { theme }    = useAuthStore();
   const [mapReady, setMapReady] = useState(false);
 
@@ -62,7 +64,7 @@ export function FieldCoordsModal({ field, onClose }: FieldCoordsModalProps) {
     } else {
       const icon = buildIcon(leafletRef.current);
       markerRef.current = leafletRef.current.marker([lat, lng], { icon, draggable: true }).addTo(mapRef.current);
-      markerRef.current.on('dragend', (e: any) => {
+      markerRef.current.on('dragend', (e: DragEndEvent) => {
         const pos = e.target.getLatLng();
         onChangeRef.current(pos.lat, pos.lng);
       });
@@ -89,14 +91,14 @@ export function FieldCoordsModal({ field, onClose }: FieldCoordsModalProps) {
 
       applyTileFilter(map, useAuthStore.getState().theme === 'dark');
 
-      map.on('click', (e: any) => {
+      map.on('click', (e: LeafletMouseEvent) => {
         const { lat: cLat, lng: cLng } = e.latlng;
         const icon = buildIcon(L);
         if (markerRef.current) {
           markerRef.current.setLatLng([cLat, cLng]);
         } else {
           markerRef.current = L.marker([cLat, cLng], { icon, draggable: true }).addTo(map);
-          markerRef.current.on('dragend', (ev: any) => {
+          markerRef.current.on('dragend', (ev: DragEndEvent) => {
             const pos = ev.target.getLatLng();
             onChangeRef.current(pos.lat, pos.lng);
           });

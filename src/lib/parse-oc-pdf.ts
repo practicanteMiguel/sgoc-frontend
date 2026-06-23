@@ -56,10 +56,11 @@ async function extractPdfContent(file: File): Promise<{ lines: string[]; rawItem
 
     for (const item of content.items) {
       if (!('str' in item)) continue
-      const str = (item as any).str?.trim()
+      const pdfItem = item as { str: string; transform: number[] }
+      const str = pdfItem.str?.trim()
       if (!str) continue
-      const x = (item as any).transform[4]
-      const y = (item as any).transform[5]
+      const x = pdfItem.transform[4]
+      const y = pdfItem.transform[5]
 
       // Keep raw (unbucketed) coords from page 1 for coordinate-based proveedor detection
       if (p === 1) rawItems.push({ str, x, y })

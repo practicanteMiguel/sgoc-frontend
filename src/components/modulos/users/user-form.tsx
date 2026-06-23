@@ -45,12 +45,14 @@ const FIELD_STYLE = {
 const LABEL_CLASS = "text-xs font-medium uppercase tracking-wider";
 
 export function UserForm({ user, onClose }: UserFormProps) {
+  "use no memo";
   const isEdit          = !!user;
   const create          = useCreateUser();
   const update          = useUpdateUser();
   const assignSupervisor = useAssignSupervisor();
   const { data: roles } = useRoles();
   const { data: fieldsPage } = useFields(1, 200);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fields = fieldsPage?.data ?? [];
 
   const {

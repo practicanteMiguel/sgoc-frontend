@@ -1,6 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { AxiosError } from 'axios';
 import { api } from '@/src/lib/axios';
+
+type RawModuleEntry = {
+  module_slug?: string; moduleSlug?: string; slug?: string
+  module?: string | { slug?: string }
+  can_view?: boolean; canView?: boolean
+  can_create?: boolean; canCreate?: boolean
+  can_edit?: boolean; canEdit?: boolean
+  can_delete?: boolean; canDelete?: boolean
+  can_export?: boolean; canExport?: boolean
+}
 
 export interface UserModuleAccess {
   module_slug: string;
@@ -27,9 +38,8 @@ export function useUserModuleAccess(userId: string | null) {
       api
         .get<UserModuleAccess[]>(`/modules/user/${userId}`)
         .then((r) => {
-          const list: any[] = Array.isArray(r.data) ? r.data : (r.data as any)?.data ?? [];
-          // normalizar: backend puede devolver snake_case o camelCase,
-          // y "module" puede ser string o un objeto con { slug }
+          const raw = r.data as RawModuleEntry[] | { data?: RawModuleEntry[] }
+          const list: RawModuleEntry[] = Array.isArray(raw) ? raw : (raw.data ?? [])
           return list.map((m): UserModuleAccess => {
             const slug =
               m.module_slug ??
@@ -71,8 +81,8 @@ export function useAssignUserModule() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['modules', 'user', vars.userId] });
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message ?? 'Error al asignar módulo');
+    onError: (err: AxiosError<{ message?: string }>) => {
+      toast.error(err.response?.data?.message ?? 'Error al asignar módulo');
     },
   });
 }
@@ -86,8 +96,8 @@ export function useRevokeUserModule() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['modules', 'user', vars.userId] });
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message ?? 'Error al revocar módulo');
+    onError: (err: AxiosError<{ message?: string }>) => {
+      toast.error(err.response?.data?.message ?? 'Error al revocar módulo');
     },
   });
 }
@@ -106,8 +116,8 @@ export function useClearUserModuleAccess() {
           : 'Accesos individuales eliminados. Se usarán los del rol.',
       );
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message ?? 'Error al limpiar accesos');
+    onError: (err: AxiosError<{ message?: string }>) => {
+      toast.error(err.response?.data?.message ?? 'Error al limpiar accesos');
     },
   });
 }

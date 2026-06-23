@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { ArrowLeft, Loader2, FileDown, FileSpreadsheet, Equal, Building2, X, Search, PackageCheck } from 'lucide-react'
 import { useRequisicion, useGuardarFacturas } from '@/src/hooks/consumables/use-requisiciones'
 import { fetchFirmaUrl } from '@/src/lib/firma'
@@ -176,7 +177,7 @@ async function exportExcel(rq: Requisicion) {
     import('exceljs'),
     import('@/src/lib/report-header'),
   ])
-  const ExcelJS = (excelModule as any).default ?? excelModule
+  const ExcelJS = (excelModule as { default?: typeof excelModule }).default ?? excelModule
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet(`RQ-${rq.numero_rq}`)
 
@@ -278,7 +279,7 @@ async function exportExcel(rq: Requisicion) {
     cols.forEach(({ v, align, numFmt }, ci) => {
       const cell     = row.getCell(ci + 1)
       cell.value     = v
-      cell.alignment = { vertical: 'middle', horizontal: align as any, wrapText: true }
+      cell.alignment = { vertical: 'middle', horizontal: align as 'left' | 'center' | 'right', wrapText: true }
       cell.border    = allBorders
       cell.font      = { size: 10 }
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
@@ -537,6 +538,7 @@ export function RequisicionDetail({ id, onBack }: Props) {
     setFiltroOpen(false)
     setFiltroInput('')
     setFiltroActivo('')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rq?.id])
 
   if (isLoading) return (
@@ -1131,7 +1133,7 @@ export function RequisicionDetail({ id, onBack }: Props) {
                   className="rounded-lg inline-flex items-center justify-center p-3 mt-1"
                   style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', alignSelf: 'flex-start' }}
                 >
-                  <img src={rq.firma_recepcion_url} alt="Firma receptor" style={{ maxHeight: 80, objectFit: 'contain' }} />
+                  <Image src={rq.firma_recepcion_url} alt="Firma receptor" width={200} height={80} style={{ maxHeight: 80, width: 'auto', objectFit: 'contain' }} unoptimized />
                 </div>
               ) : (
                 <div

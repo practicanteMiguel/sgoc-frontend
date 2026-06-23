@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { AxiosError } from 'axios';
 import { api } from '@/src/lib/axios';
 import type { Employee } from '@/src/types/reports.types';
 import type { PaginatedResponse } from '@/src/types/user.types';
@@ -80,8 +81,8 @@ export function useCreateEmployee() {
       qc.invalidateQueries({ queryKey: ['employees'] });
       toast.success(`Empleado ${emp.first_name} ${emp.last_name} creado`);
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear empleado'));
     },
   });
@@ -96,8 +97,8 @@ export function useUpdateEmployee() {
       qc.invalidateQueries({ queryKey: ['employees'] });
       toast.success('Empleado actualizado correctamente');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar'));
     },
   });
@@ -111,8 +112,8 @@ export function useDeleteEmployee() {
       qc.invalidateQueries({ queryKey: ['employees'] });
       toast.success('Empleado eliminado');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'));
     },
   });
@@ -127,8 +128,8 @@ export function useAssignEmployeeField() {
       qc.invalidateQueries({ queryKey: ['employees'] });
       toast.success('Empleado asignado a la planta');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al asignar a planta'));
     },
   });
@@ -143,8 +144,8 @@ export function useChangeEmployeeField() {
       qc.invalidateQueries({ queryKey: ['employees'] });
       toast.success('Empleado movido a la nueva planta');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al cambiar planta'));
     },
   });
@@ -159,8 +160,8 @@ export function useRemoveEmployeeField() {
       qc.invalidateQueries({ queryKey: ['employees'] });
       toast.success('Empleado removido de la planta');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al remover de planta'));
     },
   });

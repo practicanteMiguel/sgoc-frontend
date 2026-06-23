@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { ArrowLeft, Copy, CheckCircle2, MapPin, RefreshCw, Loader2, Image as ImageIcon, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useViaLog } from '@/src/hooks/vias/use-via-logs'
 import { MONTHS } from '@/src/types/vias.types'
@@ -31,7 +32,7 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
         className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
         style={{ aspectRatio: '1', background: 'var(--color-surface-1)' }}
       >
-        <img src={thumb} alt={group.via_name ?? ''} className="w-full h-full object-cover" />
+        <Image src={thumb} alt={group.via_name ?? ''} fill className="object-cover" unoptimized />
 
         {count > 1 && (
           <div
@@ -102,10 +103,12 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
 
             {/* Main image with nav */}
             <div className="relative shrink-0 mx-4 rounded-xl overflow-hidden" style={{ aspectRatio: '4/3', background: 'var(--color-surface-2)' }}>
-              <img
-                src={group.images[activeIdx]?.url}
-                alt={group.images[activeIdx]?.original_name}
-                className="w-full h-full object-cover"
+              <Image
+                src={group.images[activeIdx]?.url ?? ''}
+                alt={group.images[activeIdx]?.original_name ?? ''}
+                fill
+                className="object-cover"
+                unoptimized
               />
               {count > 1 && (
                 <>
@@ -139,7 +142,7 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
                   <button
                     key={img.id}
                     onClick={() => setActiveIdx(idx)}
-                    className="shrink-0 rounded-lg overflow-hidden transition-all"
+                    className="shrink-0 rounded-lg overflow-hidden transition-all relative"
                     style={{
                       width: 48, height: 48,
                       outline:       activeIdx === idx ? '2px solid var(--color-primary)' : '2px solid transparent',
@@ -147,7 +150,7 @@ function GroupCard({ group }: { group: ViaCaptureGroup }) {
                       opacity:       activeIdx === idx ? 1 : 0.55,
                     }}
                   >
-                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                    <Image src={img.url} alt="" fill className="object-cover" unoptimized />
                   </button>
                 ))}
               </div>

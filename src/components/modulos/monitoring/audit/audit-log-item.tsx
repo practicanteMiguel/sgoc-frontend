@@ -34,7 +34,7 @@ const FIELD_LABELS: Record<string, string> = {
   is_active: 'Activo', is_core: 'Core', name: 'Nombre', slug: 'Slug', description: 'Descripcion',
 };
 
-function ValueBadge({ label, value }: { label: string; value: any }) {
+function ValueBadge({ label, value }: { label: string; value: unknown }) {
   const display = value === null || value === undefined ? '—' : typeof value === 'boolean' ? (value ? 'Si' : 'No') : String(value);
   return (
     <div className="flex items-center gap-1.5 min-w-0">
@@ -46,7 +46,7 @@ function ValueBadge({ label, value }: { label: string; value: any }) {
   );
 }
 
-function ValuesGrid({ values }: { values: Record<string, any> | null }) {
+function ValuesGrid({ values }: { values: Record<string, unknown> | null }) {
   if (!values) return null;
   const entries = Object.entries(values).filter(([k]) => !HIDDEN_FIELDS.has(k));
   if (entries.length === 0) return null;

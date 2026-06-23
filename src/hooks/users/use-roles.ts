@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { AxiosError } from 'axios';
 import { api } from '@/src/lib/axios';
 import type { Role, Permission } from '@/src/types/user.types';
 
@@ -40,12 +41,12 @@ export function useAddPermissions() {
   return useMutation({
     mutationFn: ({ roleId, permissions }: { roleId: string; permissions: string[] }) =>
       api.post(`/roles/${roleId}/permissions/add`, { permissions }).then((r) => r.data),
-    onSuccess: (data, vars) => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['roles'] });
       toast.success(data.message ?? 'Permisos agregados');
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message ?? 'Error al agregar permisos');
+    onError: (err: AxiosError<{ message?: string }>) => {
+      toast.error(err.response?.data?.message ?? 'Error al agregar permisos');
     },
   });
 }
@@ -60,8 +61,8 @@ export function useRemovePermissions() {
       qc.invalidateQueries({ queryKey: ['roles'] });
       toast.success(data.message ?? 'Permisos removidos');
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message ?? 'Error al remover permisos');
+    onError: (err: AxiosError<{ message?: string }>) => {
+      toast.error(err.response?.data?.message ?? 'Error al remover permisos');
     },
   });
 }

@@ -9,7 +9,7 @@ import { useDeleteEmployee, useRemoveEmployeeField, useChangeEmployeeField } fro
 import { useFields } from '@/src/hooks/reports/use-fields';
 import { ModalPortal } from '@/src/components/ui/modal-portal';
 import { getInitials } from '@/src/lib/utils';
-import type { Employee, Field } from '@/src/types/reports.types';
+import type { Employee } from '@/src/types/reports.types';
 
 const fmt = new Intl.NumberFormat('es-CO', {
   style:    'currency',

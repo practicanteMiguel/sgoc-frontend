@@ -257,8 +257,8 @@ export function calcWeekHours(
     const turno     = grid[empId]?.[fecha] ?? defaultTurno(tipo, year, month, d)
 
     switch (turno) {
-      case 'D':   isSpecial ? (DD   += 12) : (D   += 12); break
-      case 'N':   isSpecial ? (DNOC += 12) : (N   += 12); break
+      case 'D':   if (isSpecial) { DD   += 12 } else { D   += 12 }; break
+      case 'N':   if (isSpecial) { DNOC += 12 } else { N   += 12 }; break
       case 'DLD': DLD += 12; break
       case 'DLN': DLN += 12; break
       case 'DN':  DN  +=  6; break

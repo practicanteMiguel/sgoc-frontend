@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { Shield, Users2, Lock, Settings, Loader2 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useRoles } from '@/src/hooks/users/use-roles';
 import { RolePermissionsMatrix } from './role-permissions-matrix';
 import type { Role } from '@/src/types/user.types';
 
-const ROLE_ICONS: Record<string, any> = {
+const ROLE_ICONS: Record<string, LucideIcon> = {
   admin:          Lock,
   coordinator:    Settings,
   module_manager: Users2,

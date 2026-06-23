@@ -45,6 +45,7 @@ export function DisponibilidadForm({ deliverable, readOnly = false, onClose }: P
 
   useEffect(() => {
     if (!records) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRows(
       records.length > 0
         ? records.map((r) => ({

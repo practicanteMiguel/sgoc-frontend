@@ -23,7 +23,10 @@ const PRIORITY_CONFIG = {
 
 function PushPanel() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   const { data: status, isLoading: statusLoading } = usePushStatus();
   const { data: devices, isLoading: devicesLoading } = usePushSubscriptions();

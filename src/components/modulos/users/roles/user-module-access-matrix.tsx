@@ -49,6 +49,7 @@ export function UserModuleAccessMatrix({ user, onClose }: Props) {
           can_export: a.can_export,
         };
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAccessMap(map);
     }
   }, [accesses]);

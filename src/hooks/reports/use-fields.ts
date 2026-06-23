@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { AxiosError } from 'axios';
 import { api } from '@/src/lib/axios';
 import type { Field, FieldLugar } from '@/src/types/reports.types';
 import type { PaginatedResponse } from '@/src/types/user.types';
@@ -30,8 +31,8 @@ export function useCreateField() {
       qc.invalidateQueries({ queryKey: ['fields'] });
       toast.success(`Planta "${field.name}" creada correctamente`);
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear la planta'));
     },
   });
@@ -46,8 +47,8 @@ export function useUpdateField() {
       qc.invalidateQueries({ queryKey: ['fields'] });
       toast.success(field.name ? `Planta "${field.name}" actualizada` : 'Planta actualizada');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar'));
     },
   });
@@ -61,8 +62,8 @@ export function useDeleteField() {
       qc.invalidateQueries({ queryKey: ['fields'] });
       toast.success('Planta eliminada');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'));
     },
   });
@@ -77,8 +78,8 @@ export function useAssignSupervisor() {
       qc.invalidateQueries({ queryKey: ['fields'] });
       toast.success('Supervisor asignado correctamente');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al asignar supervisor'));
     },
   });
@@ -93,8 +94,8 @@ export function useRemoveSupervisor() {
       qc.invalidateQueries({ queryKey: ['fields'] });
       toast.success('Supervisor removido de la planta');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al remover supervisor'));
     },
   });
@@ -108,8 +109,8 @@ export function useActualizarPresupuesto() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fields'] });
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar presupuesto'));
     },
   });
@@ -131,8 +132,8 @@ export function useCreateFieldLugar() {
     onSuccess: (_, { fieldId }) => {
       qc.invalidateQueries({ queryKey: ['field-lugares', fieldId] });
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear lugar'));
     },
   });
@@ -146,8 +147,8 @@ export function useActualizarFieldLugarPresupuesto() {
     onSuccess: (_, { fieldId }) => {
       qc.invalidateQueries({ queryKey: ['field-lugares', fieldId] });
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar presupuesto'));
     },
   });
@@ -162,8 +163,8 @@ export function useDeleteFieldLugar() {
       qc.invalidateQueries({ queryKey: ['field-lugares', fieldId] });
       toast.success('Lugar eliminado');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar lugar'));
     },
   });

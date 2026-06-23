@@ -12,6 +12,7 @@ export function ModalPortal({ children, onClose }: ModalPortalProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     // Bloquear scroll del body mientras el modal está abierto
     document.body.style.overflow = 'hidden';

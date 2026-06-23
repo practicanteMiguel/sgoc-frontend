@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import type { AxiosError } from 'axios';
 import { api } from '@/src/lib/axios';
 import { useAuthStore } from '@/src/stores/auth.store';
 import type { AuthResponse, LoginRequest } from '@/src/types/auth.types';
@@ -30,8 +31,8 @@ export function useLogin() {
       }
     },
 
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Credenciales inválidas'));
     },
   });
@@ -82,8 +83,8 @@ export function useChangePassword() {
       router.replace('/auth/login');
     },
 
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al cambiar la contraseña'));
     },
   });

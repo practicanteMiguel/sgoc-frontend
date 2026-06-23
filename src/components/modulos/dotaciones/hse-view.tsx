@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { Loader2, XCircle, CheckCircle2, Plus, Trash2, Upload, X, Send, ChevronDown, Image as ImageIcon, PenLine } from 'lucide-react'
 import { ESTADO_DOTACION_LABELS, ESTADO_DOTACION_COLORS } from '@/src/types/dotaciones.types'
 import type { DotacionSpaceInfo, DotacionSolicitud, CreateReposicionDto } from '@/src/types/dotaciones.types'
@@ -61,6 +62,7 @@ function EmpleadoSelect({
 
   useEffect(() => {
     if (!token) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     fetch(`${API_BASE}/dotaciones/spaces/${token}/empleados`)
       .then(r => r.ok ? r.json() : [])
@@ -234,10 +236,12 @@ function ReposicionFormRow({
                   className="relative rounded-lg overflow-hidden"
                   style={{ width: 64, height: 64, background: '#f0f4f4', border: '1px solid #d1dede' }}
                 >
-                  <img
+                  <Image
                     src={URL.createObjectURL(file)}
                     alt={file.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    unoptimized
                   />
                   <button
                     type="button"

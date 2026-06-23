@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type { ViaReport, ViaState, ViaReportType, PaginatedViaReports } from '@/src/types/vias.types'
 
@@ -45,8 +46,8 @@ export function useCreateViaReport() {
       qc.invalidateQueries({ queryKey: ['via-logs'] })
       toast.success('Informe creado correctamente')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear el informe'))
     },
   })
@@ -60,8 +61,8 @@ export function useDeleteViaReport() {
       qc.invalidateQueries({ queryKey: ['via-reports'] })
       toast.success('Informe eliminado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'))
     },
   })

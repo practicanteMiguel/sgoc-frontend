@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { UserPlus, Search, Loader2, Users, Shield } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useUsers } from '@/src/hooks/users/use-users';
 import { UsersTable } from './users-table';
 import { UserForm } from './user-form';
@@ -33,7 +34,7 @@ export function UsersView() {
     );
   });
 
-  const tabs: { id: Tab; label: string; icon: any }[] = [
+  const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
     { id: 'users', label: 'Usuarios', icon: Users  },
     { id: 'roles', label: 'Roles y Permisos', icon: Shield },
   ];

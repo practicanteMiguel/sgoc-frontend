@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { Upload, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Lock, MapPin, Navigation, X, Map } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
@@ -12,7 +13,7 @@ async function uploadGroup(
   lng: number,
   via_name: string,
   comment: string,
-): Promise<any> {
+): Promise<unknown> {
   const fd = new FormData()
   for (const f of files) fd.append('images', f)
   fd.append('lat', String(lat))
@@ -438,8 +439,8 @@ export default function ViaVaultPage({ params }: { params: Promise<{ token: stri
             <div className="divide-y divide-[#f0f4f4]">
               {pending.map((file, i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-gray-100">
-                    <img src={previews[i]} alt={file.name} className="w-full h-full object-cover" />
+                  <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-gray-100 relative">
+                    <Image src={previews[i]} alt={file.name} fill className="object-cover" unoptimized />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[#1a3a3a] truncate">{file.name}</p>
@@ -495,7 +496,7 @@ export default function ViaVaultPage({ params }: { params: Promise<{ token: stri
                   <div className="grid grid-cols-4 gap-1">
                     {group.images.map((img) => (
                       <div key={img.id} className="relative rounded-lg overflow-hidden" style={{ aspectRatio: '1' }}>
-                        <img src={img.url} alt={img.original_name} className="w-full h-full object-cover" />
+                        <Image src={img.url} alt={img.original_name} fill className="object-cover" unoptimized />
                       </div>
                     ))}
                   </div>

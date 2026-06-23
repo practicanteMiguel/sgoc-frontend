@@ -43,7 +43,10 @@ function parseProgress(val: string | null | undefined): number {
   return isNaN(n) ? 0 : Math.min(100, Math.max(0, n))
 }
 
-function ChartTooltip({ active, payload, label }: any) {
+type WeekChartPayload = { day: string; planeadas: number; ejecutadas: number; multiday: number; projPct: number; cumulExec: number }
+type ChartTooltipProps = { active?: boolean; payload?: { payload: WeekChartPayload }[]; label?: string }
+
+function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   if (!d) return null
@@ -84,8 +87,10 @@ function ChartTooltip({ active, payload, label }: any) {
   )
 }
 
-function CustomXTick({ x, y, payload, chartData }: any) {
-  const d = (chartData as any[]).find((item) => item.day === payload.value)
+type XTickProps = { x: number; y: number; payload: { value: string }; chartData: WeekChartPayload[] }
+
+function CustomXTick({ x, y, payload, chartData }: XTickProps) {
+  const d = chartData.find((item) => item.day === payload.value)
   const hasMultiday = d?.multiday > 0
   return (
     <g transform={`translate(${x},${y})`}>
@@ -142,17 +147,15 @@ export function ReportWeeklyChart({ activities, forms, weekNumber }: Props) {
   }, [activities, forms, weekNumber])
 
   const data = useMemo(() => {
-    let cumProj = 0
-    let cumExec = 0
-    return rawData.map((d) => {
-      cumProj += d.dailyProj
-      cumExec += d.dailyExec
-      return {
-        ...d,
-        projPct:  Math.round(cumProj),
-        cumulExec: Math.round(cumExec),
-      }
-    })
+    return rawData.reduce<(typeof rawData[number] & { projPct: number; cumulExec: number })[]>(
+      (acc, d) => {
+        const prev     = acc[acc.length - 1]
+        const cumProj  = (prev?.projPct  ?? 0) + d.dailyProj
+        const cumExec  = (prev?.cumulExec ?? 0) + d.dailyExec
+        return [...acc, { ...d, projPct: Math.round(cumProj), cumulExec: Math.round(cumExec) }]
+      },
+      [],
+    )
   }, [rawData])
 
   const hasMultiday = rawData.some((d) => d.multiday > 0)
@@ -242,7 +245,7 @@ export function ReportWeeklyChart({ activities, forms, weekNumber }: Props) {
               fontSize:  9,
               fill:      '#0ea5e9',
               dy:        -4,
-              formatter: (v: any) => (v > 0 ? `${v}%` : ''),
+              formatter: (v: number) => (v > 0 ? `${v}%` : ''),
             }}
           />
 
@@ -261,7 +264,7 @@ export function ReportWeeklyChart({ activities, forms, weekNumber }: Props) {
               fontSize:  9,
               fill:      '#10b981',
               dy:        6,
-              formatter: (v: any) => (v > 0 ? `${v}%` : ''),
+              formatter: (v: number) => (v > 0 ? `${v}%` : ''),
             }}
           />
         </ComposedChart>

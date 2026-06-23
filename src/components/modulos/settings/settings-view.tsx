@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { User, ShieldCheck, Send, Bell, PenLine } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useUnreadCount } from '@/src/hooks/settings/use-notifications';
 import { ProfileTab }       from './profile-tab';
 import { PasswordTab }       from './password-tab';
@@ -16,7 +17,7 @@ export function SettingsView() {
   const { data: unreadData }       = useUnreadCount();
   const unread                     = unreadData?.count ?? 0;
 
-  const tabs: { id: Tab; label: string; icon: any; badge?: number }[] = [
+  const tabs: { id: Tab; label: string; icon: LucideIcon; badge?: number }[] = [
     { id: 'profile',       label: 'Mi perfil',       icon: User         },
     { id: 'password',      label: 'Contraseña',      icon: ShieldCheck  },
     { id: 'messaging',     label: 'Enviar mensaje',  icon: Send         },

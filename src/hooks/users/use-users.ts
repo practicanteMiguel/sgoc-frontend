@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { AxiosError } from 'axios';
 import { api } from '@/src/lib/axios';
 import type { User, PaginatedResponse } from '@/src/types/user.types';
 import { useAuthStore } from '@/src/stores/auth.store';
@@ -43,8 +44,8 @@ export function useCreateUser() {
       qc.invalidateQueries({ queryKey: ['users'] });
       toast.success(`Usuario ${user.first_name} creado. Se envió email de bienvenida.`);
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear el usuario'));
     },
   });
@@ -54,14 +55,14 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; [key: string]: any }) =>
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
       api.patch<User>(`/users/${id}`, data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] });
       toast.success('Usuario actualizado correctamente');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar'));
     },
   });
@@ -77,8 +78,8 @@ export function useDeleteUser() {
       qc.invalidateQueries({ queryKey: ['users'] });
       toast.success('Usuario eliminado');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'));
     },
   });
@@ -92,8 +93,8 @@ export function useResetPassword() {
     onSuccess: () => {
       toast.success('Contraseña reseteada. Se notificó al usuario por email.');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message;
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message;
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al resetear contraseña'));
     },
   });

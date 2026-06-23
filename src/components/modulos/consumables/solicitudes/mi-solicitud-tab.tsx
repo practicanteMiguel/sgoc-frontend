@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, Send, Clock, Search, Eye, X, Plus, Pencil, Trash2, PenLine, FileText, Package } from 'lucide-react'
 import {
   useMisSolicitudes, useSolicitud, useLlenarMiSolicitud, useSolicitudRequisiciones,
@@ -537,7 +538,7 @@ function FirmaStepModal({
                   className="rounded-lg flex items-center justify-center py-3"
                   style={{ background: '#fff', border: '1px solid var(--color-border)' }}
                 >
-                  <img src={firmaUrl} alt="Firma" style={{ maxHeight: 100, objectFit: 'contain' }} />
+                  <Image src={firmaUrl} alt="Firma" width={300} height={100} style={{ maxHeight: 100, width: 'auto', objectFit: 'contain' }} unoptimized />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium" style={{ color: 'var(--color-text-400)' }}>Cargo</label>
@@ -768,7 +769,10 @@ export function MiSolicitudTab() {
   const crearAdicional = useCrearSolicitudAdicional()
   const [activeTab, setActiveTab] = useState<string | null>(null)
 
-  useEffect(() => { setActiveTab(null) }, [mes, anio])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveTab(null)
+  }, [mes, anio])
 
   const mainSolicitud = lista.find((s) => !s.field_lugar_id) ?? lista[0] ?? null
   const activeSolicitudId = activeTab === null
@@ -802,6 +806,7 @@ export function MiSolicitudTab() {
 
   useEffect(() => {
     if (!solicitud) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFecha(TODAY); setNombre(userFullName); setContrato(DEFAULT_CONTRATO)
       setCantidades({}); setCatActiva(null)
       return

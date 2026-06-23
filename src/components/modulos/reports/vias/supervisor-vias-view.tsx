@@ -11,7 +11,7 @@ import { ViaLogDetail } from './via-log-detail'
 import { ViaReportForm } from './via-report-form'
 import { ViaReportDetail } from './via-report-detail'
 import { MONTHS, VIA_STATE_COLORS, VIA_STATE_LABELS } from '@/src/types/vias.types'
-import type { ViaMonthlyLog, ViaMonthlyLogSummary, ViaState } from '@/src/types/vias.types'
+import type { ViaMonthlyLog, ViaState } from '@/src/types/vias.types'
 
 const ViaMap = dynamic(
   () => import('./via-map').then((m) => m.ViaMap),
@@ -141,6 +141,7 @@ export function SupervisorViasView() {
 
   const logs            = logsData?.data    ?? []
   const reports         = reportsData?.data ?? []
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredReports = filteredData?.data ?? []
 
   const fieldName = filteredReports[0]?.monthly_log?.field?.name ?? logsData?.data[0]?.field?.name ?? 'Campo'
@@ -218,7 +219,7 @@ export function SupervisorViasView() {
       setSelectedViaIds(next.size > 0 ? next : new Set())
     } else {
       const next = new Set(selectedViaIds)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       setSelectedViaIds(next.size === filteredReports.length ? null : next)
     }
   }

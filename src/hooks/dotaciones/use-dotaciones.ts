@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type { DotacionSpace, DotacionSpaceInfo, DotacionSolicitud, GenerarDotacionRQDto } from '@/src/types/dotaciones.types'
 
@@ -22,8 +23,8 @@ export function useCreateOrGetDotacionSpace() {
     onSuccess: (data) => {
       qc.setQueryData(['dotaciones', 'my-space'], data)
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear espacio'))
     },
   })
@@ -147,8 +148,8 @@ export function useGenerarDotacionRQ() {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
       toast.success('RQ generada correctamente')
     },
-    onError: (err: any) => {
-      const msg = err?.message
+    onError: (err: { message?: string | string[] }) => {
+      const msg = err.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al generar la RQ'))
     },
   })

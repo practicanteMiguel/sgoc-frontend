@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Image, FileText, Calendar, Lock, Share2, Check, Eye, X } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Image as ImageIcon, FileText, Calendar, Lock, Share2, Check, Eye, X } from 'lucide-react'
 import { useLog, useDeleteActivity } from '@/src/hooks/activities/use-logbook'
 import { useTechnicalReports } from '@/src/hooks/activities/use-technical-reports'
 import { useLogVault } from '@/src/hooks/activities/use-vault'
@@ -27,12 +28,12 @@ function ImageThumb({ src, label }: { src: string | null; label: string }) {
       className="rounded flex items-center justify-center"
       style={{ width: 56, height: 42, background: 'var(--color-surface-2)', flexShrink: 0 }}
     >
-      <Image size={14} style={{ color: 'var(--color-text-400)' }} />
+      <ImageIcon size={14} style={{ color: 'var(--color-text-400)' }} aria-hidden="true" />
     </div>
   )
   return (
     <div className="relative rounded overflow-hidden" style={{ width: 56, height: 42, flexShrink: 0 }}>
-      <img src={src} alt={label} className="w-full h-full object-cover" />
+      <Image src={src} alt={label} fill className="object-cover" unoptimized />
     </div>
   )
 }
@@ -318,11 +319,13 @@ export function LogbookDetail({ logId, onBack, onGenerateReport, readOnly }: Pro
                             className="relative rounded-lg overflow-hidden"
                             style={{ aspectRatio: '4/3' }}
                           >
-                            <img
+                            <Image
                               src={img.url}
                               alt={img.original_name}
-                              className="w-full h-full object-cover"
+                              fill
+                              className="object-cover"
                               style={{ opacity: used ? 1 : 0.55 }}
+                              unoptimized
                             />
                             <div className="absolute top-1 left-1">
                               {used ? (

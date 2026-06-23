@@ -11,7 +11,7 @@ export async function generarPdfsSolicitud(params: {
   anio: number
   firmaUrl: string
   cargo: string
-  formatCOP: (v: any) => string
+  formatCOP: (v: number) => string
 }): Promise<void> {
   const { solicitud, categoria, mes, anio, firmaUrl, cargo, formatCOP } = params
 

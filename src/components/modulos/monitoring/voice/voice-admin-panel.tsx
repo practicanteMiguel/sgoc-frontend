@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type CSSProperties } from 'react'
 import { Mic, Loader2, Users, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -115,7 +115,7 @@ export function VoiceAdminPanel() {
             <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>No hay transcripciones</p>
           </div>
         ) : (
-          <div className="divide-y" style={{ ['--tw-divide-color' as any]: 'var(--color-border)' }}>
+          <div className="divide-y" style={{ '--tw-divide-color': 'var(--color-border)' } as CSSProperties}>
             {logs.map((log) => {
               const userName = userMap.get(log.user_id) ?? `${log.user_id.slice(0, 8)}...`
               return (

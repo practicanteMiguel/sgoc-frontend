@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type { Schedule, ScheduleTipo, Turno } from '@/src/types/compliance.types'
 
@@ -42,8 +43,8 @@ export function useCreateSchedule() {
       qc.invalidateQueries({ queryKey: ['compliance-schedules'] })
       toast.success('Horario creado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear horario'))
     },
   })
@@ -64,8 +65,8 @@ export function useUpdateScheduleDays() {
       qc.invalidateQueries({ queryKey: ['compliance-schedule', vars.id] })
       toast.success('Horario guardado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al guardar horario'))
     },
   })
@@ -83,8 +84,8 @@ export function useCloseSchedule() {
       qc.invalidateQueries({ queryKey: ['compliance-month-detail'] })
       toast.success('Horario cerrado y vinculado al entregable')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al cerrar horario'))
     },
   })

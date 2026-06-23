@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type { WeeklyLog, WeeklyLogSummary, Activity } from '@/src/types/activities.types'
 
@@ -42,8 +43,8 @@ export function useCreateLog() {
       qc.invalidateQueries({ queryKey: ['logbook'] })
       toast.success('Bitacora creada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear bitacora'))
     },
   })
@@ -61,8 +62,8 @@ export function useAddActivity() {
       qc.invalidateQueries({ queryKey: ['logbook-detail', logId] })
       toast.success('Actividad agregada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al agregar actividad'))
     },
   })
@@ -80,8 +81,8 @@ export function useUpdateActivity() {
       qc.invalidateQueries({ queryKey: ['logbook-detail', logId] })
       toast.success('Actividad actualizada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar actividad'))
     },
   })
@@ -97,8 +98,8 @@ export function useDeleteActivity() {
       qc.invalidateQueries({ queryKey: ['vault', logId] })
       toast.success('Actividad eliminada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar actividad'))
     },
   })

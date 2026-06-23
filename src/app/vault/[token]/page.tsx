@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { Upload, CheckCircle2, XCircle, Loader2, WifiOff, Image as ImageIcon, Lock } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
@@ -247,8 +248,8 @@ export default function VaultPage({ params }: { params: Promise<{ token: string 
             <div className="divide-y divide-[#f0f4f4]">
               {entries.map((entry, i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-gray-100">
-                    <img src={entry.preview} alt={entry.name} className="w-full h-full object-cover" />
+                  <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-gray-100 relative">
+                    <Image src={entry.preview} alt={entry.name} fill className="object-cover" unoptimized />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[#1a3a3a] truncate">{entry.name}</p>
@@ -274,7 +275,7 @@ export default function VaultPage({ params }: { params: Promise<{ token: string 
                 const usedUrls = new Set(info!.used_image_urls ?? [])
                 return info!.images.map((img) => (
                   <div key={img.id} className="relative rounded-lg overflow-hidden" style={{ aspectRatio: '1' }}>
-                    <img src={img.url} alt={img.original_name} className="w-full h-full object-cover" />
+                    <Image src={img.url} alt={img.original_name} fill className="object-cover" unoptimized />
                     {usedUrls.has(img.url) && (
                       <div className="absolute inset-0 bg-black/30 flex items-end p-1">
                         <span className="text-[10px] font-semibold text-white bg-emerald-600 rounded px-1">Asignada</span>

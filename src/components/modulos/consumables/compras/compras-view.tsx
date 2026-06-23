@@ -1,17 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import {
   ShoppingCart, Package, FileText,
   Plus, Search, Loader2, Trash2, AlertTriangle, ChevronLeft, ChevronRight,
   XCircle, Lock, Bell, Clock, PackageCheck, FileDown,
 } from 'lucide-react'
-import { useInsumos, useCreateInsumo, useDeleteInsumo, useCerrarMes, usePeriodosCerrados, useBorradores, useGuardarBorrador } from '@/src/hooks/consumables/use-insumos'
+import { useInsumos, useDeleteInsumo, useCerrarMes, usePeriodosCerrados, useBorradores, useGuardarBorrador } from '@/src/hooks/consumables/use-insumos'
 import { useRequisiciones, useRequisicion, useCambiarEstadoRQ } from '@/src/hooks/consumables/use-requisiciones'
 import { InsumoModal } from '@/src/components/modulos/consumables/insumos/insumo-modal'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { CATEGORIAS, CATEGORIA_LABELS, ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
-import type { Insumo, CategoriaInsumo, CerrarMesResult, InsumoBorrador, Requisicion } from '@/src/types/consumables.types'
+import type { Insumo, CategoriaInsumo, CerrarMesResult, InsumoBorrador, Requisicion, EstadoRQ } from '@/src/types/consumables.types'
 
 // Override CSS variables for light-mode-safe rendering on a public page
 const CSS_VARS: React.CSSProperties = {
@@ -994,7 +995,7 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
                       className="rounded-lg inline-flex items-center justify-center p-3 mt-1"
                       style={{ background: '#fff', border: '1px solid #e5e7eb', alignSelf: 'flex-start' }}
                     >
-                      <img src={rq.firma_recepcion_url} alt="Firma receptor" style={{ maxHeight: 80, objectFit: 'contain' }} />
+                      <Image src={rq.firma_recepcion_url} alt="Firma receptor" width={200} height={80} style={{ maxHeight: 80, width: 'auto', objectFit: 'contain' }} unoptimized />
                     </div>
                   ) : (
                     <div
@@ -1048,7 +1049,7 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
     ABIERTA: 'Abierta', COMPLETADA: 'Completada', APROBADA: 'Aprobada',
     PEDIDO_REALIZADO: 'Pedido realizado', EN_BODEGA: 'En bodega', ENTREGADO: 'Entregado', PENDIENTE: 'Pendiente',
   }
-  const NEXT_ESTADO: Record<string, string> = {
+  const NEXT_ESTADO: Record<string, EstadoRQ> = {
     APROBADA: 'PEDIDO_REALIZADO', PEDIDO_REALIZADO: 'EN_BODEGA', EN_BODEGA: 'ENTREGADO',
   }
   const NEXT_LABEL: Record<string, string> = {
@@ -1149,7 +1150,7 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
                           </button>
                           {nextEstado && (
                             <button
-                              onClick={() => cambiar.mutate({ id: rq.id, estado: nextEstado as any })}
+                              onClick={() => cambiar.mutate({ id: rq.id, estado: nextEstado })}
                               disabled={cambiar.isPending}
                               className="text-xs px-3 py-1.5 rounded-lg font-semibold hover:opacity-90 transition-opacity"
                               style={{ background: '#1a6b6b', color: '#fff', opacity: cambiar.isPending ? 0.7 : 1 }}

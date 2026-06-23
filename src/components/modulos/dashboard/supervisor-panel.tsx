@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import {
   MapPin, TrendingUp, TrendingDown, Minus, Users,
-  CheckCircle2, Clock, AlertCircle, ChevronLeft, ChevronRight,
+  CheckCircle2, AlertCircle, ChevronLeft, ChevronRight,
   Loader2, PackageOpen, FolderArchive, CalendarCheck,
   Activity, ExternalLink,
 } from 'lucide-react'
@@ -36,18 +36,16 @@ function scoreColor(v: number | null) {
   if (v === null) return 'var(--color-text-400)'
   return v >= 90 ? '#16a34a' : v >= 70 ? '#ca8a04' : '#dc2626'
 }
-function scoreBg(v: number | null) {
-  if (v === null) return 'transparent'
-  return v >= 90 ? 'rgba(22,163,74,0.12)' : v >= 70 ? 'rgba(202,138,4,0.12)' : 'rgba(220,38,38,0.12)'
-}
+type ChartPayload = { dataKey: string; name: string; value: number | string | null; color: string }
+type ChartTipProps = { active?: boolean; payload?: ChartPayload[]; label?: string }
 
-function ChartTip({ active, payload, label }: any) {
+function ChartTip({ active, payload, label }: ChartTipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="px-3 py-2 rounded-lg text-xs flex flex-col gap-1"
          style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 4px 16px rgba(4,24,24,0.2)' }}>
       <p className="font-semibold mb-0.5" style={{ color: 'var(--color-text-600)' }}>{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
           <span style={{ color: 'var(--color-text-400)' }}>{p.name}:</span>
@@ -81,6 +79,7 @@ export function SupervisorDashboardPanel() {
   // ── Computed ─────────────────────────────────────────────────────────────────
   const employees       = (empPage?.data ?? []).filter(e => (e.field_id ?? e.field?.id) === fieldId)
   const activeEmployees = employees.filter(e => e.is_active)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const evidList    = evidences ?? []
   const delivsList  = deliverables ?? []
 
@@ -88,10 +87,10 @@ export function SupervisorDashboardPanel() {
   const on_time   = delivsList.filter(d => d.status === 'entregado').length
   const tarde     = delivsList.filter(d => d.status === 'entregado_tarde').length
   const pendiente = delivsList.filter(d => d.status === 'pendiente').length
-  const no_aplica = delivsList.filter(d => d.status === 'no_aplica').length
   const aplicables= delivsList.filter(d => d.status !== 'no_aplica').length
 
   // Score from summary row for this month
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const summaryRows = summary ?? []
   const thisMonthRow = summaryRows.find(r => Number(r.mes) === mes && Number(r.anio) === anio)
   const prevMes    = mes === 1 ? 12 : mes - 1
@@ -323,7 +322,7 @@ export function SupervisorDashboardPanel() {
                         <ReferenceLine y={70} stroke="rgba(202,138,4,0.3)" strokeDasharray="4 4" />
                         <Line
                           type="monotone" dataKey="score" name="Score" stroke="var(--color-secondary)" strokeWidth={2.5}
-                          dot={(p: any) => {
+                          dot={(p: { cx: number; cy: number; payload: { hasData: boolean; score: number | null } }) => {
                             if (!p.payload.hasData) return <g key={`d${p.cx}`}/>
                             const fill = p.payload.score !== null ? scoreColor(p.payload.score) : 'var(--color-secondary)'
                             return <circle key={`d${p.cx}`} cx={p.cx} cy={p.cy} r={5} fill={fill} stroke="var(--color-surface-0)" strokeWidth={2}/>

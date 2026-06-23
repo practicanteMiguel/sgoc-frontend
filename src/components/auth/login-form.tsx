@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
+import Image from "next/image";
 import { useLogin } from "@/src/hooks/auth/use-auth";
 
 const loginSchema = z.object({
@@ -177,10 +178,12 @@ export function LoginForm() {
                 flexShrink: 0,
               }}
             >
-              <img
+              <Image
                 src="/assets/logo-full.png"
                 alt="Servicios Asociados SAS"
-                style={{ height: "54px", width: "auto", objectFit: "contain", display: "block" }}
+                width={180}
+                height={54}
+                style={{ height: "54px", width: "auto", objectFit: "contain" }}
               />
             </div>
             <div
@@ -196,10 +199,12 @@ export function LoginForm() {
                 flexShrink: 0,
               }}
             >
-              <img
+              <Image
                 src="/assets/Logo_Ecopetrol.png"
                 alt="Ecopetrol"
-                style={{ height: "42px", width: "auto", objectFit: "contain", display: "block" }}
+                width={120}
+                height={42}
+                style={{ height: "42px", width: "auto", objectFit: "contain" }}
               />
             </div>
           </div>

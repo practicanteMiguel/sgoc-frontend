@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { SidebarItem } from "./sidebar-item";
 import { useMyModules } from "@/src/hooks/dashboard/use-modules";
 import { useAuthStore } from "@/src/stores/auth.store";
@@ -27,10 +28,10 @@ export default function SidebarContent({
         style={{ borderBottom: "1px solid var(--sidebar-border)" }}
       >
         <div
-          className="w-8 h-8 rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
+          className="w-8 h-8 rounded-lg shrink-0 overflow-hidden flex items-center justify-center relative"
           style={{ background: "#fff", padding: "2px", flexShrink: 0 }}
         >
-          <img src="/assets/logo-icon.png" alt="SAS" className="w-full h-full object-contain" />
+          <Image src="/assets/logo-icon.png" alt="SAS" fill className="object-contain" />
         </div>
         {!collapsed && (
           <div className="min-w-0">
@@ -116,15 +117,12 @@ export default function SidebarContent({
             className="rounded overflow-hidden shrink-0"
             style={{ background: "#fff", padding: "2px 4px" }}
           >
-            <img
+            <Image
               src="/assets/Logo_Ecopetrol.png"
               alt="Ecopetrol"
-              style={{
-                height: collapsed ? "18px" : "16px",
-                width: "auto",
-                objectFit: "contain",
-                display: "block",
-              }}
+              width={60}
+              height={18}
+              style={{ height: collapsed ? "18px" : "16px", width: "auto", objectFit: "contain" }}
             />
           </div>
         </div>

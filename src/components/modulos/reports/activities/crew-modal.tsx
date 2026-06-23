@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { X, Loader2, Users, CheckCircle2, Plus, Pencil, Check } from 'lucide-react'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { getInitials } from '@/src/lib/utils'
@@ -28,7 +28,7 @@ export function CrewModal({ fieldId, existingCrew, allCrews, onClose }: Props) {
   const [renaming,      setRenaming]      = useState(false)
   const [renameVal,     setRenameVal]     = useState(existingCrew?.name ?? '')
   const [isSoldadura,   setIsSoldadura]   = useState(existingCrew?.is_soldadura ?? false)
-  const pendingRef = useRef(new Set<string>())
+  const [pendingIds, setPendingIds] = useState(new Set<string>())
 
   const { data: fullCrew, isLoading: loadingCrew } = useCrew(crewId)
   const { data: empData,  isLoading: loadingEmps  } = useEmployees({ field_id: fieldId, limit: 200 })
@@ -73,10 +73,14 @@ export function CrewModal({ fieldId, existingCrew, allCrews, onClose }: Props) {
   }
 
   function toggleEmployee(emp: Employee) {
-    if (!crewId || pendingRef.current.has(emp.id)) return
-    pendingRef.current.add(emp.id)
+    if (!crewId || pendingIds.has(emp.id)) return
+    setPendingIds(prev => new Set(prev).add(emp.id))
 
-    const finish = () => pendingRef.current.delete(emp.id)
+    const finish = () => setPendingIds(prev => {
+      const next = new Set(prev)
+      next.delete(emp.id)
+      return next
+    })
 
     if (crewEmpIds.has(emp.id)) {
       removeEmp.mutate({ crewId, employeeId: emp.id }, { onSettled: finish })
@@ -266,7 +270,7 @@ export function CrewModal({ fieldId, existingCrew, allCrews, onClose }: Props) {
                 employees.map((emp) => {
                   const inCrew    = crewEmpIds.has(emp.id)
                   const otherCrew = empToOtherCrew.get(emp.id)
-                  const isPending = pendingRef.current.has(emp.id)
+                  const isPending = pendingIds.has(emp.id)
 
                   return (
                     <button

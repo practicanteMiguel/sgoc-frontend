@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type {
   Solicitud,
@@ -38,8 +39,8 @@ export function useEnviarPlantillas() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['solicitudes', vars.mes, vars.anio] })
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al enviar plantillas'))
     },
   })
@@ -59,8 +60,8 @@ export function useMiSolicitud(mes: number, anio: number) {
     queryFn: async () => {
       try {
         return await api.get<Solicitud>(`/solicitudes/mi-solicitud?mes=${mes}&anio=${anio}`).then((r) => r.data)
-      } catch (err: any) {
-        if (err?.response?.status === 404) return null
+      } catch (err) {
+        if ((err as AxiosError)?.response?.status === 404) return null
         throw err
       }
     },
@@ -78,8 +79,8 @@ export function useLlenarMiSolicitud() {
       qc.invalidateQueries({ queryKey: ['solicitudes', 'mis-solicitudes'] })
       toast.success('Solicitud enviada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al enviar la solicitud'))
     },
   })
@@ -109,8 +110,8 @@ export function useGenerarRQs() {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
       toast.success('Requisiciones generadas')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al generar requisiciones'))
     },
   })
@@ -125,8 +126,8 @@ export function useCrearAdicional(solicitudId: string) {
       qc.invalidateQueries({ queryKey: ['solicitudes'] })
       toast.success('Insumo adicional agregado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al agregar el adicional'))
     },
   })
@@ -141,8 +142,8 @@ export function useEditarAdicional(solicitudId: string) {
       qc.invalidateQueries({ queryKey: ['solicitudes'] })
       toast.success('Insumo adicional actualizado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar el adicional'))
     },
   })
@@ -157,8 +158,8 @@ export function useEliminarAdicional(solicitudId: string) {
       qc.invalidateQueries({ queryKey: ['solicitudes'] })
       toast.success('Insumo adicional eliminado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar el adicional'))
     },
   })
@@ -173,8 +174,8 @@ export function useReabrirSolicitud() {
       qc.invalidateQueries({ queryKey: ['solicitudes'] })
       toast.success('Solicitud re-abierta para modificacion')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al re-abrir la solicitud'))
     },
   })
@@ -189,8 +190,8 @@ export function useCrearSolicitudAdicional() {
       qc.invalidateQueries({ queryKey: ['solicitudes', 'mis-solicitudes', vars.mes, vars.anio] })
       toast.success('Solicitud adicional creada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear solicitud adicional'))
     },
   })

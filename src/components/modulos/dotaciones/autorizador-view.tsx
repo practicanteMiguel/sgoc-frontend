@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import {
   FileText, Eye, CheckCircle2, XCircle, Lock, Loader2,
   User, Calendar, Building2, X, ChevronDown, ChevronUp, Image as ImageIcon, PenLine, FileDown, FileSpreadsheet,
@@ -30,7 +31,6 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-const ESTADO_ORDER: EstadoDotacion[] = ['emitida', 'autorizada', 'generada', 'entregada']
 
 // ── Reposicion expand row ─────────────────────────────────────────────────
 function ReposicionDetailRow({ rep, index }: { rep: Reposicion; index: number }) {
@@ -90,10 +90,10 @@ function ReposicionDetailRow({ rep, index }: { rep: Reposicion; index: number })
                     <button
                       key={img.id}
                       onClick={() => setLightbox(img.url)}
-                      className="rounded-lg overflow-hidden"
+                      className="rounded-lg overflow-hidden relative"
                       style={{ width: 72, height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
                     >
-                      <img src={img.url} alt={img.original_name} className="w-full h-full object-cover" />
+                      <Image src={img.url} alt={img.original_name} fill className="object-cover" unoptimized />
                     </button>
                   ))}
                 </div>
@@ -116,12 +116,15 @@ function ReposicionDetailRow({ rep, index }: { rep: Reposicion; index: number })
           >
             <X size={18} color="#fff" />
           </button>
-          <img
+          <Image
             src={lightbox}
             alt="foto"
+            width={1200}
+            height={900}
             className="max-w-full max-h-full rounded-xl"
             style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
             onClick={e => e.stopPropagation()}
+            unoptimized
           />
         </div>
       )}

@@ -1,5 +1,6 @@
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
+import type { AxiosError } from 'axios';
 import { api } from '@/src/lib/axios';
 import { useAuthStore, getAuthState } from '@/src/stores/auth.store';
 
@@ -14,7 +15,7 @@ export function useProfile() {
 }
 
 export function useUpdateProfile() {
-    const { user, updateUser } = useAuthStore();
+    const { updateUser } = useAuthStore();
     const qc = useQueryClient();
 
     return useMutation({
@@ -49,8 +50,8 @@ export function useUpdateProfile() {
             toast.success('Perfil actualizado correctamente.');
 
         },
-        onError: (err: any) => {
-            const msg = err?.response?.data?.message;
+        onError: (err: AxiosError<{ message?: string | string[] }>) => {
+            const msg = err.response?.data?.message;
             toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar'));
         },
     });
@@ -63,8 +64,8 @@ export function useChangePassword() {
         onSuccess: () => {
             toast.success('Contraseña actualizada correctamente.');
         },
-        onError: (err: any) => {
-            const msg = err?.response?.data?.message;
+        onError: (err: AxiosError<{ message?: string | string[] }>) => {
+            const msg = err.response?.data?.message;
             toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al cambiar la contraseña'));
         },
     });

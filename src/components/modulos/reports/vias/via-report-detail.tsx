@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { ArrowLeft, Trash2, Loader2, FileText } from 'lucide-react'
 import { useViaReport } from '@/src/hooks/vias/use-via-reports'
 import { useDeleteViaReport } from '@/src/hooks/vias/use-via-reports'
@@ -98,8 +99,8 @@ export function ViaReportDetail({ reportId, onBack }: Props) {
             style={{ background: 'var(--color-surface-0)', border: `1px solid ${VIA_STATE_COLORS[item.state] ?? 'var(--color-border)'}40` }}
           >
             {item.capture_group?.images?.[0]?.url && (
-              <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0">
-                <img src={item.capture_group.images[0].url} alt={item.via_name} className="w-full h-full object-cover" />
+              <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 relative">
+                <Image src={item.capture_group.images[0].url} alt={item.via_name} fill className="object-cover" unoptimized />
               </div>
             )}
             <div className="flex-1 min-w-0 flex flex-col gap-1">

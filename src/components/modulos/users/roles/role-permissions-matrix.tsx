@@ -34,7 +34,8 @@ export function RolePermissionsMatrix({ role, onClose }: Props) {
 
   useEffect(() => {
     if (rolePerms?.permissions) {
-      setActive(new Set(rolePerms.permissions.map((p: any) => p.slug)));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActive(new Set((rolePerms.permissions as { slug: string }[]).map((p) => p.slug)));
     }
   }, [rolePerms]);
 

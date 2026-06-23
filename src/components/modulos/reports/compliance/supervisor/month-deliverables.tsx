@@ -26,6 +26,7 @@ function calcTimeLeft(dueDate: string | null): TimeLeft | null {
 function useCountdown(dueDate: string | null) {
   const [t, setT] = useState<TimeLeft | null>(() => calcTimeLeft(dueDate))
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setT(calcTimeLeft(dueDate))
     const id = setInterval(() => setT(calcTimeLeft(dueDate)), 60000)
     return () => clearInterval(id)

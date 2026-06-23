@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type {
   Insumo,
@@ -55,8 +56,8 @@ export function useCreateInsumo() {
       qc.invalidateQueries({ queryKey: ['insumos'] })
       toast.success('Insumo creado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear el insumo'))
     },
   })
@@ -71,8 +72,8 @@ export function useUpdateInsumo() {
       qc.invalidateQueries({ queryKey: ['insumos'] })
       toast.success('Insumo actualizado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar'))
     },
   })
@@ -86,8 +87,8 @@ export function useDeleteInsumo() {
       qc.invalidateQueries({ queryKey: ['insumos'] })
       toast.success('Insumo eliminado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'))
     },
   })
@@ -128,8 +129,8 @@ export function useGuardarBorrador() {
       qc.invalidateQueries({ queryKey: ['insumos', 'borradores', vars.mes, vars.anio] })
       toast.success('Cambio guardado — se aplicara al cerrar el mes')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al guardar borrador'))
     },
   })
@@ -152,8 +153,8 @@ export function useCerrarMes() {
       qc.invalidateQueries({ queryKey: ['insumos', 'borradores', variables.mes, variables.anio] })
       qc.invalidateQueries({ queryKey: ['insumos'] })
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al cerrar el mes'))
     },
   })

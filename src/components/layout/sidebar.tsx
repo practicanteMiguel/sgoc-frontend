@@ -16,7 +16,7 @@ export function Sidebar({ mobileOpen, onMobileToggle }: SidebarProps) {
 
   useEffect(() => {
     if (mobileOpen) onMobileToggle();
-    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   useEffect(() => {

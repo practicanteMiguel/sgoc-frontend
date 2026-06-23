@@ -14,8 +14,8 @@ export interface AuditLog {
   entity_type: string;
   entity_id:   string;
   module:      string;
-  old_values:  Record<string, any> | null;
-  new_values:  Record<string, any> | null;
+  old_values:  Record<string, unknown> | null;
+  new_values:  Record<string, unknown> | null;
   ip_address:  string;
   created_at:  string;
   user:        AuditUser | null;

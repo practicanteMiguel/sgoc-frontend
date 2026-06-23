@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import {
   Plus, Loader2, Eye, Trash2, AlertTriangle, FileText,
   ChevronLeft, ChevronRight, ChevronDown, ClipboardCheck, ExternalLink, CheckCircle2, RotateCcw,
@@ -92,6 +93,7 @@ function EncargadoFirmaModal({ onConfirm, onCancel }: { onConfirm: () => void; o
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasStrokes(false)
   }, [mode])
 
@@ -196,7 +198,7 @@ function EncargadoFirmaModal({ onConfirm, onCancel }: { onConfirm: () => void; o
                   className="rounded-lg flex items-center justify-center py-3"
                   style={{ background: '#fff', border: '1px solid var(--color-border)' }}
                 >
-                  <img src={firmaUrl} alt="Firma" style={{ maxHeight: 100, objectFit: 'contain' }} />
+                  <Image src={firmaUrl} alt="Firma" width={300} height={100} style={{ maxHeight: 100, width: 'auto', objectFit: 'contain' }} unoptimized />
                 </div>
               </div>
               <div className="flex gap-2">
@@ -306,6 +308,7 @@ function RevisionSolicitudModal({ solicitudId, onClose }: { solicitudId: string;
       }
     }
     setCantidades(init)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solicitud?.id])
 
   if (isLoading) {
@@ -345,7 +348,6 @@ function RevisionSolicitudModal({ solicitudId, onClose }: { solicitudId: string;
   // Muestra la categoria si tiene items originales (no desaparece al editar a 0)
   const categoriasConItems = CATEGORIAS.filter((c) => porCategoria[c].length > 0)
   // Solo las categorias con al menos un item con cantidad > 0 (para asignar numero RQ)
-  const categoriasActivas  = categoriasConItems.filter((c) => porCategoria[c].some(i => cantidadAjustada(i) > 0))
   const allItems = (solicitud.categorias ?? []).flatMap(c => c.items)
   const ajustesCount = allItems.filter(i => isModificado(i)).length
 
@@ -771,7 +773,7 @@ async function exportExcelUnificado(rqs: Requisicion[]) {
     import('exceljs'),
     import('@/src/lib/report-header'),
   ])
-  const ExcelJS = (excelModule as any).default ?? excelModule
+  const ExcelJS = (excelModule as { default?: typeof excelModule }).default ?? excelModule
   const wb      = new ExcelJS.Workbook()
   const logoBuf = await fetchLogoBuffer('/assets/logo-full.png')
 
@@ -873,7 +875,7 @@ async function exportExcelUnificado(rqs: Requisicion[]) {
       cols.forEach(({ v, align, numFmt }, ci) => {
         const cell     = row.getCell(ci + 1)
         cell.value     = v
-        cell.alignment = { vertical: 'middle', horizontal: align as any, wrapText: true }
+        cell.alignment = { vertical: 'middle', horizontal: align as 'left' | 'center' | 'right', wrapText: true }
         cell.border    = allBorders
         cell.font      = { size: 10 }
         cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
@@ -1377,7 +1379,7 @@ function SolicitudesSection({ mes, anio }: { mes: number; anio: number }) {
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }
@@ -1599,7 +1601,7 @@ export function RequisicionesTab() {
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }

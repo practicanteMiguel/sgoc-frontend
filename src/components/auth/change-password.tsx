@@ -27,7 +27,7 @@ export function ChangePasswordForm({ isFirstLogin = true }: { isFirstLogin?: boo
   const [pendingData, setPendingData]       = useState<FormData | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  const { register, handleSubmit, getValues, formState: { errors } }
+  const { register, handleSubmit, formState: { errors } }
     = useForm<FormData>({ resolver: zodResolver(schema) });
 
   // Al enviar el form: mostrar confirmación primero

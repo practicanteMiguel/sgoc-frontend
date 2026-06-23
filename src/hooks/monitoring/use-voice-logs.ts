@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 
 export interface VoiceLog {
@@ -56,8 +57,8 @@ export function useTranscribeAudio() {
       qc.invalidateQueries({ queryKey: ['voice-logs'] })
       toast.success('Audio transcrito correctamente')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al transcribir el audio'))
     },
   })
@@ -72,8 +73,8 @@ export function useUpdateVoiceTranscription() {
       qc.invalidateQueries({ queryKey: ['voice-logs'] })
       toast.success('Transcripcion actualizada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar la transcripcion'))
     },
   })
@@ -87,8 +88,8 @@ export function useDeleteVoiceLog() {
       qc.invalidateQueries({ queryKey: ['voice-logs'] })
       toast.success('Registro eliminado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'))
     },
   })
@@ -98,8 +99,8 @@ export function useGenerateVoiceReport() {
   return useMutation({
     mutationFn: ({ ids, title }: { ids: string[]; title?: string }) =>
       api.post<VoiceReport>('/voice-logs/report', { ids, title }).then((r) => r.data),
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al generar el informe'))
     },
   })

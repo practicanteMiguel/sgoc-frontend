@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type { Deliverable, MonthDetail, ComplianceSummaryRow } from '@/src/types/compliance.types'
 
@@ -63,8 +64,8 @@ export function useGenerateMonth() {
       qc.invalidateQueries({ queryKey: ['compliance-summary'] })
       toast.success(res.message ?? 'Mes generado correctamente')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al generar mes'))
     },
   })
@@ -81,8 +82,8 @@ export function useSubmitDeliverable() {
       qc.invalidateQueries({ queryKey: ['compliance-summary'] })
       toast.success('Entregable marcado como entregado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al entregar'))
     },
   })
@@ -100,8 +101,8 @@ export function useWaiveDeliverable() {
       qc.invalidateQueries({ queryKey: ['compliance-month-detail'] })
       toast.success('Marcado como no aplica')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al marcar no aplica'))
     },
   })
@@ -129,8 +130,8 @@ export function useUnwaiveDeliverable() {
       qc.invalidateQueries({ queryKey: ['compliance-month-detail'] })
       toast.success('Revertido a pendiente')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al revertir'))
     },
   })

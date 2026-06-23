@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type { Crew, PaginatedCrews } from '@/src/types/activities.types'
 
@@ -31,8 +32,8 @@ export function useCreateCrew() {
       qc.invalidateQueries({ queryKey: ['crews'] })
       toast.success(`Cuadrilla "${crew.name}" creada`)
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear cuadrilla'))
     },
   })
@@ -48,8 +49,8 @@ export function useRenameCrew() {
       qc.invalidateQueries({ queryKey: ['crew', crew.id] })
       toast.success(`Cuadrilla renombrada a "${crew.name}"`)
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al renombrar'))
     },
   })
@@ -63,8 +64,8 @@ export function useDeleteCrew() {
       qc.invalidateQueries({ queryKey: ['crews'] })
       toast.success('Cuadrilla eliminada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'))
     },
   })
@@ -79,8 +80,8 @@ export function useAddCrewEmployee() {
       qc.invalidateQueries({ queryKey: ['crew', crewId] })
       qc.invalidateQueries({ queryKey: ['crews'] })
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al agregar empleado'))
     },
   })
@@ -95,8 +96,8 @@ export function useRemoveCrewEmployee() {
       qc.invalidateQueries({ queryKey: ['crew', crewId] })
       qc.invalidateQueries({ queryKey: ['crews'] })
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al remover empleado'))
     },
   })

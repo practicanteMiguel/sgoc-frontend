@@ -10,8 +10,8 @@ export function useMyModules() {
   return useQuery({
     queryKey: ['modules', 'my-access', user?.id],
     queryFn:   async () => {
-      const { data: raw } = await api.get('/modules/my-access');
-      const list: any[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
+      const { data: raw } = await api.get<AppModule[] | { data?: AppModule[] }>('/modules/my-access');
+      const list = Array.isArray(raw) ? raw : (raw.data ?? []);
 
       return list.map((m): AppModule => ({
         id:          m.id,

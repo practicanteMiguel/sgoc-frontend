@@ -13,6 +13,7 @@ export function VerifyEmailView() {
 
   useEffect(() => {
     if (token) verify.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export function VerifyEmailView() {
               ¡Correo verificado!
             </h2>
             <p className="text-sm mb-3" style={{ color: 'var(--color-text-400)' }}>
-              {(verify.data as any)?.message}
+              {(verify.data as { message?: string } | null)?.message}
             </p>
             <p className="text-xs" style={{ color: 'var(--color-text-200)' }}>
               Redirigiendo al login en 3 segundos...
@@ -74,7 +75,7 @@ export function VerifyEmailView() {
               Error de verificación
             </h2>
             <p className="text-sm mb-6" style={{ color: 'var(--color-text-400)' }}>
-              {(verify.error as any)?.response?.data?.message ?? 'Token inválido o expirado'}
+              {(verify.error as { response?: { data?: { message?: string } } } | null)?.response?.data?.message ?? 'Token inválido o expirado'}
             </p>
             <button
               onClick={() => router.replace('/auth/login')}

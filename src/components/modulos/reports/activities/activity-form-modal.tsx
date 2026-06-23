@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, type CSSProperties } from 'react'
+import Image from 'next/image'
 import { X, Loader2, ImagePlus, Trash2, CheckCircle2, Images, Database, Eye } from 'lucide-react'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { useAddActivity, useUpdateActivity, useLog } from '@/src/hooks/activities/use-logbook'
@@ -242,7 +243,7 @@ export function ActivityFormModal({ logId, activity, onClose }: Props) {
                   <CheckCircle2 size={12} style={{ color: '#10b981' }} />
                   <span className="text-xs font-semibold" style={{ color: 'var(--color-text-700)' }}>Agregadas esta sesion</span>
                 </div>
-                <div className="divide-y overflow-y-auto pb-4" style={{ ['--tw-divide-color' as any]: 'var(--color-border)', maxHeight: 140 }}>
+                <div className="divide-y overflow-y-auto pb-4" style={{ '--tw-divide-color': 'var(--color-border)', maxHeight: 140 } as CSSProperties}>
                   {created.map((act, i) => (
                     <div key={act.id} className="flex items-start gap-3 px-3 py-2.5">
                       <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-400)' }}>
@@ -354,7 +355,7 @@ export function ActivityFormModal({ logId, activity, onClose }: Props) {
                       >
                         {displayUrl ? (
                           <>
-                            <img src={displayUrl} alt={label} className="absolute inset-0 w-full h-full object-cover" />
+                            <Image src={displayUrl} alt={label} fill className="object-cover" unoptimized />
                             {vault && (
                               <div className="absolute top-1 left-1 bg-black/60 rounded px-1 py-0.5">
                                 <span className="text-[9px] font-semibold text-white">BOVEDA</span>
@@ -475,7 +476,7 @@ export function ActivityFormModal({ logId, activity, onClose }: Props) {
                           style={{ aspectRatio: '4/3', cursor: !used && vaultSlot ? 'pointer' : 'default' }}
                           onClick={() => !used && vaultSlot && handleVaultPick(img)}
                         >
-                          <img src={img.url} alt={img.original_name} className="w-full h-full object-cover" />
+                          <Image src={img.url} alt={img.original_name} fill className="object-cover" unoptimized />
                           {used ? (
                             <div className="absolute inset-0 flex items-center justify-center">
                               <span className="text-[9px] font-semibold text-white bg-black/60 rounded px-1.5 py-0.5">En uso</span>

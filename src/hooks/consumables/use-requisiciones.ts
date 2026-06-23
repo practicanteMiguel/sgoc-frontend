@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type {
   Requisicion,
@@ -43,8 +44,8 @@ export function useCreateRequisicion() {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
       toast.success('Requisicion creada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear la requisicion'))
     },
   })
@@ -58,8 +59,8 @@ export function useDeleteRequisicion() {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
       toast.success('Requisicion eliminada')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar'))
     },
   })
@@ -73,8 +74,8 @@ export function useEnvioMasivo() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al enviar requisiciones'))
     },
   })
@@ -88,8 +89,8 @@ export function useLlenadoRequisicion() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al enviar la solicitud'))
     },
   })
@@ -104,8 +105,8 @@ export function useCambiarEstadoRQ() {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
       toast.success('Estado actualizado')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al cambiar estado'))
     },
   })
@@ -121,8 +122,8 @@ export function useRecepcionRQ() {
       qc.invalidateQueries({ queryKey: ['solicitudes'] })
       toast.success('Recepcion registrada correctamente')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al registrar la recepcion'))
     },
   })
@@ -138,8 +139,8 @@ export function useGuardarFacturas() {
       qc.invalidateQueries({ queryKey: ['informe'] })
       toast.success('Facturas guardadas')
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al guardar facturas'))
     },
   })

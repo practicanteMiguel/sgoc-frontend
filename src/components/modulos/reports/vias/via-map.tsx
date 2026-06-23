@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import type * as LeafletLib from 'leaflet'
+import type { Map as LeafletMap, CircleMarker } from 'leaflet'
 import type { ViaMapPoint } from '@/src/types/vias.types'
 import { VIA_STATE_COLORS, VIA_STATE_LABELS } from '@/src/types/vias.types'
 import { useAuthStore } from '@/src/stores/auth.store'
 
-function applyTileFilter(map: any, dark: boolean) {
+function applyTileFilter(map: LeafletMap, dark: boolean) {
   const pane = map.getPanes().tilePane as HTMLElement | undefined
   if (!pane) return
   pane.style.filter = dark ? 'brightness(0.55) saturate(0.85) contrast(1.1)' : ''
@@ -20,7 +22,7 @@ interface ViaMapProps {
   highlightedItemIds?: Set<string>
 }
 
-function applyHighlight(markers: Map<string, any>, ids: Set<string> | undefined) {
+function applyHighlight(markers: Map<string, CircleMarker>, ids: Set<string> | undefined) {
   const selecting = ids && ids.size > 0
   for (const [key, marker] of markers) {
     const isHL = !selecting || ids!.has(key)
@@ -34,8 +36,8 @@ function applyHighlight(markers: Map<string, any>, ids: Set<string> | undefined)
 }
 
 function buildMarkers(
-  L: any, map: any, pts: ViaMapPoint[],
-  markers: Map<string, any>,
+  L: typeof LeafletLib, map: LeafletMap, pts: ViaMapPoint[],
+  markers: Map<string, CircleMarker>,
 ) {
   for (const [, marker] of markers) marker.remove()
   markers.clear()
@@ -74,9 +76,9 @@ export function ViaMap({
   points, centerLat, centerLng, zoom = 13, height = '400px', highlightedItemIds,
 }: ViaMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef       = useRef<any>(null)
-  const leafletRef   = useRef<any>(null)
-  const markersRef   = useRef<Map<string, any>>(new Map())
+  const mapRef       = useRef<LeafletMap | null>(null)
+  const leafletRef   = useRef<typeof LeafletLib | null>(null)
+  const markersRef   = useRef<Map<string, CircleMarker>>(new Map())
   const highlightRef = useRef(highlightedItemIds)
   const pointsRef    = useRef(points)
 
@@ -153,8 +155,10 @@ export function ViaMap({
       cancelled = true
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
       leafletRef.current = null
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       markersRef.current.clear()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

@@ -32,9 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    theme === 'dark'
-      ? root.classList.add('dark')
-      : root.classList.remove('dark');
+    if (theme === 'dark') { root.classList.add('dark') } else { root.classList.remove('dark') }
   }, [theme]);
 
   return (

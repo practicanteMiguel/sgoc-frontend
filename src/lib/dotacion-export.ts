@@ -1,4 +1,5 @@
 import type { DotacionSolicitud } from '@/src/types/dotaciones.types'
+import type { Cell } from 'exceljs'
 import { fetchLogoBase64 } from './report-header'
 
 function fmtDate(iso: string | null | undefined): string {
@@ -137,7 +138,7 @@ export async function exportDotacionExcel(sol: DotacionSolicitud): Promise<void>
     import('exceljs'),
     import('@/src/lib/report-header'),
   ])
-  const ExcelJS = (excelModule as any).default ?? excelModule
+  const ExcelJS = (excelModule as { default?: typeof excelModule }).default ?? excelModule
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Solicitud')
 
@@ -152,8 +153,8 @@ export async function exportDotacionExcel(sol: DotacionSolicitud): Promise<void>
   const THIN  = { style: 'thin', color: { argb: 'FF999999' } } as const
   const SIDES = { top: THIN, left: THIN, bottom: THIN, right: THIN }
 
-  function bdr(cell: any)  { cell.border = SIDES }
-  function blue(cell: any) { cell.fill = BLUE; bdr(cell) }
+  function bdr(cell: Cell)  { cell.border = SIDES }
+  function blue(cell: Cell) { cell.fill = BLUE; bdr(cell) }
 
   // ── Header block (rows 1-3) ──
   ws.mergeCells(1, 1, 3, 1)
@@ -290,7 +291,7 @@ export async function exportDotacionExcel(sol: DotacionSolicitud): Promise<void>
             tl: { col: 3 + j / N,       row: ri      },
             br: { col: 3 + (j + 1) / N, row: ri + 1  },
             editAs: 'oneCell',
-          } as any)
+          })
         } catch { /* skip if image format unsupported */ }
       })())
     })
@@ -306,7 +307,7 @@ export async function exportDotacionExcel(sol: DotacionSolicitud): Promise<void>
           tl: { col: 0, row: sigRow0     },
           br: { col: 2, row: sigRow0 + 1 },
           editAs: 'oneCell',
-        } as any)
+        })
       } catch {}
     })())
   }
@@ -321,7 +322,7 @@ export async function exportDotacionExcel(sol: DotacionSolicitud): Promise<void>
           tl: { col: 2, row: sigRow0     },
           br: { col: 4, row: sigRow0 + 1 },
           editAs: 'oneCell',
-        } as any)
+        })
       } catch {}
     })())
   }

@@ -71,6 +71,7 @@ export function ScheduleGrid({ deliverable, readOnly = false, onClose }: Props) 
       next[emp.employee.id] = {}
       for (const day of emp.days) next[emp.employee.id][day.fecha] = day.turno
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGrid(next)
   }, [scheduleDetail])
 

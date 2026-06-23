@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import {
   Loader2, ChevronDown, ChevronUp, Image as ImageIcon, CheckCircle2, X,
   FileDown, FileSpreadsheet, Plus, Trash2, ChevronLeft, ChevronRight, FileText, Package,
@@ -104,7 +105,7 @@ async function exportRQPdf(rq: Requisicion) {
 
 async function exportRQExcel(rq: Requisicion) {
   const excelModule = await import('exceljs')
-  const ExcelJS = (excelModule as any).default ?? excelModule
+  const ExcelJS = (excelModule as { default?: typeof excelModule }).default ?? excelModule
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('RQ Dotacion')
   ws.columns = [{ width: 14 }, { width: 36 }, { width: 10 }, { width: 16 }, { width: 10 }, { width: 16 }]
@@ -119,9 +120,9 @@ async function exportRQExcel(rq: Requisicion) {
   ws.addRow([])
 
   const hdr = ws.addRow(['Codigo', 'Descripcion', 'Unidad', 'V. Unitario', 'Cantidad', 'Total'])
-  hdr.eachCell((c: any) => {
-    c.fill = DARK as any; c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-    c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = BDR as any
+  hdr.eachCell((c) => {
+    c.fill = DARK; c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+    c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = BDR
   })
 
   const sorted = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
@@ -131,15 +132,15 @@ async function exportRQExcel(rq: Requisicion) {
     const tot = item.valor_unitario != null ? sol * item.valor_unitario : null
     if (tot) total += tot
     const row = ws.addRow([item.codigo || '-', item.descripcion, item.unidad, item.valor_unitario, sol, tot])
-    row.eachCell((c: any) => { c.border = BDR as any; c.font = { size: 9 } })
-    if (i % 2 === 1) row.eachCell((c: any) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } } as any })
+    row.eachCell((c) => { c.border = BDR; c.font = { size: 9 } })
+    if (i % 2 === 1) row.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } } })
     row.getCell(4).numFmt = '"$"#,##0'; row.getCell(6).numFmt = '"$"#,##0'
   })
 
   const totRow = ws.addRow(['', '', '', '', 'TOTAL GENERAL', total])
   totRow.getCell(5).font = { bold: true, size: 9 }
   totRow.getCell(6).font = { bold: true, size: 9 }; totRow.getCell(6).numFmt = '"$"#,##0'
-  totRow.eachCell((c: any) => { c.border = BDR as any })
+  totRow.eachCell((c) => { c.border = BDR })
 
   const buf = await wb.xlsx.writeBuffer()
   const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
@@ -474,7 +475,7 @@ function SolicitudModal({
   function toggle(i: number) {
     setExpanded(prev => {
       const next = new Set(prev)
-      next.has(i) ? next.delete(i) : next.add(i)
+      if (next.has(i)) { next.delete(i) } else { next.add(i) }
       return next
     })
   }
@@ -542,9 +543,9 @@ function SolicitudModal({
                       <div className="flex flex-wrap gap-2">
                         {repo.imagenes.map(img => (
                           <button key={img.id} type="button" onClick={() => setLightbox(img.url)}
-                            className="rounded-lg overflow-hidden transition-opacity hover:opacity-80"
+                            className="rounded-lg overflow-hidden transition-opacity hover:opacity-80 relative"
                             style={{ width: 64, height: 64, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}>
-                            <img src={img.url} alt={img.original_name} className="w-full h-full object-cover" />
+                            <Image src={img.url} alt={img.original_name} fill className="object-cover" unoptimized />
                           </button>
                         ))}
                       </div>
@@ -589,7 +590,7 @@ function SolicitudModal({
 
       {lightbox && (
         <ModalPortal onClose={() => setLightbox(null)}>
-          <img src={lightbox} alt="" className="max-w-[90vw] max-h-[90vh] rounded-xl object-contain" />
+          <Image src={lightbox} alt="" width={1200} height={900} className="max-w-[90vw] max-h-[90vh] rounded-xl object-contain" unoptimized />
         </ModalPortal>
       )}
       {showGenerar && (

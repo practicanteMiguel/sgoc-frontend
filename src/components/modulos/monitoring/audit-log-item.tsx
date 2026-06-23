@@ -83,7 +83,7 @@ const FIELD_LABELS: Record<string, string> = {
   description: 'Descripción',
 };
 
-function ValueBadge({ label, value }: { label: string; value: any }) {
+function ValueBadge({ label, value }: { label: string; value: unknown }) {
   const displayValue =
     value === null || value === undefined
       ? '—'
@@ -113,7 +113,7 @@ function ValueBadge({ label, value }: { label: string; value: any }) {
   );
 }
 
-function ValuesGrid({ values }: { values: Record<string, any> | null }) {
+function ValuesGrid({ values }: { values: Record<string, unknown> | null }) {
   if (!values) return null;
 
   const entries = Object.entries(values).filter(([k]) => !HIDDEN_FIELDS.has(k));

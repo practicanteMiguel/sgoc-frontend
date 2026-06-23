@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { ArrowLeft, Plus, Trash2, Loader2, MapPin, Image as ImageIcon, Check, X, ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import { useCreateViaReport, useViaReports, useViaReport } from '@/src/hooks/vias/use-via-reports'
 import type { CreateViaReportItem } from '@/src/hooks/vias/use-via-reports'
@@ -250,8 +251,8 @@ export function ViaReportForm({ log, hasMonthlyReport = false, onBack, onDone }:
               </p>
               {item.capture_thumb ? (
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0">
-                    <img src={item.capture_thumb} alt="" className="w-full h-full object-cover" />
+                  <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 relative">
+                    <Image src={item.capture_thumb} alt="" fill className="object-cover" unoptimized />
                   </div>
                   <div className="flex flex-col gap-1 flex-1 min-w-0">
                     <span className="text-xs font-medium truncate" style={{ color: 'var(--color-text-700)' }}>Grupo asignado</span>
@@ -315,7 +316,7 @@ export function ViaReportForm({ log, hasMonthlyReport = false, onBack, onDone }:
                           }}
                           className="w-10 h-10 rounded-lg overflow-hidden shrink-0 relative group/thumb"
                         >
-                          <img src={group.images[0]?.url ?? ''} alt="" className="w-full h-full object-cover" />
+                          <Image src={group.images[0]?.url ?? ''} alt="" fill className="object-cover" unoptimized />
                           <div
                             className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
                             style={{ background: 'rgba(0,0,0,0.45)' }}
@@ -442,10 +443,12 @@ export function ViaReportForm({ log, hasMonthlyReport = false, onBack, onDone }:
 
             {/* Main image with nav arrows */}
             <div className="relative shrink-0 mx-4 rounded-xl overflow-hidden" style={{ aspectRatio: '4/3', background: 'var(--color-surface-2)' }}>
-              <img
-                src={previewGroup.images[previewIdx]?.url}
+              <Image
+                src={previewGroup.images[previewIdx]?.url ?? ''}
                 alt=""
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                unoptimized
               />
               {previewGroup.images.length > 1 && (
                 <>
@@ -478,7 +481,7 @@ export function ViaReportForm({ log, hasMonthlyReport = false, onBack, onDone }:
                   <button
                     key={img.id}
                     onClick={() => setPreviewIdx(idx)}
-                    className="shrink-0 rounded-lg overflow-hidden transition-all"
+                    className="shrink-0 rounded-lg overflow-hidden transition-all relative"
                     style={{
                       width: 48, height: 48,
                       outline:       previewIdx === idx ? '2px solid var(--color-primary)' : '2px solid transparent',
@@ -486,7 +489,7 @@ export function ViaReportForm({ log, hasMonthlyReport = false, onBack, onDone }:
                       opacity:       previewIdx === idx ? 1 : 0.55,
                     }}
                   >
-                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                    <Image src={img.url} alt="" fill className="object-cover" unoptimized />
                   </button>
                 ))}
               </div>
