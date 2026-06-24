@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
+import { formatCOP } from '@/src/lib/utils'
 import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, Send, Clock, Search, Eye, X, Plus, Pencil, Trash2, PenLine, FileText, Package } from 'lucide-react'
 import {
   useMisSolicitudes, useSolicitud, useLlenarMiSolicitud, useSolicitudRequisiciones,
@@ -21,10 +22,6 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 
 type CantidadMap = Record<string, string>
 
-function formatCOP(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value))
-}
 
 /* ─────────────── RQPreviewModal ─────────────── */
 

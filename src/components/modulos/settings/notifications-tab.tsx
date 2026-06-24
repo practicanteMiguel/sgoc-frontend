@@ -5,15 +5,13 @@ import { useState, useEffect } from 'react';
 import {
   useNotifications, useMarkAsRead,
   useMarkAllAsRead,
+  useDeleteNotification,
   usePushStatus,
   useSubscribeToPush,
   useUnsubscribeFromPush,
   usePushSubscriptions,
 } from '@/src/hooks/settings/use-notifications';
 import { formatDate } from '@/src/lib/utils';
-import { api } from '@/src/lib/axios';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 
 const PRIORITY_CONFIG = {
   low:    { label: 'Info',    dot: 'var(--color-info)'    },
@@ -142,19 +140,12 @@ export function NotificationsTab() {
   const { data, isLoading }  = useNotifications();
   const markOne              = useMarkAsRead();
   const markAll              = useMarkAllAsRead();
-  const qc                   = useQueryClient();
+  const deleteNotif          = useDeleteNotification();
 
   const notifications = data?.data ?? [];
   const unread        = data?.unread ?? 0;
 
-  const handleDelete = async (id: string) => {
-    try {
-      await api.delete(`/notifications/${id}`);
-      qc.invalidateQueries({ queryKey: ['notifications'] });
-    } catch {
-      toast.error('Error al eliminar la notificación');
-    }
-  };
+  const handleDelete = (id: string) => deleteNotif.mutate(id);
 
   return (
     <div className="max-w-6xl">

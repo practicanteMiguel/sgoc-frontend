@@ -3,15 +3,12 @@
 import { useEffect, useState } from 'react'
 import { Loader2, CheckCircle2, XCircle, Send } from 'lucide-react'
 import { useLlenadoRequisicion } from '@/src/hooks/consumables/use-requisiciones'
+import { formatCOP } from '@/src/lib/utils'
 import { CATEGORIA_LABELS } from '@/src/types/consumables.types'
 import type { Requisicion, RQItem } from '@/src/types/consumables.types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
 
-function formatCOP(value: number | null | undefined) {
-  if (value === null || value === undefined) return '-'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
-}
 
 const INPUT_STYLE: React.CSSProperties = {
   background:   '#fff',

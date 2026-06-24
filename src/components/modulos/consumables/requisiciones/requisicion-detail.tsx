@@ -8,11 +8,8 @@ import { fetchFirmaUrl } from '@/src/lib/firma'
 import { getAuthState } from '@/src/stores/auth.store'
 import { CATEGORIA_LABELS, ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { Requisicion, RQItem } from '@/src/types/consumables.types'
+import { formatCOP } from '@/src/lib/utils'
 
-function formatCOP(value: number | null | undefined) {
-  if (value === null || value === undefined) return '-'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
-}
 
 function totalGeneral(items: RQItem[]) {
   return items.reduce((sum, i) => {

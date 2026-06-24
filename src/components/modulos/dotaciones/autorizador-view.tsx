@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import { formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   FileText, Eye, CheckCircle2, XCircle, Lock, Loader2,
   User, Calendar, Building2, X, ChevronDown, ChevronUp, Image as ImageIcon, PenLine, FileDown, FileSpreadsheet,
@@ -27,9 +28,6 @@ const CSS_VARS: React.CSSProperties = {
   '--color-danger':     '#dc2626',
 } as React.CSSProperties
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-}
 
 
 // ── Reposicion expand row ─────────────────────────────────────────────────

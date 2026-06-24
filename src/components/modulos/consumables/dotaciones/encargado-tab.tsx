@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   Loader2, ChevronDown, ChevronUp, Image as ImageIcon, CheckCircle2, X,
   FileDown, FileSpreadsheet, Plus, Trash2, ChevronLeft, ChevronRight, FileText, Package,
@@ -27,9 +28,6 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'informe',       label: 'Informe',       icon: BarChart2 },
 ]
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-}
 
 function fmtCop(n: number): string {
   return n.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })

@@ -26,6 +26,19 @@ export function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
+export function formatCOP(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '-'
+  const num = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(num)) return '-'
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(num)
+}
+
+export function formatDateShort(iso: string): string {
+  const d = new Date(iso.includes('T') ? iso : iso + 'T00:00:00')
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 // Traduce el slug del rol a nombre legible
 export const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",

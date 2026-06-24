@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
+import { formatCOP, formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   Plus, Loader2, Eye, Trash2, AlertTriangle, FileText,
   ChevronLeft, ChevronRight, ChevronDown, ClipboardCheck, ExternalLink, CheckCircle2, RotateCcw,
@@ -26,10 +27,6 @@ import type {
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
-function formatCOP(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value))
-}
 
 const BADGE_COLORS: Record<string, string> = {
   ABIERTA:          '#6b7280',
@@ -1619,9 +1616,7 @@ export function RequisicionesTab() {
     }
   }
 
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-  }
+
 
   if (selectedId) {
     return <RequisicionDetail id={selectedId} onBack={() => setSelectedId(null)} />

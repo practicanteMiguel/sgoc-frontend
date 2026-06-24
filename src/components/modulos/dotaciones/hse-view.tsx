@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import { formatDateShort as formatDate } from '@/src/lib/utils'
 import { Loader2, XCircle, CheckCircle2, Plus, Trash2, Upload, X, Send, ChevronDown, Image as ImageIcon, PenLine } from 'lucide-react'
 import { ESTADO_DOTACION_LABELS, ESTADO_DOTACION_COLORS } from '@/src/types/dotaciones.types'
 import type { DotacionSpaceInfo, DotacionSolicitud, CreateReposicionDto } from '@/src/types/dotaciones.types'
@@ -20,9 +21,6 @@ const FIELD_STYLE: React.CSSProperties = {
   color:        '#111827',
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-}
 
 interface EmpleadoOption {
   id: string

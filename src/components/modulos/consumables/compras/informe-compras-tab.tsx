@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { formatCOP } from '@/src/lib/utils'
 import { ChevronLeft, ChevronRight, FileText, Loader2, AlertTriangle, Upload, X, CheckCircle2 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { api } from '@/src/lib/axios'
-import { useInformeFacturas, useInformeTendencia } from '@/src/hooks/consumables/use-informe'
+import { useInformeFacturas, useInformeTendencia, useUpdateFacturas } from '@/src/hooks/consumables/use-informe'
 import { parseOCPdf, matchesDesc } from '@/src/lib/parse-oc-pdf'
 import type { OCParseResult } from '@/src/lib/parse-oc-pdf'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
@@ -18,10 +17,6 @@ import type { CategoriaInsumo, InformeRow } from '@/src/types/consumables.types'
 const MESES_FULL  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const MESES_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
-function formatCOP(value: number | null | undefined) {
-  if (value == null) return '-'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
-}
 
 function formatShort(v: number) {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`
@@ -180,7 +175,7 @@ type OCReview = {
 }
 
 function TotalTabla({ rows, categoria }: { rows: InformeRow[]; categoria: CategoriaInsumo }) {
-  const qc = useQueryClient()
+  const updateFacturas = useUpdateFacturas()
 
   // ── Data derivation ────────────────────────────────────────────────────────
   const rqCols: RQCol[] = useMemo(() => {
@@ -268,22 +263,15 @@ function TotalTabla({ rows, categoria }: { rows: InformeRow[]; categoria: Catego
       ? Object.entries(insumo.itemsPorRQ).filter(([id]) => rqIds.includes(id))
       : Object.entries(insumo.itemsPorRQ)
     try {
-      await Promise.all(
-        entries.map(([rq_id, item]) =>
-          api.patch(`/requisiciones/${rq_id}/facturas`, {
-            items: [{
-              id:                item.item_id,
-              numero_factura:    value.trim() || null,
-              precio_real:       item.precio_real,
-              proveedor_factura: item.proveedor_factura,
-            }],
-          }),
-        ),
+      await updateFacturas.mutateAsync(
+        entries.map(([rq_id, item]) => ({
+          rq_id,
+          items: [{ id: item.item_id, numero_factura: value.trim() || null, precio_real: item.precio_real, proveedor_factura: item.proveedor_factura }],
+        })),
       )
-      qc.invalidateQueries({ queryKey: ['informe'] })
       toast.success('Orden de compra guardada')
     } catch {
-      toast.error('Error al guardar orden de compra')
+      // error handled by hook
     } finally {
       setSavingOC((prev) => ({ ...prev, [insumo.insumo_id]: false }))
     }
@@ -346,25 +334,18 @@ function TotalTabla({ rows, categoria }: { rows: InformeRow[]; categoria: Catego
                 .filter((id): id is string => !!id)
             : Object.keys(match.insumo.itemsPorRQ)
 
-          await Promise.all(
+          await updateFacturas.mutateAsync(
             Object.entries(match.insumo.itemsPorRQ)
               .filter(([rq_id]) => targetIds.includes(rq_id))
-              .map(([rq_id, item]) =>
-                api.patch(`/requisiciones/${rq_id}/facturas`, {
-                  items: [{
-                    id:                item.item_id,
-                    numero_factura:    rev.oc.serial,
-                    precio_real:       match.valor_unitario_oc,
-                    proveedor_factura: rev.oc.proveedor || item.proveedor_factura,
-                  }],
-                }),
-              ),
+              .map(([rq_id, item]) => ({
+                rq_id,
+                items: [{ id: item.item_id, numero_factura: rev.oc.serial, precio_real: match.valor_unitario_oc, proveedor_factura: rev.oc.proveedor || item.proveedor_factura }],
+              })),
           )
           // Sync manual OC field
           setOcNums((prev) => ({ ...prev, [match.insumo.insumo_id]: rev.oc.serial }))
         }
       }
-      qc.invalidateQueries({ queryKey: ['informe'] })
       toast.success('Órdenes de compra aplicadas')
       setReviewing(null)
     } catch {

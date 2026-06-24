@@ -5,12 +5,11 @@ import { type AuthUser } from "../types/auth.types";
 interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
-  refreshToken: string | null;
   theme: "light" | "dark";
   isAuthenticated: boolean;
-  _hasHydrated: boolean; 
+  _hasHydrated: boolean;
 
-  setAuth: (user: AuthUser, accessToken: string, refreshToken: string) => void;
+  setAuth: (user: AuthUser, accessToken: string) => void;
   clearAuth: () => void;
   setTheme: (theme: "light" | "dark") => void;
   toggleTheme: () => void;
@@ -24,19 +23,17 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
       theme: "light",
       isAuthenticated: false,
-      _hasHydrated: false, 
+      _hasHydrated: false,
 
-      setAuth: (user, accessToken, refreshToken) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+      setAuth: (user, accessToken) =>
+        set({ user, accessToken, isAuthenticated: true }),
 
       clearAuth: () =>
         set({
           user: null,
           accessToken: null,
-          refreshToken: null,
           isAuthenticated: false,
         }),
 
@@ -53,7 +50,6 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         theme: state.theme,
         isAuthenticated: state.isAuthenticated,
       }),

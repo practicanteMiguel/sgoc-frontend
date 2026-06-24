@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Search, Loader2, Package, ChevronLeft, ChevronRight, GitCompare, ArrowRight, CheckCircle2, Send, Bell } from 'lucide-react'
 import { useInsumos, useCambiosInsumos, usePeriodosCerrados } from '@/src/hooks/consumables/use-insumos'
+import { formatCOP } from '@/src/lib/utils'
 import { useEnviarPlantillas, useSolicitudes } from '@/src/hooks/consumables/use-solicitudes'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { CATEGORIAS, CATEGORIA_LABELS, ESTADO_COLORS } from '@/src/types/consumables.types'
@@ -19,10 +20,6 @@ const CAMPO_LABELS: Record<string, string> = {
   unidad:                  'Unidad',
 }
 
-function formatCOP(value: number | null) {
-  if (value === null) return '-'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
-}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })

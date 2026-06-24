@@ -6,11 +6,8 @@ import { useRequisicion, useRecepcionRQ } from '@/src/hooks/consumables/use-requ
 import { CATEGORIA_LABELS } from '@/src/types/consumables.types'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import type { RQItem } from '@/src/types/consumables.types'
+import { formatCOP } from '@/src/lib/utils'
 
-function formatCOP(v: number | null | undefined) {
-  if (v == null) return '-'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v)
-}
 
 interface Props {
   rqId: string

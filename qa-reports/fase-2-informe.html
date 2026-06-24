@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QA Fase 2 - Arquitectura y Patrones | gestion-frontend</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:   #0D3B58;
+      --accent:    #1a6fa8;
+      --success:   #059669;
+      --warning:   #d97706;
+      --danger:    #dc2626;
+      --neutral:   #64748b;
+      --bg:        #f8fafc;
+      --surface:   #ffffff;
+      --border:    #e2e8f0;
+      --text:      #0f172a;
+      --text-muted:#64748b;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    }
+    .topbar-left { display: flex; flex-direction: column; gap: 2px; }
+    .topbar-title { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+    .topbar-sub   { font-size: 11px; opacity: 0.7; }
+
+    .btn-pdf {
+      display: flex; align-items: center; gap: 8px;
+      background: #fff; color: var(--primary); border: none;
+      border-radius: 8px; padding: 8px 18px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    }
+    .btn-pdf:hover { opacity: 0.85; }
+
+    .wrapper {
+      max-width: 980px; margin: 0 auto;
+      padding: 36px 24px 60px;
+      display: flex; flex-direction: column; gap: 28px;
+    }
+
+    .report-header {
+      background: var(--primary); border-radius: 14px; color: #fff;
+      padding: 32px 36px; display: flex; flex-direction: column; gap: 16px;
+    }
+    .report-header h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.3px; }
+    .report-header p  { font-size: 13px; opacity: 0.75; }
+    .meta-row  { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+    .meta-pill { background: rgba(255,255,255,0.13); border-radius: 20px; padding: 4px 14px; font-size: 12px; font-weight: 500; }
+
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .section-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px 24px; border-bottom: 1px solid var(--border); background: #f1f5f9;
+    }
+    .section-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .section-title { font-size: 14px; font-weight: 700; color: var(--primary); }
+    .section-body  { padding: 20px 24px; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; }
+    .kpi-card { border-radius: 10px; border: 1px solid var(--border); padding: 18px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); }
+    .kpi-value { font-size: 28px; font-weight: 800; line-height: 1; }
+    .kpi-delta { font-size: 12px; font-weight: 500; }
+    .kpi-neutral .kpi-value { color: var(--text); }
+    .kpi-success .kpi-value { color: var(--success); }
+    .kpi-warning .kpi-value { color: var(--warning); }
+    .kpi-danger  .kpi-value { color: var(--danger); }
+    .delta-up   { color: var(--success); }
+    .delta-down { color: var(--danger); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      background: #f1f5f9; color: var(--text-muted);
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 9px 14px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f8fafc; }
+
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-danger  { background: #fee2e2; color: #b91c1c; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-success { background: #d1fae5; color: #065f46; }
+    .badge-neutral { background: #f1f5f9; color: #475569; }
+    .badge-info    { background: #dbeafe; color: #1e40af; }
+
+    .finding-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
+    .finding-card:last-child { margin-bottom: 0; }
+    .finding-header {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 18px; background: #fafafa; border-bottom: 1px solid var(--border);
+    }
+    .finding-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      font-size: 13px; font-weight: 700; color: #fff;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .finding-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .finding-file  { font-size: 11px; color: var(--text-muted); font-family: 'Courier New', monospace; margin-top: 3px; }
+    .finding-meta  { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+    .finding-body  { padding: 14px 18px; }
+    .finding-desc  { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+
+    pre {
+      background: #0f172a; color: #e2e8f0;
+      border-radius: 8px; padding: 14px 16px;
+      font-size: 12px; line-height: 1.55; overflow-x: auto;
+      font-family: 'Courier New', 'Consolas', monospace;
+    }
+    .code-comment { color: #64748b; }
+    .code-before  { color: #fca5a5; }
+    .code-after   { color: #86efac; }
+
+    .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px 20px; }
+    .info-box strong { color: var(--accent); }
+    .warn-box { background: #fef3c7; border: 1px solid #fbbf24; border-radius: 10px; padding: 16px 20px; }
+    .warn-box strong { color: #92400e; }
+    .ok-box   { background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 10px; padding: 16px 20px; }
+    .ok-box strong { color: #065f46; }
+
+    .file-rank { display: flex; flex-direction: column; gap: 6px; }
+    .file-row  { display: flex; align-items: center; gap: 10px; }
+    .file-name { font-family: 'Courier New', monospace; font-size: 11px; color: var(--accent); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-bar-wrap { width: 140px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .file-bar      { height: 100%; background: var(--accent); border-radius: 4px; }
+    .file-count    { font-size: 11px; font-weight: 700; color: var(--text); width: 38px; text-align: right; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+    .report-footer { text-align: center; font-size: 11px; color: var(--text-muted); padding-top: 12px; }
+
+    @media print {
+      body { background: #fff; font-size: 12px; }
+      .topbar { display: none; }
+      .wrapper { padding: 0; max-width: 100%; }
+      .section, .finding-card { break-inside: avoid; }
+      pre { white-space: pre-wrap; word-break: break-all; }
+      .badge, .kpi-card, .report-header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-title">Informe QA - Fase 2</span>
+    <span class="topbar-sub">gestion-frontend &middot; Arquitectura y Patrones</span>
+  </div>
+  <button class="btn-pdf" onclick="window.print()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+      <rect x="6" y="14" width="12" height="8"/>
+    </svg>
+    Descargar PDF
+  </button>
+</div>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <div class="report-header">
+    <div>
+      <h1>QA Fase 2 &mdash; Arquitectura y Patrones</h1>
+      <p style="margin-top:6px">Revision de separacion de responsabilidades, duplicacion de codigo, patrones de data fetching y organizacion del proyecto</p>
+    </div>
+    <div class="meta-row">
+      <span class="meta-pill">Proyecto: gestion-frontend</span>
+      <span class="meta-pill">Next.js 16.2.1 &middot; React 19.2.4</span>
+      <span class="meta-pill">TanStack Query v5 &middot; Zustand</span>
+      <span class="meta-pill">Fecha: 2026-06-23</span>
+      <span class="meta-pill">Fase: 2 / 8</span>
+    </div>
+  </div>
+
+  <!-- RESUMEN EJECUTIVO -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#dbeafe">📊</div>
+      <span class="section-title">Resumen Ejecutivo</span>
+    </div>
+    <div class="section-body">
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-danger">
+          <span class="kpi-label">API calls en componentes</span>
+          <span class="kpi-value">3</span>
+          <span class="kpi-delta">Violacion de arquitectura</span>
+        </div>
+        <div class="kpi-card kpi-warning">
+          <span class="kpi-label">formatCOP duplicado</span>
+          <span class="kpi-value">9</span>
+          <span class="kpi-delta">Definiciones locales identicas</span>
+        </div>
+        <div class="kpi-card kpi-warning">
+          <span class="kpi-label">formatDate duplicado</span>
+          <span class="kpi-value">7</span>
+          <span class="kpi-delta">Definiciones locales identicas</span>
+        </div>
+        <div class="kpi-card kpi-danger">
+          <span class="kpi-label">UI files vacios</span>
+          <span class="kpi-value">4</span>
+          <span class="kpi-delta">button, input, badge, spinner (0 bytes)</span>
+        </div>
+        <div class="kpi-card kpi-warning">
+          <span class="kpi-label">useQueryClient en componentes</span>
+          <span class="kpi-value">2</span>
+          <span class="kpi-delta">Cache management fuera del hook</span>
+        </div>
+        <div class="kpi-card kpi-neutral">
+          <span class="kpi-label">Componentes &gt;800 lineas</span>
+          <span class="kpi-value">6</span>
+          <span class="kpi-delta">Informacional (refactor futuro)</span>
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top:16px">
+        <strong>Arquitectura general: 7/10</strong> &mdash; La estructura de carpetas, el uso de TanStack Query en hooks y la organizacion por dominio es correcta. Los problemas son puntuales: 3 API calls que escaparon al componente, una funcion utilitaria que se redefine 16 veces en lugar de importarse, y 4 archivos vacios que generan confusion. Todos son correcciones de bajo riesgo.
+      </div>
+    </div>
+  </div>
+
+  <!-- HALLAZGOS CRITICOS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fee2e2">🚨</div>
+      <span class="section-title">Hallazgos Criticos &mdash; Violacion de Separacion de Responsabilidades</span>
+    </div>
+    <div class="section-body">
+
+      <!-- Finding 1 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--danger)">1</div>
+          <div>
+            <div class="finding-title">API calls directas con axios en componente (2 mutaciones)</div>
+            <div class="finding-file">src/components/modulos/consumables/compras/informe-compras-tab.tsx &mdash; lineas 273, 353</div>
+            <div class="finding-meta">
+              <span class="badge badge-danger">CRITICO</span>
+              <span class="badge badge-neutral">Tipo: Separacion de capas</span>
+              <span class="badge badge-neutral">Impacto: Testing, reusabilidad</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            Las funciones <code>saveOC()</code> (linea 265) y <code>saveAll()</code> (linea 340) llaman directamente a <code>api.patch()</code> dentro del componente, ademas de usar <code>useQueryClient</code> para invalidar el cache manualmente. Esto duplica la logica de mutacion que deberia vivir en el hook <code>use-compras.ts</code>.
+          </p>
+          <pre><span class="code-comment">// Antes - api.patch directo en el componente (informe-compras-tab.tsx:265)</span>
+<span class="code-before">const qc = useQueryClient()
+
+async function saveOC() {
+  await Promise.all(entries.map(([rq_id, item]) =>
+    api.patch(`/requisiciones/${rq_id}/facturas`, { items: [...] })
+  ))
+  qc.invalidateQueries({ queryKey: ['requisiciones'] })
+  qc.invalidateQueries({ queryKey: ['compras-informe'] })
+}</span>
+
+<span class="code-comment">// Despues - hook dedicado en use-compras.ts</span>
+<span class="code-after">export function useSaveFacturas() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (entries: FacturaEntry[]) =>
+      Promise.all(entries.map(([rq_id, item]) =>
+        api.patch(`/requisiciones/${rq_id}/facturas`, { items: [...] })
+      )),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requisiciones'] })
+      qc.invalidateQueries({ queryKey: ['compras-informe'] })
+    },
+  })
+}</span></pre>
+        </div>
+      </div>
+
+      <!-- Finding 2 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--danger)">2</div>
+          <div>
+            <div class="finding-title">api.delete directo + useQueryClient en componente de notificaciones</div>
+            <div class="finding-file">src/components/modulos/settings/notifications-tab.tsx &mdash; lineas 145, 152</div>
+            <div class="finding-meta">
+              <span class="badge badge-danger">CRITICO</span>
+              <span class="badge badge-neutral">Tipo: Separacion de capas</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            <code>handleDelete()</code> llama a <code>api.delete()</code> directamente y luego invalida el cache con <code>qc.invalidateQueries()</code>. El hook <code>use-notifications.ts</code> existe y ya maneja notificaciones pero no tiene una mutacion de eliminacion individual.
+          </p>
+          <pre><span class="code-comment">// Antes (notifications-tab.tsx:150)</span>
+<span class="code-before">const qc = useQueryClient()
+const handleDelete = async (id: string) => {
+  try {
+    await api.delete(`/notifications/${id}`)
+    qc.invalidateQueries({ queryKey: ['notifications'] })
+  } catch { /* silencioso */ }
+}</span>
+
+<span class="code-comment">// Despues - agregar useMutation en use-notifications.ts</span>
+<span class="code-after">export function useDeleteNotification() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/notifications/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onError: () => toast.error('No se pudo eliminar la notificacion'),
+  })
+}</span></pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HALLAZGOS IMPORTANTES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">⚠️</div>
+      <span class="section-title">Hallazgos Importantes &mdash; Duplicacion y Archivos Vacios</span>
+    </div>
+    <div class="section-body">
+
+      <!-- Finding 3 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--warning)">3</div>
+          <div>
+            <div class="finding-title">formatCOP definida localmente en 9 componentes</div>
+            <div class="finding-file">src/lib/utils.ts (funcion ausente) &mdash; 9 archivos con definicion local</div>
+            <div class="finding-meta">
+              <span class="badge badge-warning">IMPORTANTE</span>
+              <span class="badge badge-neutral">Tipo: Duplicacion de codigo</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            La funcion <code>formatCOP</code> se redefine identicamente en 9 componentes. <code>utils.ts</code> ya tiene <code>formatDate</code>, <code>cn</code>, etc. pero no <code>formatCOP</code>. Cualquier cambio al formato de moneda (decimales, simbolo) debe hacerse en 9 lugares.
+          </p>
+          <div class="file-rank" style="margin:12px 0 14px">
+            <div class="file-row"><span class="file-name">compras/compras-view.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">compras/informe-compras-tab.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">requisiciones/requisicion-detail.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">requisiciones/requisiciones-tab.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">solicitudes/mi-solicitud-tab.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">solicitudes/solicitud-view.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">consumables/insumos/insumos-tab.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">consumables/supervisor/recepcion-modal.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">consumables/llenado/llenado-view.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+          </div>
+          <pre><span class="code-comment">// Agregar en src/lib/utils.ts</span>
+<span class="code-after">export function formatCOP(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '-'
+  const num = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(num)) return '-'
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency', currency: 'COP', maximumFractionDigits: 0,
+  }).format(num)
+}</span></pre>
+        </div>
+      </div>
+
+      <!-- Finding 4 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--warning)">4</div>
+          <div>
+            <div class="finding-title">formatDateShort definida localmente en 7 componentes</div>
+            <div class="finding-file">src/lib/utils.ts (funcion ausente como formatDateShort) &mdash; 7 archivos con definicion local</div>
+            <div class="finding-meta">
+              <span class="badge badge-warning">IMPORTANTE</span>
+              <span class="badge badge-neutral">Tipo: Duplicacion de codigo</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            <code>utils.ts</code> ya tiene <code>formatDate</code> pero incluye horas y minutos (<code>dd/mm/yyyy HH:mm</code>). Los 7 componentes necesitan solo fecha corta (<code>dd/mm/yyyy</code> o <code>dd de mes de yyyy</code>). Se debe agregar <code>formatDateShort</code> a utils y reemplazar las definiciones locales.
+          </p>
+          <div class="file-rank" style="margin:12px 0 14px">
+            <div class="file-row"><span class="file-name">dotaciones/hse-view.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">dotaciones/autorizador-view.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">consumables/dotaciones/encargado-tab.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">consumables/dotaciones/supervisor-tab.tsx</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">requisiciones/requisiciones-tab.tsx (linea 1622)</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">compras/compras-view.tsx (linea 1059)</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+            <div class="file-row"><span class="file-name">monitoring/voice/voice-report-modal.tsx (linea 22)</span><div class="file-bar-wrap"><div class="file-bar" style="width:100%"></div></div><span class="file-count">local</span></div>
+          </div>
+          <pre><span class="code-comment">// Agregar en src/lib/utils.ts</span>
+<span class="code-after">export function formatDateShort(iso: string): string {
+  const d = new Date(iso.includes('T') ? iso : iso + 'T00:00:00')
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+}</span></pre>
+        </div>
+      </div>
+
+      <!-- Finding 5 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--warning)">5</div>
+          <div>
+            <div class="finding-title">4 archivos UI vacios generan confusion (0 bytes)</div>
+            <div class="finding-file">src/components/ui/button.tsx &middot; input.tsx &middot; badge.tsx &middot; spinner.tsx</div>
+            <div class="finding-meta">
+              <span class="badge badge-warning">IMPORTANTE</span>
+              <span class="badge badge-neutral">Tipo: Archivos fantasma</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            Cuatro archivos en <code>src/components/ui/</code> existen pero tienen 0 bytes. No son importados por ningun archivo del proyecto. Generan confusion al explorar el codigo (parecen ser componentes disponibles cuando no lo son). Deben eliminarse.
+          </p>
+          <div class="two-col" style="margin-top:10px">
+            <div class="warn-box">
+              <strong>Archivos a eliminar:</strong>
+              <ul style="margin-top:8px;font-size:12px;color:#92400e;padding-left:16px">
+                <li><code>src/components/ui/button.tsx</code> (0 bytes, 0 imports)</li>
+                <li><code>src/components/ui/input.tsx</code> (0 bytes, 0 imports)</li>
+                <li><code>src/components/ui/badge.tsx</code> (0 bytes, 0 imports)</li>
+                <li><code>src/components/ui/spinner.tsx</code> (0 bytes, 0 imports)</li>
+              </ul>
+            </div>
+            <div class="ok-box">
+              <strong>Archivos UI funcionales (conservar):</strong>
+              <ul style="margin-top:8px;font-size:12px;color:#065f46;padding-left:16px">
+                <li><code>firma-canvas.tsx</code> (169 lineas)</li>
+                <li><code>modal-portal.tsx</code> (54 lineas)</li>
+                <li><code>module-placeholder.tsx</code> (180 lineas)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HALLAZGOS MENORES / INFORMATIVOS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#ede9fe">📋</div>
+      <span class="section-title">Hallazgos Menores e Informativos</span>
+    </div>
+    <div class="section-body">
+
+      <div style="margin-bottom:20px">
+        <h4 style="font-size:13px;font-weight:700;color:var(--primary);margin-bottom:10px">Componentes gigantes &mdash; informacional (refactor de largo plazo)</h4>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+          6 componentes superan las 800 lineas. No representan un bug pero dificultan el mantenimiento. Se registran como deuda tecnica para fases futuras. <strong>No se corrigen en Fase 2.</strong>
+        </p>
+        <table>
+          <thead><tr><th>Archivo</th><th style="text-align:right">Lineas</th><th>Razon del tamano</th></tr></thead>
+          <tbody>
+            <tr><td><code>consumables/requisiciones/requisiciones-tab.tsx</code></td><td style="text-align:right"><span class="badge badge-danger">1 866</span></td><td>Tabla + detalle + modal + Excel + filtros en un solo archivo</td></tr>
+            <tr><td><code>consumables/solicitudes/mi-solicitud-tab.tsx</code></td><td style="text-align:right"><span class="badge badge-danger">1 608</span></td><td>Formulario con multiples secciones + firma canvas</td></tr>
+            <tr><td><code>consumables/compras/compras-view.tsx</code></td><td style="text-align:right"><span class="badge badge-warning">1 284</span></td><td>Dashboard con multiples tablas, modales y exportacion</td></tr>
+            <tr><td><code>consumables/requisiciones/requisicion-detail.tsx</code></td><td style="text-align:right"><span class="badge badge-warning">1 153</span></td><td>Detalle + Excel + PDF + firma en un solo componente</td></tr>
+            <tr><td><code>reports/activities/supervisor-activities-view.tsx</code></td><td style="text-align:right"><span class="badge badge-warning">1 091</span></td><td>Graficos + tabla + filtros + exportacion</td></tr>
+            <tr><td><code>consumables/compras/informe-compras-tab.tsx</code></td><td style="text-align:right"><span class="badge badge-warning">943</span></td><td>Charts + tablas + subida de PDF + OC</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h4 style="font-size:13px;font-weight:700;color:var(--primary);margin-bottom:10px">Lo que esta bien &mdash; patrones correctos confirmados</h4>
+        <table>
+          <thead><tr><th>Aspecto</th><th>Evaluacion</th></tr></thead>
+          <tbody>
+            <tr><td>Organizacion de hooks por dominio (<code>hooks/consumables/</code>, <code>hooks/vias/</code>, etc.)</td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+            <tr><td>Tipos centralizados en <code>src/types/*.types.ts</code></td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+            <tr><td>Interceptor Axios con refresh de token y cola</td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+            <tr><td>AuthGuard y ModuleGuard en layout</td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+            <tr><td>TanStack Query: <code>useQuery</code> y <code>useMutation</code> siempre en hooks, no en componentes (&gt;95%)</td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+            <tr><td>Sin imports circulares entre capas</td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+            <tr><td>Zustand store con hydration correcta (<code>_hasHydrated</code>)</td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+            <tr><td>Alias <code>@/src/</code> consistente en toda la base</td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+            <tr><td>Error handling con <code>toast.error</code> estandarizado en hooks</td><td><span class="badge badge-success">&#10003; Correcto</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PLAN DE CORRECCIONES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#d1fae5">🔧</div>
+      <span class="section-title">Plan de Correcciones Fase 2</span>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Correccion</th>
+            <th>Archivos</th>
+            <th>Riesgo</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1</strong></td>
+            <td>Mover <code>api.patch</code> de <code>informe-compras-tab</code> a hook <code>useUpdateFacturas</code></td>
+            <td><code>use-informe.ts</code> + <code>informe-compras-tab.tsx</code></td>
+            <td><span class="badge badge-neutral">Bajo</span></td>
+            <td><span class="badge badge-success">&#10003; Completado</span></td>
+          </tr>
+          <tr>
+            <td><strong>2</strong></td>
+            <td>Mover <code>api.delete</code> de <code>notifications-tab</code> a hook <code>useDeleteNotification</code></td>
+            <td><code>use-notifications.ts</code> + <code>notifications-tab.tsx</code></td>
+            <td><span class="badge badge-neutral">Bajo</span></td>
+            <td><span class="badge badge-success">&#10003; Completado</span></td>
+          </tr>
+          <tr>
+            <td><strong>3</strong></td>
+            <td>Agregar <code>formatCOP</code> a <code>utils.ts</code> y reemplazar 9 definiciones locales</td>
+            <td><code>utils.ts</code> + 9 componentes</td>
+            <td><span class="badge badge-neutral">Bajo</span></td>
+            <td><span class="badge badge-success">&#10003; Completado</span></td>
+          </tr>
+          <tr>
+            <td><strong>4</strong></td>
+            <td>Agregar <code>formatDateShort</code> a <code>utils.ts</code> y reemplazar 6 definiciones locales</td>
+            <td><code>utils.ts</code> + 6 componentes</td>
+            <td><span class="badge badge-neutral">Bajo</span></td>
+            <td><span class="badge badge-success">&#10003; Completado</span></td>
+          </tr>
+          <tr>
+            <td><strong>5</strong></td>
+            <td>Eliminar 4 archivos UI vacios (<code>button.tsx</code>, <code>input.tsx</code>, <code>badge.tsx</code>, <code>spinner.tsx</code>)</td>
+            <td>4 archivos en <code>src/components/ui/</code></td>
+            <td><span class="badge badge-success">Ninguno</span></td>
+            <td><span class="badge badge-success">&#10003; Completado</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ROADMAP -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#ede9fe">🗺️</div>
+      <span class="section-title">Roadmap QA - 8 Fases</span>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead><tr><th>Fase</th><th>Nombre</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Fase 1</strong></td><td>Analisis Estatico y Calidad de Codigo</td><td><span class="badge badge-success">&#10003; Completada &mdash; 0 errores, 0 warnings</span></td></tr>
+          <tr><td><strong>Fase 2</strong></td><td>Arquitectura y Patrones</td><td><span class="badge badge-success">&#10003; Completada &mdash; 5 correcciones aplicadas</span></td></tr>
+          <tr><td><strong>Fase 3</strong></td><td>Seguridad y Autenticacion</td><td><span class="badge badge-neutral">Pendiente</span></td></tr>
+          <tr><td><strong>Fase 4</strong></td><td>Flujos Criticos de Usuario</td><td><span class="badge badge-neutral">Pendiente</span></td></tr>
+          <tr><td><strong>Fase 5</strong></td><td>Prueba de Modulos de Negocio</td><td><span class="badge badge-neutral">Pendiente</span></td></tr>
+          <tr><td><strong>Fase 6</strong></td><td>Exportacion y Generacion de Documentos</td><td><span class="badge badge-neutral">Pendiente</span></td></tr>
+          <tr><td><strong>Fase 7</strong></td><td>Performance y UX</td><td><span class="badge badge-neutral">Pendiente</span></td></tr>
+          <tr><td><strong>Fase 8</strong></td><td>Pruebas de Regresion y Cierre</td><td><span class="badge badge-neutral">Pendiente</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="report-footer">
+    Generado el 2026-06-23 &middot; gestion-frontend &middot; QA Plan v1.0
+  </div>
+
+</div>
+</body>
+</html>

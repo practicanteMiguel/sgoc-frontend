@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { formatCOP, formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   ShoppingCart, Package, FileText,
   Plus, Search, Loader2, Trash2, AlertTriangle, ChevronLeft, ChevronRight,
@@ -33,10 +34,6 @@ const CSS_VARS: React.CSSProperties = {
   '--color-danger-bg':   '#fef2f2',
 } as React.CSSProperties
 
-function formatCOP(value: number | null) {
-  if (value === null) return '-'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
-}
 
 // ── Delete confirm overlay ──────────────────────────────────────────────────
 function DeleteConfirm({ insumo, onClose }: { insumo: Insumo; onClose: () => void }) {
@@ -1056,9 +1053,7 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
     APROBADA: 'Pedido realizado', PEDIDO_REALIZADO: 'Confirmar en bodega', EN_BODEGA: 'Confirmar entrega',
   }
 
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-  }
+
 
   return (
     <div className="flex flex-col gap-4">

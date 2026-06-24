@@ -1,6 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { api } from '@/src/lib/axios'
 import type { InformeFacturas } from '@/src/types/consumables.types'
+
+interface FacturaUpdateEntry {
+  rq_id: string
+  items: { id: string; numero_factura: string | null; precio_real: number | null; proveedor_factura: string | null }[]
+}
+
+export function useUpdateFacturas() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (entries: FacturaUpdateEntry[]) =>
+      Promise.all(entries.map((e) => api.patch(`/requisiciones/${e.rq_id}/facturas`, { items: e.items }))),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['informe'] }),
+    onError:   () => toast.error('Error al guardar facturas'),
+  })
+}
 
 export function useInformeFacturas(mes: number, anio: number) {
   return useQuery({

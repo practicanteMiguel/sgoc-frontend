@@ -1,4 +1,5 @@
 import axios, { type AxiosRequestConfig } from "axios";
+import { getAuthState } from "@/src/stores/auth.store";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
@@ -7,6 +8,7 @@ export const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
   timeout: 10000,
+  withCredentials: true,
 });
 
 
@@ -17,52 +19,23 @@ const NO_REFRESH_ROUTES = [
   "/auth/verify-email",
 ];
 
-
-function getStoredTokens(): { access: string | null; refresh: string | null } {
-  if (typeof window === "undefined") return { access: null, refresh: null };
+// Reads directly from localStorage to handle calls before Zustand rehydrates
+function getStoredAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem("auth-storage");
-    if (!raw) return { access: null, refresh: null };
+    if (!raw) return null;
     const { state } = JSON.parse(raw);
-    return {
-      access: state?.accessToken ?? null,
-      refresh: state?.refreshToken ?? null,
-    };
+    return state?.accessToken ?? null;
   } catch {
-    return { access: null, refresh: null };
+    return null;
   }
-}
-
-function updateStoredAccessToken(token: string) {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = localStorage.getItem("auth-storage");
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    parsed.state.accessToken = token;
-    localStorage.setItem("auth-storage", JSON.stringify(parsed));
-  } catch {}
-}
-
-function clearStoredAuth() {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = localStorage.getItem("auth-storage");
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    parsed.state.accessToken = null;
-    parsed.state.refreshToken = null;
-    parsed.state.user = null;
-    parsed.state.isAuthenticated = false;
-    localStorage.setItem("auth-storage", JSON.stringify(parsed));
-  } catch {}
 }
 
 // ── Interceptor REQUEST — inyecta el Bearer token ──────────────
 api.interceptors.request.use(
   (config) => {
-    const { access } = getStoredTokens();
-
+    const access = getStoredAccessToken();
     if (access) {
       config.headers.Authorization = `Bearer ${access}`;
     }
@@ -115,25 +88,15 @@ api.interceptors.response.use(
     original._retry = true;
     isRefreshing = true;
 
-    const { refresh } = getStoredTokens();
-
-    if (!refresh) {
-      isRefreshing = false;
-      processQueue(error, null);
-      clearStoredAuth();
-      if (typeof window !== "undefined") {
-        window.location.href = "/auth/login";
-      }
-      return Promise.reject(error);
-    }
-
     try {
-      const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
-        refresh_token: refresh,
-      });
+      const { data } = await axios.post(
+        `${BASE_URL}/auth/refresh`,
+        {},
+        { withCredentials: true },
+      );
 
       const newToken = data.access_token;
-      updateStoredAccessToken(newToken);
+      getAuthState().setAccessToken(newToken);
       processQueue(null, newToken);
 
       original.headers = {
@@ -143,7 +106,7 @@ api.interceptors.response.use(
       return api(original);
     } catch (refreshError) {
       processQueue(refreshError, null);
-      clearStoredAuth();
+      getAuthState().clearAuth();
       if (typeof window !== "undefined") {
         window.location.href = "/auth/login";
       }

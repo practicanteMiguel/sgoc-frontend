@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { formatDateShort as formatDate } from '@/src/lib/utils'
 import { Loader2, Link2, Copy, Check, Plus, ChevronDown, ChevronUp, User, Calendar, FileText, Eye, X, Image as ImageIcon, FileDown, FileSpreadsheet } from 'lucide-react'
 import { useMyDotacionSpace, useCreateOrGetDotacionSpace, useDotacionSolicitudesByToken } from '@/src/hooks/dotaciones/use-dotaciones'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
@@ -9,9 +10,6 @@ import { ESTADO_DOTACION_LABELS, ESTADO_DOTACION_COLORS } from '@/src/types/dota
 import type { DotacionSolicitud, Reposicion } from '@/src/types/dotaciones.types'
 import { exportDotacionPdf, exportDotacionExcel } from '@/src/lib/dotacion-export'
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-}
 
 // ── Reposicion detail row ──────────────────────────────────────────────────
 function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {

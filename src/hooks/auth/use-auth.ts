@@ -20,7 +20,7 @@ export function useLogin() {
 
     onSuccess: (data) => {
       qc.clear();
-      setAuth(data.user, data.access_token, data.refresh_token);
+      setAuth(data.user, data.access_token);
       toast.success(`Bienvenido, ${data.user.first_name}`);
 
      
@@ -40,12 +40,12 @@ export function useLogin() {
 
 export function useLogout() {
   const router = useRouter();
-  const { refreshToken, clearAuth } = useAuthStore();
+  const { clearAuth } = useAuthStore();
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: () =>
-      api.post('/auth/logout', { refresh_token: refreshToken }),
+      api.post('/auth/logout'),
 
     onSuccess: () => {
       qc.clear();
