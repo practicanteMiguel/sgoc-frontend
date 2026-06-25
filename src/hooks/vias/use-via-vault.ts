@@ -7,6 +7,6 @@ export function useViaVault(logId: string | null) {
     queryKey: ['via-vault', logId],
     queryFn: () => api.get<ViaCaptureGroup[]>(`/via-logs/${logId}/captures`).then((r) => r.data),
     enabled: !!logId,
-    refetchInterval: 20000,
+    refetchInterval: 60000,
   })
 }

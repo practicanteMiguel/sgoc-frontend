@@ -7,6 +7,6 @@ export function useLogVault(logId: string | null) {
     queryKey: ['vault', logId],
     queryFn: () => api.get<VaultImage[]>(`/logbook/${logId}/vault`).then((r) => r.data),
     enabled: !!logId,
-    refetchInterval: 15000,
+    refetchInterval: 60000,
   })
 }

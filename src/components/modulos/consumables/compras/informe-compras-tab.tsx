@@ -315,7 +315,6 @@ function TotalTabla({ rows, categoria }: { rows: InformeRow[]; categoria: Catego
       setReviewing(results)
     } catch (e) {
       toast.error('Error al leer los PDFs')
-      console.error(e)
     } finally {
       setParsandoOC(false)
     }

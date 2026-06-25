@@ -10,7 +10,7 @@ export function useProfile() {
         queryKey: ['profile', user?.id],
         queryFn: () => api.get('/users/profile').then((r) => r.data),
         enabled: isAuthenticated,
-        staleTime:0,
+        staleTime: 5 * 60 * 1000,
     });
 }
 

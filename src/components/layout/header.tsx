@@ -94,6 +94,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             (e.currentTarget as HTMLElement).style.background = "transparent";
           }}
           title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+          aria-label={theme === "dark" ? "Modo claro" : "Modo oscuro"}
         >
           {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
         </button>
@@ -113,6 +114,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLElement).style.background = "transparent";
             }}
+            aria-label="Notificaciones"
           >
             <Bell size={16} />
             {unread > 0 && (

@@ -40,8 +40,6 @@ export function useSocket() {
     socketRef.current = socket;
 
     socket.on("notification:new", (notification: Notification) => {
-      console.log("[WS] Notificación recibida:", notification.title);
-
       qc.setQueryData(
         ["notifications", { onlyUnread: false }],
         (old: NotifResponse | undefined): NotifResponse => {

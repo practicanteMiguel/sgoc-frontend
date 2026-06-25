@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA Dashboard | gestion-frontend</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* -- HEADER --------------------------------------------- */
+  header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-bottom: 1px solid rgba(229, 57, 53, 0.4);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    height: 52px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(229, 57, 53, 0.06);
+    pointer-events: none;
+  }
+
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .header-badge {
+    background: rgba(229, 57, 53, 0.9);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .header-title {
+    font-size: 12pt;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+  }
+
+  .header-sep {
+    width: 1px;
+    height: 24px;
+    background: rgba(255,255,255,0.15);
+    flex-shrink: 0;
+  }
+
+  /* -- TABS ----------------------------------------------- */
+  .tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 9.5pt;
+    font-weight: 500;
+    color: rgba(255,255,255,0.55);
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .tab:hover {
+    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.1);
+  }
+
+  .tab.active {
+    color: #ffffff;
+    background: rgba(229, 57, 53, 0.18);
+    border-color: rgba(229, 57, 53, 0.5);
+  }
+
+  .tab-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
+
+  .tab.active .tab-dot {
+    opacity: 1;
+    background: #e53935;
+  }
+
+  /* -- STATS PILL ----------------------------------------- */
+  .stats-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 8.5pt;
+    color: rgba(255,255,255,0.6);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .stats-pill strong { color: #4caf50; font-weight: 700; }
+  .stats-pill span + span::before { content: '\00B7'; margin: 0 6px; opacity: 0.4; }
+
+  /* -- WELCOME SCREEN ------------------------------------- */
+  #welcome {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    background: #0f1117;
+    padding: 40px;
+    overflow-y: auto;
+  }
+
+  .welcome-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1a1a2e, #0f3460);
+    border: 1px solid rgba(229, 57, 53, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+
+  .welcome-heading { text-align: center; }
+
+  .welcome-heading h2 {
+    font-size: 22pt;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .welcome-heading p {
+    font-size: 11pt;
+    color: rgba(255,255,255,0.45);
+  }
+
+  .phase-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 880px;
+  }
+
+  .phase-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .phase-card:hover {
+    background: rgba(229, 57, 53, 0.1);
+    border-color: rgba(229, 57, 53, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .phase-card-label {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #e53935;
+  }
+
+  .phase-card-title {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .phase-card-meta {
+    font-size: 8.5pt;
+    color: rgba(255,255,255,0.38);
+    margin-top: 4px;
+  }
+
+  .total-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(76, 175, 80, 0.08);
+    border: 1px solid rgba(76, 175, 80, 0.25);
+    border-radius: 8px;
+    padding: 14px 24px;
+    width: 100%;
+    max-width: 880px;
+  }
+
+  .total-bar-num {
+    font-size: 28pt;
+    font-weight: 800;
+    color: #4caf50;
+    line-height: 1;
+  }
+
+  .total-bar-label {
+    font-size: 10pt;
+    color: rgba(255,255,255,0.55);
+    line-height: 1.5;
+  }
+
+  .total-bar-label strong {
+    color: #fff;
+    font-weight: 600;
+    display: block;
+    font-size: 11pt;
+  }
+
+  /* -- IFRAME --------------------------------------------- */
+  #report-frame {
+    flex: 1;
+    width: 100%;
+    border: none;
+    display: none;
+    background: #fff;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-brand">
+    <span class="header-badge">QA</span>
+    <span class="header-title">gestion-frontend</span>
+  </div>
+
+  <div class="header-sep"></div>
+
+  <nav class="tabs" id="tabs">
+    <div class="tab active" data-phase="welcome" onclick="showWelcome()">
+      <span class="tab-dot"></span>
+      Inicio
+    </div>
+    <div class="tab" data-phase="1" onclick="loadPhase(1, this)">
+      <span class="tab-dot"></span>
+      Fase 1
+    </div>
+    <div class="tab" data-phase="2" onclick="loadPhase(2, this)">
+      <span class="tab-dot"></span>
+      Fase 2
+    </div>
+    <div class="tab" data-phase="3" onclick="loadPhase(3, this)">
+      <span class="tab-dot"></span>
+      Fase 3
+    </div>
+    <div class="tab" data-phase="4" onclick="loadPhase(4, this)">
+      <span class="tab-dot"></span>
+      Fase 4
+    </div>
+    <div class="tab" data-phase="5" onclick="loadPhase(5, this)">
+      <span class="tab-dot"></span>
+      Fase 5
+    </div>
+    <div class="tab" data-phase="6" onclick="loadPhase(6, this)">
+      <span class="tab-dot"></span>
+      Fase 6
+    </div>
+    <div class="tab" data-phase="7" onclick="loadPhase(7, this)">
+      <span class="tab-dot"></span>
+      Fase 7
+    </div>
+    <div class="tab" data-phase="8" onclick="loadPhase(8, this)">
+      <span class="tab-dot"></span>
+      Fase 8
+    </div>
+  </nav>
+
+  <div class="stats-pill">
+    <span><strong>30</strong> bugs</span>
+    <span>8 fases</span>
+    <span>0 regresiones</span>
+  </div>
+</header>
+
+<!-- WELCOME -->
+<div id="welcome">
+  <div class="welcome-logo">&#128203;</div>
+
+  <div class="welcome-heading">
+    <h2>Ciclo QA Completo</h2>
+    <p>Selecciona una fase para ver su informe detallado</p>
+  </div>
+
+  <div class="total-bar" style="max-width:880px;">
+    <div class="total-bar-num">30</div>
+    <div class="total-bar-label">
+      <strong>Bugs corregidos - 30 / 30</strong>
+      0 regresiones &middot; 8 fases completadas &middot; 0 errores TypeScript
+    </div>
+  </div>
+
+  <div class="phase-grid">
+    <div class="phase-card" onclick="loadPhase(1)">
+      <div class="phase-card-label">Fase 1</div>
+      <div class="phase-card-title">Calidad de Codigo</div>
+      <div class="phase-card-meta">2 bugs corregidos</div>
+    </div>
+    <div class="phase-card" onclick="loadPhase(2)">
+      <div class="phase-card-label">Fase 2</div>
+      <div class="phase-card-title">Arquitectura y Patrones</div>
+      <div class="phase-card-meta">5 bugs corregidos</div>
+    </div>
+    <div class="phase-card" onclick="loadPhase(3)">
+      <div class="phase-card-label">Fase 3</div>
+      <div class="phase-card-title">Seguridad y Auth</div>
+      <div class="phase-card-meta">1 bug corregido</div>
+    </div>
+    <div class="phase-card" onclick="loadPhase(4)">
+      <div class="phase-card-label">Fase 4</div>
+      <div class="phase-card-title">Flujos de Usuario</div>
+      <div class="phase-card-meta">5 bugs corregidos</div>
+    </div>
+    <div class="phase-card" onclick="loadPhase(5)">
+      <div class="phase-card-label">Fase 5</div>
+      <div class="phase-card-title">Modulos de Negocio</div>
+      <div class="phase-card-meta">5 bugs corregidos</div>
+    </div>
+    <div class="phase-card" onclick="loadPhase(6)">
+      <div class="phase-card-label">Fase 6</div>
+      <div class="phase-card-title">Exportacion de Docs</div>
+      <div class="phase-card-meta">3 bugs corregidos</div>
+    </div>
+    <div class="phase-card" onclick="loadPhase(7)">
+      <div class="phase-card-label">Fase 7</div>
+      <div class="phase-card-title">Performance y UX</div>
+      <div class="phase-card-meta">3 bugs corregidos</div>
+    </div>
+    <div class="phase-card" onclick="loadPhase(8)">
+      <div class="phase-card-label">Fase 8</div>
+      <div class="phase-card-title">Regresion y Cierre</div>
+      <div class="phase-card-meta">6 bugs corregidos</div>
+    </div>
+  </div>
+</div>
+
+<!-- IFRAME -->
+<iframe id="report-frame" title="Informe QA"></iframe>
+
+<script>
+  const frame   = document.getElementById('report-frame');
+  const welcome = document.getElementById('welcome');
+
+  const phaseFiles = {
+    1: 'fase-1-informe.html',
+    2: 'fase-2-informe.html',
+    3: 'fase-3-informe.html',
+    4: 'fase-4-informe.html',
+    5: 'fase-5-informe.html',
+    6: 'fase-6-informe.html',
+    7: 'fase-7-informe.html',
+    8: 'fase-8-informe.html',
+  };
+
+  function setActiveTab(phaseKey) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    const target = document.querySelector(`.tab[data-phase="${phaseKey}"]`);
+    if (target) target.classList.add('active');
+  }
+
+  function showWelcome() {
+    frame.style.display = 'none';
+    welcome.style.display = 'flex';
+    setActiveTab('welcome');
+    history.replaceState(null, '', '#');
+  }
+
+  function loadPhase(num) {
+    const file = phaseFiles[num];
+    if (!file) return;
+    welcome.style.display = 'none';
+    frame.src = file;
+    frame.style.display = 'block';
+    setActiveTab(String(num));
+    history.replaceState(null, '', `#fase${num}`);
+  }
+
+  // deep-link on load
+  const match = location.hash.match(/^#fase(\d+)$/);
+  if (match) loadPhase(parseInt(match[1]));
+</script>
+
+</body>
+</html>

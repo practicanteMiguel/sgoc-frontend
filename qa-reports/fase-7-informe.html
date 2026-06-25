@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QA Fase 6 - Exportacion y Generacion de Documentos | gestion-frontend</title>
+  <title>QA Fase 7 - Performance y UX | gestion-frontend</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -280,7 +280,7 @@
 <div class="topbar">
   <div class="topbar-left">
     <span class="topbar-title">QA Report - gestion-frontend</span>
-    <span class="topbar-sub">Fase 6 de 8 &nbsp;|&nbsp; Exportacion y Generacion de Documentos</span>
+    <span class="topbar-sub">Fase 7 de 8 &nbsp;|&nbsp; Performance y UX</span>
   </div>
   <button class="btn-pdf" onclick="window.print()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -296,15 +296,15 @@
   <!-- HEADER -->
   <div class="report-header">
     <div>
-      <h1>Fase 6 - Exportacion y Generacion de Documentos</h1>
-      <p>Auditoria de funcionalidad de exportacion PDF, Excel y Word en todos los modulos del sistema.</p>
+      <h1>Fase 7 - Performance y UX</h1>
+      <p>Auditoria de configuracion de TanStack Query: intervalos de polling, staleTime y comportamiento de refetch en todos los hooks del sistema.</p>
     </div>
     <div class="meta-row">
       <span class="meta-pill">Proyecto: gestion-frontend</span>
       <span class="meta-pill">Stack: Next.js 16 / React 19 / TypeScript</span>
-      <span class="meta-pill">Librerias: html2pdf.js / ExcelJS / docx / pdfjs-dist</span>
-      <span class="meta-pill">Fecha: 2026-06-24</span>
-      <span class="meta-pill">Fase: 6 de 8</span>
+      <span class="meta-pill">Libreria: TanStack Query v5</span>
+      <span class="meta-pill">Fecha: 2026-06-25</span>
+      <span class="meta-pill">Fase: 7 de 8</span>
     </div>
   </div>
 
@@ -317,19 +317,19 @@
     <div class="section-body">
       <div class="kpi-grid">
         <div class="kpi-card kpi-neutral">
-          <span class="kpi-label">Archivos auditados</span>
-          <span class="kpi-value">11</span>
-          <span class="kpi-delta">libs + componentes de exportacion</span>
+          <span class="kpi-label">Hooks auditados</span>
+          <span class="kpi-value">9</span>
+          <span class="kpi-delta">hooks de TanStack Query + componentes clave</span>
         </div>
         <div class="kpi-card kpi-danger">
           <span class="kpi-label">Bugs corregidos</span>
           <span class="kpi-value">3</span>
-          <span class="kpi-delta">todos de manejo de errores incompleto</span>
+          <span class="kpi-delta">configuraciones excesivas de staleTime/refetchInterval</span>
         </div>
         <div class="kpi-card kpi-neutral">
           <span class="kpi-label">Archivos modificados</span>
           <span class="kpi-value">3</span>
-          <span class="kpi-delta">supervisor-activities-view, report-generate, voice-report-modal</span>
+          <span class="kpi-delta">use-profile, use-vault, use-via-vault</span>
         </div>
         <div class="kpi-card kpi-success">
           <span class="kpi-label">Errores TypeScript</span>
@@ -339,15 +339,16 @@
         <div class="kpi-card kpi-neutral">
           <span class="kpi-label">Falsos positivos</span>
           <span class="kpi-value">5</span>
-          <span class="kpi-delta">patrones correctos confirmados</span>
+          <span class="kpi-delta">patrones de polling intencionales confirmados</span>
         </div>
       </div>
 
       <div style="margin-top:20px;" class="info-box">
         <strong>Patron recurrente encontrado:</strong> Los 3 bugs pertenecen a la misma categoria -
-        manejo de errores incompleto en flujos de exportacion. Ninguno produce datos incorrectos ni
-        corrompe exportaciones. Los fallos son silenciosos: el usuario no recibe retroalimentacion
-        cuando una operacion de exportacion o generacion falla.
+        valores de <code>staleTime</code> y <code>refetchInterval</code> demasiado agresivos para el tipo de dato
+        que consultan. Ninguno produce datos incorrectos. El impacto es de red: llamadas API innecesarias
+        por datos de perfil y multimedia que casi nunca cambian, cuando ya existe invalidacion por mutacion
+        para manejar actualizaciones del usuario actual.
       </div>
     </div>
   </div>
@@ -365,38 +366,44 @@
         <div class="finding-header">
           <div class="finding-num" style="background:var(--danger);">1</div>
           <div>
-            <div class="finding-title">generateWeekExcel - falta verificacion res.ok antes de arrayBuffer()</div>
-            <div class="finding-file">src/components/modulos/reports/activities/supervisor-activities-view.tsx : 150-153</div>
+            <div class="finding-title">useProfile - staleTime: 0 dispara refetch en cada montaje del modulo de monitoreo</div>
+            <div class="finding-file">src/hooks/settings/use-profile.ts : 13</div>
             <div class="finding-meta">
-              <span class="badge badge-danger">Error silencioso</span>
-              <span class="badge badge-warning">Inconsistencia de patron</span>
-              <span class="badge badge-info">Export Excel</span>
+              <span class="badge badge-danger">Refetch innecesario</span>
+              <span class="badge badge-warning">Impacto de red</span>
+              <span class="badge badge-info">Modulo Monitoreo</span>
             </div>
           </div>
         </div>
         <div class="finding-body">
           <p class="finding-desc">
-            La funcion <code>generateWeekExcel</code> descarga imagenes de actividades (antes/durante/despues)
-            para embeber en el Excel. El codigo llama <code>res.arrayBuffer()</code> sin verificar primero
-            <code>res.ok</code>. Si una URL de imagen devuelve 403 o 404 (por ejemplo, una URL firmada expirada),
-            <code>fetch</code> resuelve correctamente pero retorna el body de error (HTML de la pagina de error).
-            ExcelJS intenta insertar ese HTML como imagen PNG/JPEG y lanza una excepcion interna.
-            El <code>catch</code> la absorbe silenciosamente. El patron correcto ya existe en
-            <code>fetchLogoBuffer</code> (usado en <code>dotacion-export.ts</code> y <code>generate-via-word.ts</code>)
-            que verifica <code>!res.ok</code> antes de llamar <code>arrayBuffer()</code>.
+            Con <code>staleTime: 0</code>, TanStack Query considera el cache inmediatamente obsoleto.
+            Cada vez que el componente que usa <code>useProfile</code> se monta, se dispara una llamada a
+            <code>/users/profile</code>. El hook es usado en <code>voice-log-list.tsx</code> (lista de
+            transcripciones, siempre visible al navegar al modulo de monitoreo) y en <code>profile-tab.tsx</code>.
+            El perfil contiene nombre, cargo y campo del usuario - datos que casi nunca cambian en una sesion.
+            La mutacion <code>useUpdateProfile</code> ya llama a <code>qc.invalidateQueries(['profile'])</code>
+            en su <code>onSuccess</code>, por lo que el refetch continuo es completamente redundante: cualquier
+            actualizacion real del usuario ya invalidaria el cache inmediatamente.
+            <br><br>
+            Con <code>staleTime: 5 * 60 * 1000</code> (5 minutos), el perfil se sirve desde cache durante la
+            sesion normal de trabajo y se refresca automaticamente cuando el usuario lo actualiza.
           </p>
-          <pre><span class="code-comment">// ANTES - supervisor-activities-view.tsx:148</span>
-<span class="code-before">          try {
-            const res = await fetch(url)
-            const buf = await res.arrayBuffer()   // error HTML si 404/403
-            const ct  = res.headers.get('content-type') ?? ''</span>
+          <pre><span class="code-comment">// ANTES - use-profile.ts:13</span>
+<span class="code-before">    return useQuery({
+        queryKey: ['profile', user?.id],
+        queryFn: () => api.get('/users/profile').then((r) => r.data),
+        enabled: isAuthenticated,
+        staleTime: 0,   // refetch en CADA montaje y window focus
+    });</span>
 
-<span class="code-comment">// DESPUES - patron consistente con fetchLogoBuffer</span>
-<span class="code-after">          try {
-            const res = await fetch(url)
-            if (!res.ok) continue               // skip imagen no disponible
-            const buf = await res.arrayBuffer()
-            const ct  = res.headers.get('content-type') ?? ''</span></pre>
+<span class="code-comment">// DESPUES - datos de perfil son casi estaticos; mutacion invalida al actualizar</span>
+<span class="code-after">    return useQuery({
+        queryKey: ['profile', user?.id],
+        queryFn: () => api.get('/users/profile').then((r) => r.data),
+        enabled: isAuthenticated,
+        staleTime: 5 * 60 * 1000,
+    });</span></pre>
         </div>
       </div>
 
@@ -405,38 +412,45 @@
         <div class="finding-header">
           <div class="finding-num" style="background:var(--danger);">2</div>
           <div>
-            <div class="finding-title">handleGenerate y handleSave - catch vacio sin feedback al usuario</div>
-            <div class="finding-file">src/components/modulos/reports/activities/report-generate.tsx : 418-442</div>
+            <div class="finding-title">useLogVault - refetchInterval: 15000 genera 4 llamadas por minuto para imagenes de bitacora</div>
+            <div class="finding-file">src/hooks/activities/use-vault.ts : 10</div>
             <div class="finding-meta">
-              <span class="badge badge-danger">UX silencioso</span>
-              <span class="badge badge-warning">Sin toast de error</span>
-              <span class="badge badge-info">Informes tecnicos</span>
+              <span class="badge badge-danger">Polling excesivo</span>
+              <span class="badge badge-warning">4 calls/min por bitacora abierta</span>
+              <span class="badge badge-info">Modulo Bitacoras</span>
             </div>
           </div>
         </div>
         <div class="finding-body">
           <p class="finding-desc">
-            Ambas funciones tienen bloques <code>catch {}</code> completamente vacios. Si la API falla
-            al crear o actualizar un informe tecnico, el spinner desaparece y el boton vuelve a aparecer
-            sin ningun mensaje de error. El usuario no sabe si debe reintentar, si el problema es transitorio,
-            o si sus datos se perdieron. Contraste con <code>handlePdf</code> en el mismo archivo
-            que usa try/finally apropiadamente.
+            <code>useLogVault</code> descarga la lista de imagenes asociadas a una bitacora de actividades.
+            Con <code>refetchInterval: 15000</code>, si un supervisor mantiene una bitacora abierta por 1 hora,
+            el browser realiza 240 llamadas a <code>/logbook/{id}/vault</code> solo para verificar si hay
+            nuevas imagenes. El hook de carga <code>useLogbook</code> ya invoca
+            <code>qc.invalidateQueries({ queryKey: ['vault', logId] })</code> en su <code>onSuccess</code>,
+            cubriendo las subidas del usuario actual de forma inmediata. El caso de subidas de otros usuarios
+            en colaboracion de campo no requiere actualizacion en menos de 1 minuto - 60 segundos es suficiente
+            para una experiencia colaborativa aceptable sin saturar el servidor.
           </p>
-          <pre><span class="code-comment">// ANTES - handleGenerate (linea 426) y handleSave (linea 441)</span>
-<span class="code-before">    } catch {}  // usuario no sabe que fallo la operacion
-    setGenerating(false)</span>
+          <pre><span class="code-comment">// ANTES - use-vault.ts:10</span>
+<span class="code-before">export function useLogVault(logId: string | null) {
+  return useQuery({
+    queryKey: ['vault', logId],
+    queryFn: () => api.get&lt;VaultImage[]&gt;(`/logbook/${logId}/vault`).then((r) => r.data),
+    enabled: !!logId,
+    refetchInterval: 15000,   // 4 API calls/minuto por bitacora abierta
+  })
+}</span>
 
-<span class="code-comment">// DESPUES - con toast de error en ambas funciones</span>
-<span class="code-after">    } catch {
-      toast.error('Error al generar el informe')
-    }
-    setGenerating(false)
-
-    // handleSave:
-    } catch {
-      toast.error('Error al guardar los cambios')
-    }
-    setSaving(false)</span></pre>
+<span class="code-comment">// DESPUES - invalidacion por mutacion cubre subidas propias; 60s es suficiente para colaboracion</span>
+<span class="code-after">export function useLogVault(logId: string | null) {
+  return useQuery({
+    queryKey: ['vault', logId],
+    queryFn: () => api.get&lt;VaultImage[]&gt;(`/logbook/${logId}/vault`).then((r) => r.data),
+    enabled: !!logId,
+    refetchInterval: 60000,
+  })
+}</span></pre>
         </div>
       </div>
 
@@ -445,39 +459,43 @@
         <div class="finding-header">
           <div class="finding-num" style="background:var(--danger);">3</div>
           <div>
-            <div class="finding-title">VoiceReportModal - sin handler onError en la mutacion de generacion IA</div>
-            <div class="finding-file">src/components/modulos/monitoring/voice/voice-report-modal.tsx : 103-114</div>
+            <div class="finding-title">useViaVault - refetchInterval: 20000 genera 3 llamadas por minuto para grupos de captura</div>
+            <div class="finding-file">src/hooks/vias/use-via-vault.ts : 10</div>
             <div class="finding-meta">
-              <span class="badge badge-danger">Sin feedback de error</span>
-              <span class="badge badge-warning">Import toast faltante</span>
-              <span class="badge badge-info">Modulo Monitoreo</span>
+              <span class="badge badge-danger">Polling excesivo</span>
+              <span class="badge badge-warning">3 calls/min por via abierta</span>
+              <span class="badge badge-info">Modulo Vias</span>
             </div>
           </div>
         </div>
         <div class="finding-body">
           <p class="finding-desc">
-            <code>generate.mutate</code> llama a la API de IA para procesar transcripciones de voz y generar
-            un informe estructurado. El segundo argumento de <code>mutate</code> solo tiene <code>onSuccess</code>.
-            Si la API de IA falla (error de red, timeout, tokens insuficientes), <code>generate.isPending</code>
-            vuelve a <code>false</code>, el spinner desaparece y el boton reaparece sin ningun toast ni mensaje.
-            Adicionalmente, <code>toast</code> de <code>sonner</code> no estaba importado en este archivo,
-            por lo que se agrego el import junto con el handler.
+            <code>useViaVault</code> descarga los grupos de captura (fotos de verificacion de via) de un log
+            de via especifico. A diferencia de <code>useLogVault</code>, no existe ninguna invalidacion por
+            mutacion en el codebase para <code>['via-vault']</code> (verificado por grep global), por lo que
+            el polling es el unico mecanismo para ver subidas de otros usuarios. Sin embargo, 20 segundos
+            sigue siendo demasiado agresivo para imagenes que se capturan puntualmente durante inspecciones
+            de campo. Aumentar a 60 segundos mantiene la visibilidad colaborativa con un tercio del trafico de red.
           </p>
-          <pre><span class="code-comment">// ANTES - voice-report-modal.tsx</span>
-<span class="code-before">// sin import de toast
-
-    generate.mutate({ ids, title: resolvedTitle }, {
-      onSuccess: async (data) => { ... },
-      // falta onError
-    })</span>
+          <pre><span class="code-comment">// ANTES - use-via-vault.ts:10</span>
+<span class="code-before">export function useViaVault(logId: string | null) {
+  return useQuery({
+    queryKey: ['via-vault', logId],
+    queryFn: () => api.get&lt;ViaCaptureGroup[]&gt;(`/via-logs/${logId}/captures`).then((r) => r.data),
+    enabled: !!logId,
+    refetchInterval: 20000,   // 3 API calls/minuto, sin invalidacion por mutacion
+  })
+}</span>
 
 <span class="code-comment">// DESPUES</span>
-<span class="code-after">import { toast } from 'sonner'
-
-    generate.mutate({ ids, title: resolvedTitle }, {
-      onSuccess: async (data) => { ... },
-      onError: () => toast.error('Error al generar el informe'),
-    })</span></pre>
+<span class="code-after">export function useViaVault(logId: string | null) {
+  return useQuery({
+    queryKey: ['via-vault', logId],
+    queryFn: () => api.get&lt;ViaCaptureGroup[]&gt;(`/via-logs/${logId}/captures`).then((r) => r.data),
+    enabled: !!logId,
+    refetchInterval: 60000,
+  })
+}</span></pre>
         </div>
       </div>
 
@@ -503,33 +521,33 @@
         <tbody>
           <tr>
             <td>1</td>
-            <td>Cast complejo de ExcelJS: <code>(excelModule as { default?: ... }).default ?? excelModule</code></td>
-            <td><code>dotacion-export.ts</code></td>
-            <td>ExcelJS tiene exports tanto <code>default</code> como nombrados segun el bundler. El cast es necesario para compatibilidad con Webpack y Turbopack.</td>
+            <td>Posible memory leak: <code>useEffect(() => stopTimer, [])</code></td>
+            <td><code>voice-recorder.tsx:30</code></td>
+            <td>Patron correcto de React. <code>stopTimer</code> es retornado como referencia de funcion cleanup - no llamado. React lo invoca en el unmount del componente, limpiando el <code>setInterval</code>. No hay leak.</td>
           </tr>
           <tr>
             <td>2</td>
-            <td><code>eslint-disable react-hooks/exhaustive-deps</code> en <code>filteredReports</code></td>
-            <td><code>supervisor-vias-view.tsx:144</code></td>
-            <td>Patron deliberado documentado en Fase 5. La variable se asigna fuera del useMemo intencionalmente para control manual de dependencias.</td>
+            <td><code>useEmployees</code> sin guard <code>enabled</code> cuando <code>field_id</code> podria ser nulo</td>
+            <td><code>src/hooks/reports/use-employees.ts</code></td>
+            <td>Todos los call sites que pasan <code>field_id</code> usan valores ya validados (ej. <code>deliverable.field.id</code>, <code>field.id</code>). Los calls de dashboard sin <code>field_id</code> son intencionales: vistas administrativas que requieren todos los empleados.</td>
           </tr>
           <tr>
             <td>3</td>
-            <td>Fetch secuencial de imagenes en bucle <code>for await</code></td>
-            <td><code>generate-via-word.ts:154</code></td>
-            <td>Las imagenes se deben insertar en el documento Word en orden. El procesamiento paralelo romperia el orden de los parrafos en el array <code>body</code>.</td>
+            <td><code>useNotifications</code> + <code>useUnreadCount</code> ambos con <code>refetchOnWindowFocus: true</code>, generando 2 llamadas API por enfoque</td>
+            <td><code>use-notifications.ts:89, 102</code></td>
+            <td>Intencional: son endpoints distintos (lista paginada vs. contador). El <code>staleTime: 60 * 1000</code> limita los refetches a maximo 1 vez por minuto por enfoque, lo que es razonable para notificaciones en tiempo de aplicacion.</td>
           </tr>
           <tr>
             <td>4</td>
-            <td><code>BASE = Date.UTC(2025, 11, 29)</code> hardcodeado en multiples archivos</td>
-            <td><code>report-generate.tsx:46</code>, <code>supervisor-activities-view.tsx:28</code></td>
-            <td>Fecha base del sistema de semanas fiscales del proyecto. Es una constante del dominio de negocio, no un magic number accidental. Usada consistentemente en todos los calculos de Gantt y barra de cumplimiento.</td>
+            <td><code>usePushStatus</code> con <code>staleTime: 0</code> en <code>use-notifications.ts:40</code></td>
+            <td><code>use-notifications.ts:40</code></td>
+            <td>Solo se usa en la pagina de configuracion, no en el layout global. El impacto es una unica llamada async a la Service Worker API por enfoque de ventana - negligible en frecuencia e impacto. No justifica correccion.</td>
           </tr>
           <tr>
             <td>5</td>
-            <td><code>fetchBuf</code> duplica la logica de <code>fetchLogoBuffer</code></td>
-            <td><code>requisicion-detail.tsx:184</code></td>
-            <td>Funcion auxiliar anidada dentro de <code>exportExcel</code>. La duplicacion es intencional para evitar un import adicional en una funcion standalone que no necesita el modulo completo de <code>report-header</code>.</td>
+            <td><code>useViaLog</code> (20s) y <code>useRequisicion</code> (30s) con polling activado en vistas de detalle</td>
+            <td><code>use-via-logs.ts:24</code>, <code>use-requisiciones.ts:34</code></td>
+            <td>Polling intencional para edicion colaborativa: varios usuarios pueden modificar el mismo via-log o requisicion simultaneamente. Los intervalos (20s y 30s) son aceptables para el caso de uso de campo. Se diferencian de los bugs porque los datos cambian frecuentemente por accion de otros usuarios.</td>
           </tr>
         </tbody>
       </table>
@@ -547,45 +565,40 @@
         <thead>
           <tr>
             <th>Patron</th>
-            <th>Archivos</th>
+            <th>Hook / Archivo</th>
             <th>Nota</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><code>await html2pdf().set({...}).from(html).save()</code></td>
-            <td><code>generate-via-pdf.ts</code>, <code>solicitud-pdf.ts</code>, <code>dotacion-export.ts</code>, <code>report-generate.tsx</code>, <code>voice-report-modal.tsx</code></td>
-            <td>El <code>await</code> esta correctamente colocado en la llamada a <code>html2pdf()</code>, que retorna el wrapper completo incluyendo <code>.save()</code>.</td>
+            <td><code>enabled: !!logId</code> en hooks de vault</td>
+            <td><code>use-vault.ts</code>, <code>use-via-vault.ts</code></td>
+            <td>Guard correcto: el query no se ejecuta hasta que <code>logId</code> este disponible. Evita llamadas con parametros nulos.</td>
           </tr>
           <tr>
-            <td>Blob + <code>URL.createObjectURL</code> para Excel y Word</td>
-            <td><code>dotacion-export.ts</code>, <code>requisicion-detail.tsx</code>, <code>supervisor-activities-view.tsx</code>, <code>supervisor-vias-view.tsx</code></td>
-            <td>Patron correcto: se llama <code>URL.revokeObjectURL</code> inmediatamente despues de <code>a.click()</code> para liberar memoria.</td>
+            <td><code>staleTime: 60 * 1000</code> en notificaciones</td>
+            <td><code>use-notifications.ts:89, 102</code></td>
+            <td>Balance apropiado para datos de notificaciones: fresco al abrir la app pero sin refetch excesivo durante el uso normal.</td>
           </tr>
           <tr>
-            <td><code>fetchLogoBase64</code> para imagenes en PDF HTML</td>
-            <td><code>solicitud-pdf.ts</code>, <code>generate-via-word.ts</code></td>
-            <td>Convierte el logo a base64 para embebido en HTML inline, evitando problemas CORS cuando html2canvas renderiza el HTML.</td>
+            <td><code>staleTime: 0</code> con comentario explicativo en modal admin</td>
+            <td><code>use-user-module-access.ts:61</code></td>
+            <td>Intencional y documentado: "siempre fresco al abrir el modal". El modal de accesos de usuario requiere datos actualizados porque administradores pueden cambiar permisos en cualquier momento.</td>
           </tr>
           <tr>
-            <td><code>fetchLogoBuffer</code> para imagenes en Excel/Word docx</td>
-            <td><code>dotacion-export.ts</code>, <code>supervisor-activities-view.tsx</code>, <code>generate-via-word.ts</code></td>
-            <td>Retorna <code>ArrayBuffer</code> directamente para ExcelJS y docx, que requieren datos binarios en lugar de data URLs.</td>
+            <td><code>enabled: isAuthenticated</code> en useProfile</td>
+            <td><code>use-profile.ts:12</code></td>
+            <td>Guard correcto: el query de perfil no se ejecuta para usuarios no autenticados. No necesito guard adicional.</td>
           </tr>
           <tr>
-            <td><code>Promise.all</code> para carga paralela de imagenes</td>
-            <td><code>dotacion-export.ts:278-330</code></td>
-            <td>Correcto: todas las imagenes de reposicion y firmas se descargan en paralelo antes de escribir el buffer Excel.</td>
+            <td><code>qc.invalidateQueries(['profile'])</code> en mutacion de actualizacion</td>
+            <td><code>use-profile.ts:48</code></td>
+            <td>Patron correcto de invalidacion post-mutacion. Con el nuevo <code>staleTime: 5 * 60 * 1000</code>, cualquier actualizacion del usuario sigue siendo inmediatamente visible.</td>
           </tr>
           <tr>
-            <td>Estilo <code>try/finally</code> en <code>downloadPdfFromHtml</code></td>
-            <td><code>report-generate.tsx:301-323</code></td>
-            <td>El elemento <code>&lt;style&gt;</code> temporal se remueve de <code>document.head</code> en el bloque <code>finally</code>, garantizando limpieza incluso si la generacion falla.</td>
-          </tr>
-          <tr>
-            <td>Importacion dinamica de html2pdf.js</td>
-            <td>Todos los archivos que usan html2pdf</td>
-            <td>El <code>await import('html2pdf.js')</code> es correcto: html2pdf usa <code>window</code> y solo puede ejecutarse en el cliente. La importacion dinamica evita errores en SSR.</td>
+            <td><code>qc.invalidateQueries(['vault', logId])</code> en mutacion de subida</td>
+            <td><code>use-logbook.ts:98</code></td>
+            <td>Invalidacion correcta y especifica por <code>logId</code>. Complementa el nuevo <code>refetchInterval: 60000</code>: subidas propias son inmediatas, subidas de otros usuarios aparecen en el siguiente poll.</td>
           </tr>
         </tbody>
       </table>
@@ -611,68 +624,21 @@
         <tbody>
           <tr>
             <td>1</td>
-            <td><code>supervisor-activities-view.tsx</code></td>
-            <td>Agrega <code>if (!res.ok) continue</code> antes de <code>res.arrayBuffer()</code> en el fetch de imagenes de actividad dentro de <code>generateWeekExcel</code></td>
+            <td><code>use-profile.ts</code></td>
+            <td>Cambia <code>staleTime: 0</code> a <code>staleTime: 5 * 60 * 1000</code> en <code>useProfile</code></td>
             <td><span class="badge badge-success">Aplicado</span></td>
           </tr>
           <tr>
             <td>2</td>
-            <td><code>report-generate.tsx</code></td>
-            <td>Agrega <code>toast.error('Error al generar el informe')</code> en el catch de <code>handleGenerate</code></td>
+            <td><code>use-vault.ts</code></td>
+            <td>Cambia <code>refetchInterval: 15000</code> a <code>refetchInterval: 60000</code> en <code>useLogVault</code></td>
             <td><span class="badge badge-success">Aplicado</span></td>
           </tr>
           <tr>
             <td>3</td>
-            <td><code>report-generate.tsx</code></td>
-            <td>Agrega <code>toast.error('Error al guardar los cambios')</code> en el catch de <code>handleSave</code></td>
+            <td><code>use-via-vault.ts</code></td>
+            <td>Cambia <code>refetchInterval: 20000</code> a <code>refetchInterval: 60000</code> en <code>useViaVault</code></td>
             <td><span class="badge badge-success">Aplicado</span></td>
-          </tr>
-          <tr>
-            <td>4</td>
-            <td><code>voice-report-modal.tsx</code></td>
-            <td>Agrega import de <code>toast</code> desde <code>sonner</code></td>
-            <td><span class="badge badge-success">Aplicado</span></td>
-          </tr>
-          <tr>
-            <td>5</td>
-            <td><code>voice-report-modal.tsx</code></td>
-            <td>Agrega <code>onError: () => toast.error('Error al generar el informe')</code> al objeto de callbacks de <code>generate.mutate</code></td>
-            <td><span class="badge badge-success">Aplicado</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ERRORES PRE-EXISTENTES -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:#fef3c7;">&#9888;</div>
-      <span class="section-title">Errores TypeScript Pre-existentes (fuera de alcance)</span>
-    </div>
-    <div class="section-body">
-      <div class="warn-box" style="margin-bottom:16px;">
-        <strong>Nota:</strong> Los siguientes errores existian antes de la Fase 6 y no fueron introducidos
-        por las correcciones aplicadas. Se documentan para referencia pero quedan fuera del alcance de esta fase.
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Archivo</th>
-            <th>Lineas</th>
-            <th>Error</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>supervisor-activities-view.tsx</code></td>
-            <td>78</td>
-            <td>Cast de tipo ExcelJS module - conversiones de tipos insuficientemente superpuestos</td>
-          </tr>
-          <tr>
-            <td><code>supervisor-activities-view.tsx</code></td>
-            <td>105, 109, 159, 160</td>
-            <td>Tipo <code>{ col, row }</code> no compatible con <code>Anchor</code> de ExcelJS - faltan propiedades <code>nativeCol</code>, <code>nativeColOff</code>, etc.</td>
           </tr>
         </tbody>
       </table>
@@ -726,17 +692,17 @@
             <td>5 corregidos</td>
             <td><span class="badge badge-success">Completada</span></td>
           </tr>
-          <tr style="background:#f0fdf4;">
+          <tr>
             <td><strong>Fase 6</strong></td>
             <td>Exportacion y Generacion de Documentos</td>
             <td>3 corregidos</td>
             <td><span class="badge badge-success">Completada</span></td>
           </tr>
-          <tr>
+          <tr style="background:#f0fdf4;">
             <td><strong>Fase 7</strong></td>
             <td>Performance y UX</td>
-            <td>-</td>
-            <td><span class="badge badge-neutral">Pendiente</span></td>
+            <td>3 corregidos</td>
+            <td><span class="badge badge-success">Completada</span></td>
           </tr>
           <tr>
             <td><strong>Fase 8</strong></td>
@@ -750,7 +716,7 @@
   </div>
 
   <div class="report-footer">
-    Generado por Claude Code &nbsp;|&nbsp; gestion-frontend QA &nbsp;|&nbsp; 2026-06-24 &nbsp;|&nbsp; Fase 6 de 8
+    Generado por Claude Code &nbsp;|&nbsp; gestion-frontend QA &nbsp;|&nbsp; 2026-06-25 &nbsp;|&nbsp; Fase 7 de 8
   </div>
 
 </div>
