@@ -423,7 +423,9 @@ export function ReportGenerate({ logId, crewId, fieldName = '', onBack }: Props)
       setReportId(report.id)
       setSaved(true)
       toast.success('Informe generado')
-    } catch {}
+    } catch {
+      toast.error('Error al generar el informe')
+    }
     setGenerating(false)
   }
 
@@ -437,7 +439,9 @@ export function ReportGenerate({ logId, crewId, fieldName = '', onBack }: Props)
       })
       setSaved(true)
       toast.success('Guardado')
-    } catch {}
+    } catch {
+      toast.error('Error al guardar los cambios')
+    }
     setSaving(false)
   }
 

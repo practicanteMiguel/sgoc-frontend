@@ -73,6 +73,7 @@ export function useEnvioMasivo() {
       api.post<EnvioMasivoResult>('/requisiciones/masivo', data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
+      toast.success('Requisiciones enviadas correctamente')
     },
     onError: (err: AxiosError<{ message?: string | string[] }>) => {
       const msg = err.response?.data?.message
@@ -88,6 +89,7 @@ export function useLlenadoRequisicion() {
       api.patch<Requisicion>(`/requisiciones/${id}/llenado`, data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['requisiciones'] })
+      toast.success('Requisicion enviada correctamente')
     },
     onError: (err: AxiosError<{ message?: string | string[] }>) => {
       const msg = err.response?.data?.message

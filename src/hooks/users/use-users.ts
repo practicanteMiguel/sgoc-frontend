@@ -101,9 +101,9 @@ export function useResetPassword() {
 }
 export function useListUsersSelect() {
   const { user: me } = useAuthStore();
-  
+
   return useQuery({
-    queryKey: ['users', 'list-simple'],
+    queryKey: ['users', 'list-simple', me?.id],
     queryFn:  () =>
       api.get<PaginatedResponse<User>>(`/users?limit=100`)
         .then((r) => r.data.data.filter((u) => u.id !== me?.id)),

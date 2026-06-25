@@ -150,6 +150,7 @@ async function generateWeekExcel(
           if (!url) continue
           try {
             const res = await fetch(url)
+            if (!res.ok) continue
             const buf = await res.arrayBuffer()
             const ct  = res.headers.get('content-type') ?? ''
             const ext = ct.includes('png') ? 'png' : 'jpeg'

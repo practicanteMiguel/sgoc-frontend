@@ -3,18 +3,21 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/auth.store';
+import { useHasHydrated } from '../hooks/auth/use-has-hydrated';
 
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hasHydrated = useHasHydrated();
 
   useEffect(() => {
+    if (!hasHydrated) return;
     if (isAuthenticated) {
       router.replace('/dashboard/dashboard');
     } else {
       router.replace('/auth/login');
     }
-  }, [isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center"

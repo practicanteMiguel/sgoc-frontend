@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QA Fase 4 - Flujos Criticos de Usuario | gestion-frontend</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:   #0D3B58;
+      --accent:    #1a6fa8;
+      --success:   #059669;
+      --warning:   #d97706;
+      --danger:    #dc2626;
+      --neutral:   #64748b;
+      --bg:        #f8fafc;
+      --surface:   #ffffff;
+      --border:    #e2e8f0;
+      --text:      #0f172a;
+      --text-muted:#64748b;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* -- TOPBAR ------------------------------------------------- */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    }
+    .topbar-left { display: flex; flex-direction: column; gap: 2px; }
+    .topbar-title { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+    .topbar-sub   { font-size: 11px; opacity: 0.7; }
+
+    .btn-pdf {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      color: var(--primary);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-pdf:hover { opacity: 0.85; }
+    .btn-pdf svg { flex-shrink: 0; }
+
+    /* -- LAYOUT ------------------------------------------------- */
+    .wrapper {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 36px 24px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* -- HEADER CARD -------------------------------------------- */
+    .report-header {
+      background: var(--primary);
+      border-radius: 14px;
+      color: #fff;
+      padding: 32px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .report-header h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .report-header p { font-size: 13px; opacity: 0.75; }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .meta-pill {
+      background: rgba(255,255,255,0.13);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* -- SECTION ------------------------------------------------ */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: #f1f5f9;
+    }
+    .section-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .section-title { font-size: 14px; font-weight: 700; color: var(--primary); }
+    .section-body  { padding: 20px 24px; }
+
+    /* -- KPI GRID ----------------------------------------------- */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 14px;
+    }
+    .kpi-card {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); }
+    .kpi-value { font-size: 28px; font-weight: 800; line-height: 1; }
+    .kpi-delta { font-size: 12px; font-weight: 500; }
+
+    .kpi-neutral .kpi-value { color: var(--text); }
+    .kpi-success .kpi-value { color: var(--success); }
+    .kpi-warning .kpi-value { color: var(--warning); }
+    .kpi-danger  .kpi-value { color: var(--danger); }
+
+    .delta-up   { color: var(--success); }
+    .delta-down { color: var(--danger); }
+
+    /* -- TABLES ------------------------------------------------- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      background: #f1f5f9;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 9px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f8fafc; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-danger  { background: #fee2e2; color: #b91c1c; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-success { background: #d1fae5; color: #065f46; }
+    .badge-neutral { background: #f1f5f9; color: #475569; }
+    .badge-info    { background: #dbeafe; color: #1e40af; }
+
+    /* -- FINDING CARDS ------------------------------------------ */
+    .finding-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .finding-card:last-child { margin-bottom: 0; }
+    .finding-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 18px;
+      background: #fafafa;
+      border-bottom: 1px solid var(--border);
+    }
+    .finding-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .finding-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .finding-file  { font-size: 11px; color: var(--text-muted); font-family: 'Courier New', monospace; margin-top: 3px; }
+    .finding-meta  { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+    .finding-body  { padding: 14px 18px; }
+    .finding-desc  { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+
+    /* -- CODE BLOCK --------------------------------------------- */
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 12px;
+      line-height: 1.55;
+      overflow-x: auto;
+      font-family: 'Courier New', 'Consolas', monospace;
+    }
+    .code-comment { color: #64748b; }
+    .code-before  { color: #fca5a5; }
+    .code-after   { color: #86efac; }
+
+    /* -- INFO / WARN / OK BOXES --------------------------------- */
+    .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px 20px; }
+    .info-box strong { color: var(--accent); }
+    .warn-box { background: #fef3c7; border: 1px solid #fbbf24; border-radius: 10px; padding: 16px 20px; }
+    .warn-box strong { color: #92400e; }
+    .ok-box   { background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 10px; padding: 16px 20px; }
+    .ok-box strong { color: #065f46; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* -- FOOTER ------------------------------------------------- */
+    .report-footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-top: 12px;
+    }
+
+    /* -- PRINT -------------------------------------------------- */
+    @media print {
+      body { background: #fff; font-size: 12px; }
+      .topbar { display: none; }
+      .wrapper { padding: 0; max-width: 100%; }
+      .section, .finding-card { break-inside: avoid; }
+      pre { white-space: pre-wrap; word-break: break-all; }
+      .badge, .kpi-card, .report-header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-title">Informe QA - Fase 4</span>
+    <span class="topbar-sub">gestion-frontend &middot; Flujos Criticos de Usuario</span>
+  </div>
+  <button class="btn-pdf" onclick="window.print()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+      <rect x="6" y="14" width="12" height="8"/>
+    </svg>
+    Descargar PDF
+  </button>
+</div>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <div class="report-header">
+    <div>
+      <h1>QA Fase 4 &mdash; Flujos Criticos de Usuario</h1>
+      <p style="margin-top:6px">Revision de login, logout, cambio de contrasena, verificacion de email, guards de ruta, manejo de sesion expirada y error boundaries</p>
+    </div>
+    <div class="meta-row">
+      <span class="meta-pill">Proyecto: gestion-frontend</span>
+      <span class="meta-pill">Next.js 16.2.1 &middot; React 19.2.4</span>
+      <span class="meta-pill">Zustand persist &middot; TanStack Query v5</span>
+      <span class="meta-pill">Fecha: 2026-06-24</span>
+      <span class="meta-pill">Fase: 4 / 8</span>
+    </div>
+  </div>
+
+  <!-- RESUMEN EJECUTIVO -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#dbeafe">&#128202;</div>
+      <span class="section-title">Resumen Ejecutivo</span>
+    </div>
+    <div class="section-body">
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-neutral">
+          <span class="kpi-label">Archivos auditados</span>
+          <span class="kpi-value">7</span>
+          <span class="kpi-delta">page, axios, use-auth, change-password, auth-guard, verify-email, layouts</span>
+        </div>
+        <div class="kpi-card kpi-success">
+          <span class="kpi-label">Bugs corregidos</span>
+          <span class="kpi-value">5</span>
+          <span class="kpi-delta delta-up">&#10003; Todos de severidad ALTO</span>
+        </div>
+        <div class="kpi-card kpi-success">
+          <span class="kpi-label">Archivos creados</span>
+          <span class="kpi-value">2</span>
+          <span class="kpi-delta delta-up">&#10003; error.tsx auth + dashboard</span>
+        </div>
+        <div class="kpi-card kpi-success">
+          <span class="kpi-label">Errores TypeScript</span>
+          <span class="kpi-value">0</span>
+          <span class="kpi-delta delta-up">&#10003; tsc --noEmit limpio</span>
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top:16px">
+        <strong>Estado de flujos criticos: 9/10</strong> &mdash; Los cinco flujos principales (login, logout, cambio de contrasena, verificacion de email y sesion expirada) funcionaban correctamente en el camino feliz. Los problemas encontrados afectaban casos de borde: flash de login con sesion activa, modal que desaparecia en caso de error, perdida del contexto de navegacion al expirar el token, crasheo silencioso sin error boundary y requests HTTP huerfanas al cerrar sesion. Los cinco fueron corregidos. El issue de verify-email (setTimeout sin cleanup) resulto ser un falso positivo -- el cleanup ya existia en el codigo.
+      </div>
+    </div>
+  </div>
+
+  <!-- BUGS CORREGIDOS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fee2e2">&#128027;</div>
+      <span class="section-title">Bugs Corregidos</span>
+    </div>
+    <div class="section-body">
+
+      <!-- BUG 1 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--danger)">1</div>
+          <div>
+            <div class="finding-title">Flash de redireccion a login con sesion activa (race condition de hidratacion)</div>
+            <div class="finding-file">src/app/page.tsx</div>
+            <div class="finding-meta">
+              <span class="badge badge-danger">Severidad: Alta</span>
+              <span class="badge badge-neutral">Tipo: Race condition &middot; UX</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            La pagina raiz (<code>/</code>) leia <code>isAuthenticated</code> del store Zustand directamente sin esperar la hidratacion desde localStorage. En la primera renderizacion, Zustand devuelve su estado inicial (<code>isAuthenticated: false</code>) antes de leer el valor persistido. El <code>useEffect</code> disparaba inmediatamente y redirigfa a <code>/auth/login</code>. Un frame despues, la hidratacion terminaba, <code>isAuthenticated</code> se actualizaba a <code>true</code> y el efecto volvia a correr redirigiendo a <code>/dashboard/dashboard</code>. El usuario veia un flash de la pantalla de login aunque su sesion estuviera vigente.
+          </p>
+          <pre><span class="code-comment">// Antes -- useEffect corre con isAuthenticated=false antes de la hidratacion</span>
+<span class="code-before">export default function HomePage() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/dashboard/dashboard');
+    } else {
+      router.replace('/auth/login');  // dispara en t=0 con false
+    }
+  }, [isAuthenticated, router]);
+}</span>
+
+<span class="code-comment">// Despues -- espera a que Zustand termine de leer localStorage</span>
+<span class="code-after">export default function HomePage() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+  const hasHydrated = useHasHydrated();
+
+  useEffect(() => {
+    if (!hasHydrated) return;   // bloquea hasta hidratacion completa
+    if (isAuthenticated) {
+      router.replace('/dashboard/dashboard');
+    } else {
+      router.replace('/auth/login');
+    }
+  }, [hasHydrated, isAuthenticated, router]);
+}</span></pre>
+        </div>
+      </div>
+
+      <!-- BUG 2 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--danger)">2</div>
+          <div>
+            <div class="finding-title">Modal de confirmacion de contrasena se cerraba antes de que la mutacion completara</div>
+            <div class="finding-file">src/components/auth/change-password.tsx &mdash; funcion onConfirm()</div>
+            <div class="finding-meta">
+              <span class="badge badge-danger">Severidad: Alta</span>
+              <span class="badge badge-neutral">Tipo: Error handling &middot; UX</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            <code>onConfirm()</code> llamaba a <code>setShowConfirmModal(false)</code> de forma sincrona antes de ejecutar <code>changePassword.mutate()</code>. Si la API retornaba un error, el modal ya habia desaparecido: el usuario veia un toast de error pero sin posibilidad de reintentar desde el mismo modal -- tenia que completar el formulario entero de nuevo. El modal ya mostraba un estado de carga con <code>isPending</code>, por lo que cerrarlo anticipadamente era innecesario.
+          </p>
+          <pre><span class="code-comment">// Antes -- modal se cierra antes de conocer el resultado</span>
+<span class="code-before">const onConfirm = () => {
+  if (!pendingData) return;
+  setShowConfirmModal(false);   // cierra inmediatamente
+  changePassword.mutate({ ... });
+};</span>
+
+<span class="code-comment">// Despues -- modal permanece abierto; en exito el hook redirige a login</span>
+<span class="code-comment">// y el modal desaparece con la pagina; en error queda abierto para reintentar</span>
+<span class="code-after">const onConfirm = () => {
+  if (!pendingData) return;
+  changePassword.mutate({ ... });
+  // el boton muestra Loader2 mientras isPending=true
+  // en exito: router.replace('/auth/login') desmonta el modal
+  // en error: toast + modal sigue abierto, usuario puede reintentar
+};</span></pre>
+        </div>
+      </div>
+
+      <!-- BUG 3 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--danger)">3</div>
+          <div>
+            <div class="finding-title">Expiracion de sesion redirige a login sin guardar la URL actual</div>
+            <div class="finding-file">src/lib/axios.ts &mdash; interceptor response (catch refreshError) &middot; src/hooks/auth/use-auth.ts &mdash; useLogin onSuccess</div>
+            <div class="finding-meta">
+              <span class="badge badge-danger">Severidad: Alta</span>
+              <span class="badge badge-neutral">Tipo: Navegacion &middot; UX</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            Cuando el refresh token expiraba, el interceptor de Axios usaba <code>window.location.href = "/auth/login"</code> descartando la URL en la que estaba el usuario. Tras re-autenticarse, el usuario llegaba siempre al dashboard raiz aunque estuviera en medio de un flujo (por ejemplo, en la pantalla de solicitudes con filtros aplicados). El fix captura la URL actual como parametro <code>returnUrl</code> en el redirect, y el hook <code>useLogin</code> lo lee al completar el login exitoso.
+          </p>
+          <pre><span class="code-comment">// axios.ts -- Antes</span>
+<span class="code-before">if (typeof window !== "undefined") {
+  window.location.href = "/auth/login";
+}</span>
+
+<span class="code-comment">// axios.ts -- Despues: preserva la URL actual como returnUrl</span>
+<span class="code-after">if (typeof window !== "undefined") {
+  const returnUrl = encodeURIComponent(
+    window.location.pathname + window.location.search
+  );
+  window.location.href = `/auth/login?returnUrl=${returnUrl}`;
+}</span>
+
+<span class="code-comment">// use-auth.ts useLogin onSuccess -- Antes</span>
+<span class="code-before">router.replace('/dashboard/dashboard');</span>
+
+<span class="code-comment">// use-auth.ts useLogin onSuccess -- Despues: redirige a la pagina original si existe</span>
+<span class="code-after">const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+router.replace(returnUrl ?? '/dashboard/dashboard');</span></pre>
+        </div>
+      </div>
+
+      <!-- BUG 4 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--danger)">4</div>
+          <div>
+            <div class="finding-title">Sin error boundaries -- crash en auth o dashboard produce pantalla en blanco</div>
+            <div class="finding-file">src/app/auth/error.tsx (creado) &middot; src/app/dashboard/error.tsx (creado)</div>
+            <div class="finding-meta">
+              <span class="badge badge-danger">Severidad: Alta</span>
+              <span class="badge badge-neutral">Tipo: Resiliencia &middot; Error handling</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            Las rutas <code>/auth/*</code> y <code>/dashboard/*</code> no tenian archivo <code>error.tsx</code>. En Next.js 16, un error de renderizado no capturado en un segmento sin boundary hace que la pagina entera muestre una pantalla en blanco (o el error generico de Next.js en produccion). Un crash en el formulario de login o en cualquier modulo del dashboard dejaba al usuario sin opcion de recuperacion. Se crearon dos error boundaries que muestran el mensaje del error y ofrecen un boton de reintento.
+          </p>
+          <pre><span class="code-comment">// src/app/auth/error.tsx -- creado</span>
+<span class="code-after">'use client';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function AuthError({ error, reset }) {
+  const router = useRouter();
+  useEffect(() => { console.error('[auth]', error); }, [error]);
+  return (
+    &lt;div className="min-h-screen flex items-center justify-center"&gt;
+      &lt;p style={{ color: 'var(--color-danger)' }}&gt;{error.message}&lt;/p&gt;
+      &lt;button onClick={reset}&gt;Reintentar&lt;/button&gt;
+      &lt;button onClick={() =&gt; router.replace('/auth/login')}&gt;Ir al login&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</span>
+
+<span class="code-comment">// src/app/dashboard/error.tsx -- creado (misma estructura, sin boton de login)</span></pre>
+        </div>
+      </div>
+
+      <!-- BUG 5 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <div class="finding-num" style="background:var(--warning)">5</div>
+          <div>
+            <div class="finding-title">Logout no cancelaba requests HTTP en vuelo</div>
+            <div class="finding-file">src/hooks/auth/use-auth.ts &mdash; useLogout</div>
+            <div class="finding-meta">
+              <span class="badge badge-warning">Severidad: Alta</span>
+              <span class="badge badge-neutral">Tipo: Gestion de estado &middot; Requests</span>
+            </div>
+          </div>
+        </div>
+        <div class="finding-body">
+          <p class="finding-desc">
+            El hook <code>useLogout</code> llamaba a <code>qc.clear()</code> para limpiar el cache de TanStack Query, pero esto no cancela las peticiones HTTP que ya estaban en vuelo. Si un usuario cerraba sesion mientras una consulta de datos estaba pendiente, esa request podia resolverse despues del logout y generar errores de estado inconsistente o mostrar datos de la sesion anterior. Se agrego <code>qc.cancelQueries()</code> antes de <code>qc.clear()</code> tanto en <code>onSuccess</code> como en <code>onError</code> para enviar la senal de cancelacion a todas las queries activas.
+          </p>
+          <pre><span class="code-comment">// Antes -- clear() limpia el cache pero no cancela requests activos</span>
+<span class="code-before">onSuccess: () => {
+  qc.clear();
+  clearAuth();
+  router.replace('/auth/login');
+},
+onError: () => {
+  clearAuth();
+  router.replace('/auth/login');
+},</span>
+
+<span class="code-comment">// Despues -- cancelQueries() envia AbortSignal a todas las queries en vuelo</span>
+<span class="code-after">onSuccess: () => {
+  void qc.cancelQueries();
+  qc.clear();
+  clearAuth();
+  router.replace('/auth/login');
+},
+onError: () => {
+  void qc.cancelQueries();
+  clearAuth();
+  router.replace('/auth/login');
+},</span></pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FALSO POSITIVO DOCUMENTADO -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#d1fae5">&#10003;</div>
+      <span class="section-title">Falso Positivo Documentado</span>
+    </div>
+    <div class="section-body">
+      <div class="ok-box">
+        <strong>verify-email-view.tsx -- setTimeout sin cleanup</strong><br/>
+        El diagnostico inicial reporto que el <code>setTimeout</code> de redireccion automatica en la vista de verificacion de email no tenia cleanup en el <code>useEffect</code>. Al leer el codigo se confirmo que el cleanup ya existe en la implementacion actual: el efecto retorna <code>() =&gt; clearTimeout(t)</code> correctamente. El issue fue descartado sin cambios.
+      </div>
+    </div>
+  </div>
+
+  <!-- PATRONES CORRECTOS CONFIRMADOS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#d1fae5">&#128077;</div>
+      <span class="section-title">Patrones Correctos Confirmados</span>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Patron</th>
+            <th>Archivo</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>AuthGuard usa <code>useHasHydrated()</code> antes de evaluar <code>isAuthenticated</code></td>
+            <td><code>src/components/auth/auth-guard.tsx</code></td>
+            <td><span class="badge badge-success">Correcto</span></td>
+          </tr>
+          <tr>
+            <td>AuthGuard redirige a <code>/auth/change-password</code> si <code>is_first_login</code> es true</td>
+            <td><code>src/components/auth/auth-guard.tsx</code></td>
+            <td><span class="badge badge-success">Correcto</span></td>
+          </tr>
+          <tr>
+            <td>Formulario de login deshabilitado con <code>isPending</code> durante la mutacion</td>
+            <td><code>src/components/auth/login-form.tsx</code></td>
+            <td><span class="badge badge-success">Correcto</span></td>
+          </tr>
+          <tr>
+            <td>Rutas publicas con token (<code>/dotaciones</code>, <code>/vault</code>, <code>/consumables</code>) son diseno intencional -- acceso por link sin usuario registrado</td>
+            <td>Multiples rutas con <code>[token]</code></td>
+            <td><span class="badge badge-info">Intencional</span></td>
+          </tr>
+          <tr>
+            <td>Verify-email: cleanup de setTimeout con return en useEffect</td>
+            <td><code>src/components/auth/verify-email-view.tsx</code></td>
+            <td><span class="badge badge-success">Correcto</span></td>
+          </tr>
+          <tr>
+            <td>useLogout redirige a login tanto en exito como en error (fail-safe)</td>
+            <td><code>src/hooks/auth/use-auth.ts</code></td>
+            <td><span class="badge badge-success">Correcto</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PLAN DE CORRECCIONES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">&#128203;</div>
+      <span class="section-title">Plan de Correcciones Aplicadas</span>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Archivo</th>
+            <th>Cambio</th>
+            <th>Severidad</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><code>src/app/page.tsx</code></td>
+            <td>Agregar <code>useHasHydrated()</code> guard en el efecto de redireccion</td>
+            <td><span class="badge badge-danger">Alta</span></td>
+            <td><span class="badge badge-success">Aplicado</span></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><code>src/components/auth/change-password.tsx</code></td>
+            <td>Eliminar <code>setShowConfirmModal(false)</code> de <code>onConfirm</code> -- modal permanece abierto durante la mutacion</td>
+            <td><span class="badge badge-danger">Alta</span></td>
+            <td><span class="badge badge-success">Aplicado</span></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><code>src/lib/axios.ts</code></td>
+            <td>Guardar <code>returnUrl</code> como query param antes del redirect a login</td>
+            <td><span class="badge badge-danger">Alta</span></td>
+            <td><span class="badge badge-success">Aplicado</span></td>
+          </tr>
+          <tr>
+            <td>3b</td>
+            <td><code>src/hooks/auth/use-auth.ts</code></td>
+            <td>Leer <code>returnUrl</code> en <code>useLogin onSuccess</code> y redirigir a la URL original</td>
+            <td><span class="badge badge-danger">Alta</span></td>
+            <td><span class="badge badge-success">Aplicado</span></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><code>src/app/auth/error.tsx</code> (nuevo)</td>
+            <td>Crear error boundary para rutas de autenticacion con boton reintentar + ir al login</td>
+            <td><span class="badge badge-danger">Alta</span></td>
+            <td><span class="badge badge-success">Creado</span></td>
+          </tr>
+          <tr>
+            <td>4b</td>
+            <td><code>src/app/dashboard/error.tsx</code> (nuevo)</td>
+            <td>Crear error boundary para rutas del dashboard con boton reintentar</td>
+            <td><span class="badge badge-danger">Alta</span></td>
+            <td><span class="badge badge-success">Creado</span></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><code>src/hooks/auth/use-auth.ts</code></td>
+            <td>Agregar <code>void qc.cancelQueries()</code> antes de <code>qc.clear()</code> en logout onSuccess y onError</td>
+            <td><span class="badge badge-danger">Alta</span></td>
+            <td><span class="badge badge-success">Aplicado</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ROADMAP -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#ede9fe">&#128506;</div>
+      <span class="section-title">Roadmap QA &mdash; 8 Fases</span>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Fase</th>
+            <th>Descripcion</th>
+            <th>Estado</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Fase 1</strong></td>
+            <td>Analisis Estatico y Calidad de Codigo</td>
+            <td><span class="badge badge-success">&#10003; Completada</span></td>
+            <td>3 bugs corregidos, 0 errores TypeScript</td>
+          </tr>
+          <tr>
+            <td><strong>Fase 2</strong></td>
+            <td>Arquitectura y Patrones</td>
+            <td><span class="badge badge-success">&#10003; Completada</span></td>
+            <td>2 correcciones criticas de arquitectura</td>
+          </tr>
+          <tr>
+            <td><strong>Fase 3</strong></td>
+            <td>Seguridad y Autenticacion</td>
+            <td><span class="badge badge-success">&#10003; Completada</span></td>
+            <td>1 correccion critica, integracion cookie httpOnly</td>
+          </tr>
+          <tr style="background:#f0fdf4">
+            <td><strong>Fase 4</strong></td>
+            <td>Flujos Criticos de Usuario</td>
+            <td><span class="badge badge-success">&#10003; Completada</span></td>
+            <td>5 correcciones ALTO, 2 error boundaries creados</td>
+          </tr>
+          <tr>
+            <td><strong>Fase 5</strong></td>
+            <td>Prueba de Modulos de Negocio</td>
+            <td><span class="badge badge-neutral">Pendiente</span></td>
+            <td>--</td>
+          </tr>
+          <tr>
+            <td><strong>Fase 6</strong></td>
+            <td>Exportacion y Generacion de Documentos</td>
+            <td><span class="badge badge-neutral">Pendiente</span></td>
+            <td>--</td>
+          </tr>
+          <tr>
+            <td><strong>Fase 7</strong></td>
+            <td>Performance y UX</td>
+            <td><span class="badge badge-neutral">Pendiente</span></td>
+            <td>--</td>
+          </tr>
+          <tr>
+            <td><strong>Fase 8</strong></td>
+            <td>Pruebas de Regresion y Cierre</td>
+            <td><span class="badge badge-neutral">Pendiente</span></td>
+            <td>--</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="report-footer">
+    gestion-frontend &middot; QA Fase 4 &middot; 2026-06-24 &middot; 0 errores TypeScript en archivos modificados
+  </div>
+
+</div>
+
+</body>
+</html>

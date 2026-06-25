@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X, Loader2, FileText } from 'lucide-react'
+import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
@@ -110,6 +111,7 @@ export function VoiceReportModal({ ids, userInfo, onClose }: Props) {
           setDownloading(false)
         }
       },
+      onError: () => toast.error('Error al generar el informe'),
     })
   }
 

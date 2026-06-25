@@ -36,10 +36,9 @@ export function ChangePasswordForm({ isFirstLogin = true }: { isFirstLogin?: boo
     setShowConfirmModal(true);
   };
 
-  // Al confirmar en el modal: ejecutar la API
+  // Al confirmar en el modal: ejecutar la API (modal permanece abierto durante la mutacion)
   const onConfirm = () => {
     if (!pendingData) return;
-    setShowConfirmModal(false);
     changePassword.mutate({
       new_password:     pendingData.new_password,
       current_password: pendingData.current_password,

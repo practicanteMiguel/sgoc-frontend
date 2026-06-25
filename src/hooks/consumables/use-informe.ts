@@ -13,7 +13,11 @@ export function useUpdateFacturas() {
   return useMutation({
     mutationFn: (entries: FacturaUpdateEntry[]) =>
       Promise.all(entries.map((e) => api.patch(`/requisiciones/${e.rq_id}/facturas`, { items: e.items }))),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['informe'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['informe'] })
+      qc.invalidateQueries({ queryKey: ['requisiciones'] })
+      toast.success('Facturas actualizadas')
+    },
     onError:   () => toast.error('Error al guardar facturas'),
   })
 }

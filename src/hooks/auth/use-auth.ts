@@ -27,7 +27,8 @@ export function useLogin() {
       if (data.user.is_first_login) {
         router.replace('/auth/change-password');
       } else {
-        router.replace('/dashboard/dashboard');
+        const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+        router.replace(returnUrl ?? '/dashboard/dashboard');
       }
     },
 
@@ -48,13 +49,14 @@ export function useLogout() {
       api.post('/auth/logout'),
 
     onSuccess: () => {
+      void qc.cancelQueries();
       qc.clear();
       clearAuth();
       router.replace('/auth/login');
     },
 
     onError: () => {
-   
+      void qc.cancelQueries();
       clearAuth();
       router.replace('/auth/login');
     },
