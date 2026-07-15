@@ -82,7 +82,7 @@ function buildPdfHtml(
   employeesInFields: number,
   avgYear: number | null,
   yearTotals: { on_time: number; tarde: number; pendiente: number; no_aplica: number },
-  byField: Record<string, { name: string; months: Record<number, { score?: number | null | string }> }>,
+  byField: Record<string, { name: string; months: Record<number, { score?: number | null | string; on_time?: number | string; tarde?: number | string; pendiente?: number | string }> }>,
 ) {
   const now  = new Date()
   const sc   = (s: string | number | null) => {
@@ -172,7 +172,7 @@ td:first-child{text-align:left;font-weight:500}
     <tr><th>Mes</th>${MONTHS_SHORT.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr>
   </thead>
   <tbody>
-    ${['on_time','tarde','pendiente'].map(key => {
+    ${(['on_time','tarde','pendiente'] as const).map(key => {
       const label = key === 'on_time' ? 'A tiempo' : key === 'tarde' ? 'Tarde' : 'Pendiente'
       const vals  = Array.from({length:12},(_,i)=>
         fieldIds.reduce((s,fid)=>s+Number(byField[fid].months[i+1]?.[key]??0),0))
@@ -553,7 +553,7 @@ export function ReportsDashboardPanel() {
                       <ReferenceLine y={90} stroke="rgba(22,163,74,0.25)" strokeDasharray="4 4" />
                       <ReferenceLine y={70} stroke="rgba(202,138,4,0.25)" strokeDasharray="4 4" />
                       <Line type="monotone" dataKey="avg" name="Promedio" stroke="var(--color-secondary)" strokeWidth={2.5}
-                        dot={(p: { cx: number; cy: number; payload: { hasData: boolean; avg: number | null } }) => {
+                        dot={(p) => {
                           if (!p.payload.hasData || p.payload.avg === null) return <g key={`d-${p.cx}`}/>
                           return <circle key={`d-${p.cx}`} cx={p.cx} cy={p.cy} r={4} fill="var(--color-secondary)" stroke="var(--color-surface-0)" strokeWidth={2}/>
                         }}

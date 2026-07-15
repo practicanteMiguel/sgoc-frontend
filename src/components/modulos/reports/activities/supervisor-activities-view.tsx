@@ -15,6 +15,7 @@ import { LogbookDetail } from './logbook-detail'
 import { ReportGenerate, buildPdfBody, downloadPdfFromHtml } from './report-generate'
 import type { ActivityForms } from './report-generate'
 import { fetchLogoBase64, fetchLogoBuffer } from '@/src/lib/report-header'
+import type { ImageRange } from 'exceljs'
 import type { Crew, WeeklyLog, WeeklyLogSummary, TechnicalReport } from '@/src/types/activities.types'
 
 type SubTab = 'cuadrillas' | 'bitacoras' | 'informes'
@@ -102,11 +103,11 @@ async function generateWeekExcel(
 
       if (logoLeftBuf) {
         const id = wb.addImage({ buffer: logoLeftBuf, extension: 'png' })
-        ws.addImage(id, { tl: { col: 0.05, row: 0.05 }, br: { col: 1.1, row: 0.9 } })
+        ws.addImage(id, { tl: { col: 0.05, row: 0.05 }, br: { col: 1.1, row: 0.9 } } as unknown as ImageRange)
       }
       if (logoRightBuf) {
         const id = wb.addImage({ buffer: logoRightBuf, extension: 'png' })
-        ws.addImage(id, { tl: { col: 4.9, row: 0.05 }, br: { col: 5.95, row: 0.9 } })
+        ws.addImage(id, { tl: { col: 4.9, row: 0.05 }, br: { col: 5.95, row: 0.9 } } as unknown as ImageRange)
       }
 
       // Row 2: blue separator
@@ -158,7 +159,7 @@ async function generateWeekExcel(
             ws.addImage(imgId, {
               tl: { col: IMG_COLS[i] + 0.05, row: rowIdx - 1 + 0.05 },
               br: { col: IMG_COLS[i] + 1, row: rowIdx - 1 + 0.95 },
-            })
+            } as unknown as ImageRange)
           } catch { /* CORS o error de red - se omite */ }
         }
 

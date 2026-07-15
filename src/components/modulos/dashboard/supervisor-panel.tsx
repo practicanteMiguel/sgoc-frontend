@@ -322,7 +322,7 @@ export function SupervisorDashboardPanel() {
                         <ReferenceLine y={70} stroke="rgba(202,138,4,0.3)" strokeDasharray="4 4" />
                         <Line
                           type="monotone" dataKey="score" name="Score" stroke="var(--color-secondary)" strokeWidth={2.5}
-                          dot={(p: { cx: number; cy: number; payload: { hasData: boolean; score: number | null } }) => {
+                          dot={(p) => {
                             if (!p.payload.hasData) return <g key={`d${p.cx}`}/>
                             const fill = p.payload.score !== null ? scoreColor(p.payload.score) : 'var(--color-secondary)'
                             return <circle key={`d${p.cx}`} cx={p.cx} cy={p.cy} r={5} fill={fill} stroke="var(--color-surface-0)" strokeWidth={2}/>

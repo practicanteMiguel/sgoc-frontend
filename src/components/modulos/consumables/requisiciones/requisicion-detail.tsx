@@ -9,6 +9,7 @@ import { getAuthState } from '@/src/stores/auth.store'
 import { CATEGORIA_LABELS, ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { Requisicion, RQItem } from '@/src/types/consumables.types'
 import { formatCOP } from '@/src/lib/utils'
+import type { ImageRange } from 'exceljs'
 
 
 function totalGeneral(items: RQItem[]) {
@@ -212,7 +213,7 @@ async function exportExcel(rq: Requisicion) {
   const logoBuf = await fetchLogoBuffer('/assets/logo-full.png')
   if (logoBuf) {
     const id = wb.addImage({ buffer: logoBuf, extension: 'png' })
-    ws.addImage(id, { tl: { col: 0.05, row: 0.05 }, br: { col: 1.9, row: 0.95 } })
+    ws.addImage(id, { tl: { col: 0.05, row: 0.05 }, br: { col: 1.9, row: 0.95 } } as unknown as ImageRange)
   }
 
   // Row 2: blue separator
@@ -365,14 +366,14 @@ async function exportExcel(rq: Requisicion) {
     const buf2 = await fetchBuf(rq.firma_supervisor_url)
     if (buf2) {
       const imgId = wb.addImage({ buffer: buf2, extension: 'png' })
-      ws.addImage(imgId, { tl: { col: 0.1, row: sigFirmaStart - 0.9 }, br: { col: midCol - 0.1, row: sigFirmaEnd - 0.1 } })
+      ws.addImage(imgId, { tl: { col: 0.1, row: sigFirmaStart - 0.9 }, br: { col: midCol - 0.1, row: sigFirmaEnd - 0.1 } } as unknown as ImageRange)
     }
   }
   if (encargadoFirmaUrl) {
     const buf2 = await fetchBuf(encargadoFirmaUrl)
     if (buf2) {
       const imgId = wb.addImage({ buffer: buf2, extension: 'png' })
-      ws.addImage(imgId, { tl: { col: midCol + 0.1, row: sigFirmaStart - 0.9 }, br: { col: numCols - 0.1, row: sigFirmaEnd - 0.1 } })
+      ws.addImage(imgId, { tl: { col: midCol + 0.1, row: sigFirmaStart - 0.9 }, br: { col: numCols - 0.1, row: sigFirmaEnd - 0.1 } } as unknown as ImageRange)
     }
   }
 

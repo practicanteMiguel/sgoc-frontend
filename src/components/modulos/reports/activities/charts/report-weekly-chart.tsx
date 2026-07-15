@@ -87,11 +87,11 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   )
 }
 
-type XTickProps = { x: number; y: number; payload: { value: string }; chartData: WeekChartPayload[] }
+type XTickProps = { x: number | string; y: number | string; payload: { value: string }; chartData: WeekChartPayload[] }
 
 function CustomXTick({ x, y, payload, chartData }: XTickProps) {
   const d = chartData.find((item) => item.day === payload.value)
-  const hasMultiday = d?.multiday > 0
+  const hasMultiday = (d?.multiday ?? 0) > 0
   return (
     <g transform={`translate(${x},${y})`}>
       <text x={0} y={0} dy={13} textAnchor="middle" fontSize={11} fill="var(--color-text-400)">
@@ -105,7 +105,7 @@ function CustomXTick({ x, y, payload, chartData }: XTickProps) {
       </text>
       {hasMultiday && (
         <text x={0} y={0} dy={37} textAnchor="middle" fontSize={8} fill="#f59e0b">
-          ↔{d.multiday}
+          ↔{d?.multiday}
         </text>
       )}
     </g>
@@ -245,7 +245,7 @@ export function ReportWeeklyChart({ activities, forms, weekNumber }: Props) {
               fontSize:  9,
               fill:      '#0ea5e9',
               dy:        -4,
-              formatter: (v: number) => (v > 0 ? `${v}%` : ''),
+              formatter: (v) => (typeof v === 'number' && v > 0 ? `${v}%` : ''),
             }}
           />
 
@@ -264,7 +264,7 @@ export function ReportWeeklyChart({ activities, forms, weekNumber }: Props) {
               fontSize:  9,
               fill:      '#10b981',
               dy:        6,
-              formatter: (v: number) => (v > 0 ? `${v}%` : ''),
+              formatter: (v) => (typeof v === 'number' && v > 0 ? `${v}%` : ''),
             }}
           />
         </ComposedChart>

@@ -872,7 +872,7 @@ export function InformeComprasTab() {
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-400)' }} />
                 <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-200)' }} tickFormatter={formatShort} width={64} />
                 <Tooltip
-                  formatter={(value: number | string) => formatCOP(typeof value === 'number' ? value : 0)}
+                  formatter={(value) => formatCOP(typeof value === 'number' ? value : 0)}
                   contentStyle={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: 'var(--color-text-900)' }}
                 />

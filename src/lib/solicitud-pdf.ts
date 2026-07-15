@@ -63,7 +63,7 @@ export async function generarPdfsSolicitud(params: {
       <td style="padding:7px 6px;border:1px solid #e5e7eb;font-size:10px;font-family:monospace;">${item.codigo}</td>
       <td style="padding:7px 6px;border:1px solid #e5e7eb;font-size:10px;">${item.descripcion}</td>
       <td style="padding:7px 6px;border:1px solid #e5e7eb;font-size:10px;text-align:center;">${item.unidad}</td>
-      <td style="padding:7px 6px;border:1px solid #e5e7eb;font-size:10px;text-align:right;white-space:nowrap;">${formatCOP(item.valor_unitario)}</td>
+      <td style="padding:7px 6px;border:1px solid #e5e7eb;font-size:10px;text-align:right;white-space:nowrap;">${item.valor_unitario != null ? formatCOP(Number(item.valor_unitario)) : '-'}</td>
       <td style="padding:7px 6px;border:1px solid #e5e7eb;font-size:10px;text-align:center;">${cant}</td>
       <td style="padding:7px 6px;border:1px solid #e5e7eb;font-size:10px;text-align:right;white-space:nowrap;font-weight:bold;">${total !== null ? formatCOP(total) : '-'}</td>
     </tr>`

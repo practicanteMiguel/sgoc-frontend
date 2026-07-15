@@ -141,7 +141,7 @@ export function EmployeeForm({
     control,
     watch,
     formState: { errors },
-  } = useForm<FormData>({
+  } = useForm<z.input<typeof schema>, unknown, FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       aux_trans: false,
