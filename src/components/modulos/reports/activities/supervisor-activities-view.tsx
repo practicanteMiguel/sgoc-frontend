@@ -75,7 +75,7 @@ async function generateWeekExcel(
     ])
 
     const ExcelJSModule = await import('exceljs')
-    const ExcelJS = (ExcelJSModule as { default?: typeof ExcelJSModule }).default ?? ExcelJSModule
+    const ExcelJS = (ExcelJSModule as unknown as { default?: typeof ExcelJSModule }).default ?? ExcelJSModule
     const wb = new ExcelJS.Workbook()
 
     const HEADERS    = ['Descripcion de Actividad', 'Fecha', 'Antes', 'Durante', 'Despues', 'Comentarios/Observaciones']

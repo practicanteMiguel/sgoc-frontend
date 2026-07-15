@@ -32,12 +32,16 @@ function getStoredAccessToken(): string | null {
   }
 }
 
-// ── Interceptor REQUEST — inyecta el Bearer token ──────────────
+// ── Interceptor REQUEST — inyecta el Bearer token y API key ───
 api.interceptors.request.use(
   (config) => {
     const access = getStoredAccessToken();
     if (access) {
       config.headers.Authorization = `Bearer ${access}`;
+    }
+    const apiKey = process.env.NEXT_PUBLIC_API_KEY;
+    if (apiKey) {
+      config.headers['X-Api-Key'] = apiKey;
     }
     return config;
   },

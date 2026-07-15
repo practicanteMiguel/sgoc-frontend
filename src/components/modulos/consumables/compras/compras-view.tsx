@@ -6,11 +6,13 @@ import { formatCOP, formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   ShoppingCart, Package, FileText,
   Plus, Search, Loader2, Trash2, AlertTriangle, ChevronLeft, ChevronRight,
-  XCircle, Lock, Bell, Clock, PackageCheck, FileDown,
+  XCircle, Lock, Bell, Clock, PackageCheck, FileDown, CheckCircle2, X,
 } from 'lucide-react'
 import { useInsumos, useDeleteInsumo, useCerrarMes, usePeriodosCerrados, useBorradores, useGuardarBorrador } from '@/src/hooks/consumables/use-insumos'
 import { useRequisiciones, useRequisicion, useCambiarEstadoRQ } from '@/src/hooks/consumables/use-requisiciones'
+import { useIndumentariaCatalog, useCreateIndumentariaItem, useUpdateIndumentariaItem, useDeleteIndumentariaItem } from '@/src/hooks/dotaciones/use-indumentaria'
 import { InsumoModal } from '@/src/components/modulos/consumables/insumos/insumo-modal'
+import type { IndumentariaItem } from '@/src/types/indumentaria.types'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { CATEGORIAS, CATEGORIA_LABELS, ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { Insumo, CategoriaInsumo, CerrarMesResult, InsumoBorrador, Requisicion, EstadoRQ } from '@/src/types/consumables.types'
@@ -1169,17 +1171,285 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
   )
 }
 
+// ── Indumentaria form modal ───────────────────────────────────────────────────
+function IndumentariaFormModal({
+  item,
+  onClose,
+}: {
+  item?: IndumentariaItem
+  onClose: () => void
+}) {
+  const crear  = useCreateIndumentariaItem()
+  const editar = useUpdateIndumentariaItem()
+  const isEdit = !!item
+
+  const [nombre,    setNombre]    = useState(item?.nombre    ?? '')
+  const [codigo,    setCodigo]    = useState(item?.codigo    ?? '')
+  const [unidad,    setUnidad]    = useState(item?.unidad    ?? 'UNIDAD')
+  const [valor,     setValor]     = useState(item?.valor_unitario != null ? String(item.valor_unitario) : '')
+  const [proveedor, setProveedor] = useState(item?.proveedor ?? '')
+  const [activo,    setActivo]    = useState(item?.activo    ?? true)
+
+  const isPending = crear.isPending || editar.isPending
+
+  function submit() {
+    if (!nombre.trim()) { return }
+    const payload = {
+      nombre:         nombre.trim(),
+      ...(codigo.trim()    ? { codigo:    codigo.trim()    } : {}),
+      unidad:         unidad.trim() || 'UNIDAD',
+      valor_unitario: valor ? parseFloat(valor) : null,
+      proveedor:      proveedor.trim() || null,
+    }
+    if (isEdit) {
+      editar.mutate({ id: item!.id, ...payload, activo }, { onSuccess: onClose })
+    } else {
+      crear.mutate(payload, { onSuccess: onClose })
+    }
+  }
+
+  const INP: React.CSSProperties = {
+    border: '1.5px solid var(--color-border)',
+    background: 'var(--color-surface-0)',
+    color: 'var(--color-text-900)',
+    borderRadius: 8,
+    padding: '6px 10px',
+    fontSize: 12,
+    outline: 'none',
+    width: '100%',
+  }
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(0,0,0,0.22)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+            {isEdit ? 'Editar item' : 'Nuevo item de indumentaria'}
+          </p>
+          <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70 transition-opacity" style={{ color: 'var(--color-text-400)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Nombre *</label>
+              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej. Botas de seguridad" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Codigo</label>
+              <input value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="Ej. EPP-001" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Unidad</label>
+              <input value={unidad} onChange={e => setUnidad(e.target.value)} placeholder="UNIDAD" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Valor unitario</label>
+              <input type="number" value={valor} onChange={e => setValor(e.target.value)} placeholder="0" min="0" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Proveedor</label>
+              <input value={proveedor} onChange={e => setProveedor(e.target.value)} placeholder="Opcional" style={INP} />
+            </div>
+          </div>
+
+          {isEdit && (
+            <label className="flex items-center gap-2 cursor-pointer mt-1">
+              <div
+                onClick={() => setActivo(v => !v)}
+                className="w-9 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer"
+                style={{ background: activo ? '#1a6b6b' : 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
+              >
+                <span
+                  className="absolute top-0.5 w-4 h-4 rounded-full transition-transform"
+                  style={{ background: '#fff', transform: activo ? 'translateX(16px)' : 'translateX(2px)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
+                />
+              </div>
+              <span className="text-xs font-medium" style={{ color: 'var(--color-text-700)' }}>
+                {activo ? 'Activo' : 'Inactivo'}
+              </span>
+            </label>
+          )}
+        </div>
+
+        <div className="px-5 py-4 flex gap-3 justify-end shrink-0"
+          style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <button onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-medium"
+            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
+            Cancelar
+          </button>
+          <button onClick={submit} disabled={isPending || !nombre.trim()}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
+            style={{ background: '#1a6b6b', color: '#fff', opacity: isPending || !nombre.trim() ? 0.6 : 1 }}>
+            {isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            {isPending ? 'Guardando...' : (isEdit ? 'Guardar cambios' : 'Crear item')}
+          </button>
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
+// ── IndumentariaComprasTab ────────────────────────────────────────────────────
+function IndumentariaComprasTab() {
+  const { data: rawItems, isLoading } = useIndumentariaCatalog()
+  const items = Array.isArray(rawItems) ? rawItems : []
+  const eliminar = useDeleteIndumentariaItem()
+
+  const [search,       setSearch]       = useState('')
+  const [activoFilter, setActivoFilter] = useState<boolean | undefined>(undefined)
+  const [showNuevo,    setShowNuevo]    = useState(false)
+  const [editItem,     setEditItem]     = useState<IndumentariaItem | null>(null)
+
+  const filtered = items
+    .filter(i => activoFilter === undefined || i.activo === activoFilter)
+    .filter(i => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return i.nombre.toLowerCase().includes(q)
+        || (i.codigo ?? '').toLowerCase().includes(q)
+        || (i.proveedor ?? '').toLowerCase().includes(q)
+    })
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-48">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por codigo, nombre o proveedor..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm outline-none"
+            style={{ border: '1.5px solid #d1d5db', background: '#fff', color: '#111827' }}
+            onFocus={(e) => { e.target.style.borderColor = '#1a6b6b' }}
+            onBlur={(e)  => { e.target.style.borderColor = '#d1d5db' }}
+          />
+        </div>
+
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: '#f1f5f9' }}>
+          {([undefined, true, false] as const).map((val) => (
+            <button
+              key={String(val)}
+              onClick={() => setActivoFilter(val)}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+              style={
+                activoFilter === val
+                  ? { background: '#fff', color: '#1a3a3a', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }
+                  : { color: '#9ca3af' }
+              }
+            >
+              {val === undefined ? 'Todos' : val ? 'Activos' : 'Inactivos'}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setShowNuevo(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+          style={{ background: '#1a6b6b', color: '#fff' }}
+        >
+          <Plus size={15} /> Nuevo item
+        </button>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 size={22} className="animate-spin text-[#1a6b6b]" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 rounded-xl bg-white" style={{ border: '1px dashed #d1d5db' }}>
+          <Package size={28} className="mb-3 text-gray-300" />
+          <p className="text-sm font-medium text-gray-700">
+            {search.trim() ? 'Sin resultados' : 'Sin items en el catalogo'}
+          </p>
+          {!search.trim() && (
+            <p className="text-xs mt-1 text-gray-400">Agrega el primer item al catalogo</p>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #d1d5db' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-[#1a3a3a] text-white">
+                  {['Codigo', 'Nombre', 'Unidad', 'Valor Unitario', 'Proveedor', 'Estado', ''].map((h, i) => (
+                    <th key={i} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((item, idx) => (
+                  <tr
+                    key={item.id}
+                    className="hover:opacity-90 transition-opacity cursor-pointer"
+                    style={{ borderBottom: '1px solid #e5e7eb', background: idx % 2 === 0 ? '#fff' : '#f9fafb' }}
+                    onClick={() => setEditItem(item)}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-500">{item.codigo || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{item.nombre}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{item.unidad}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-right text-gray-900 whitespace-nowrap">
+                      {item.valor_unitario != null ? formatCOP(item.valor_unitario) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{item.proveedor || '-'}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={item.activo
+                          ? { background: '#16a34a22', color: '#16a34a' }
+                          : { background: '#6b728022', color: '#6b7280' }}>
+                        {item.activo ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (confirm('Eliminar este item?')) eliminar.mutate(item.id) }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                        title="Eliminar"
+                        style={{ background: '#fef2f2', color: '#ef4444' }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2.5 flex items-center" style={{ borderTop: '1px solid #e5e7eb', background: '#f8fafc' }}>
+            <span className="text-xs text-gray-400">{filtered.length} item{filtered.length !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      )}
+
+      {showNuevo && <IndumentariaFormModal onClose={() => setShowNuevo(false)} />}
+      {editItem  && <IndumentariaFormModal item={editItem} onClose={() => setEditItem(null)} />}
+    </div>
+  )
+}
+
 // ── Main ComprasView ────────────────────────────────────────────────────────
 interface Props {
   valid: boolean
 }
 
-type MainTab   = 'insumos' | 'dotacion'
-type InsumoSub = 'lista' | 'requisiciones'
+type MainTab    = 'insumos' | 'dotacion'
+type InsumoSub  = 'lista' | 'requisiciones'
+type DotacionSub = 'requisiciones' | 'indumentaria'
 
 export function ComprasView({ valid }: Props) {
-  const [mainTab,   setMainTab]   = useState<MainTab>('insumos')
-  const [insumoSub, setInsumoSub] = useState<InsumoSub>('lista')
+  const [mainTab,    setMainTab]    = useState<MainTab>('insumos')
+  const [insumoSub,  setInsumoSub]  = useState<InsumoSub>('lista')
+  const [dotacionSub, setDotacionSub] = useState<DotacionSub>('indumentaria')
 
   if (!valid) {
     return (
@@ -1258,20 +1528,32 @@ export function ComprasView({ valid }: Props) {
 
         {mainTab === 'dotacion' && (
           <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
-            <button
-              className="px-3 py-1.5 rounded-md text-xs font-medium"
-              style={{ background: '#fff', color: '#1a3a3a', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
-            >
-              Requisiciones
-            </button>
+            {([
+              { id: 'indumentaria'  as DotacionSub, label: 'Lista indumentaria' },
+              { id: 'requisiciones' as DotacionSub, label: 'Requisiciones'      },
+            ]).map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setDotacionSub(id)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                style={
+                  dotacionSub === id
+                    ? { background: '#fff', color: '#1a3a3a', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                    : { color: '#9ca3af' }
+                }
+              >
+                {label}
+              </button>
+            ))}
           </div>
         )}
 
         {/* Content */}
         <div className="animate-fade-in">
-          {mainTab === 'insumos'  && insumoSub === 'lista'         && <InsumosComprasTab />}
-          {mainTab === 'insumos'  && insumoSub === 'requisiciones' && <RQsComprasTab excludeCategoria="DOTACION" />}
-          {mainTab === 'dotacion'                                  && <RQsComprasTab onlyCategoria="DOTACION" />}
+          {mainTab === 'insumos'  && insumoSub === 'lista'                        && <InsumosComprasTab />}
+          {mainTab === 'insumos'  && insumoSub === 'requisiciones'                && <RQsComprasTab excludeCategoria="DOTACION" />}
+          {mainTab === 'dotacion' && dotacionSub === 'requisiciones'              && <RQsComprasTab onlyCategoria="DOTACION" />}
+          {mainTab === 'dotacion' && dotacionSub === 'indumentaria'               && <IndumentariaComprasTab />}
         </div>
       </div>
     </div>

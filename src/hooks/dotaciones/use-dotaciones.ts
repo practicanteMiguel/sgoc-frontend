@@ -4,7 +4,9 @@ import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type { DotacionSpace, DotacionSpaceInfo, DotacionSolicitud, GenerarDotacionRQDto } from '@/src/types/dotaciones.types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
+const API_BASE  = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
+const API_KEY   = process.env.NEXT_PUBLIC_API_KEY ?? ''
+const publicHeaders = () => API_KEY ? { 'X-Api-Key': API_KEY } as HeadersInit : undefined
 
 // ── Supervisor (requires auth) ─────────────────────────────────────────────
 
@@ -65,8 +67,9 @@ export function useFirmarHSE() {
       const fd = new FormData()
       fd.append('firma', firmaBlob, 'firma.png')
       return fetch(`${API_BASE}/dotaciones/solicitudes/${id}/firma-hse`, {
-        method: 'PATCH',
-        body:   fd,
+        method:  'PATCH',
+        headers: publicHeaders(),
+        body:    fd,
       }).then(r => { if (!r.ok) throw new Error('error'); return r.json() as Promise<DotacionSolicitud> })
     },
     onError: () => { toast.error('Error al guardar la firma') },
@@ -82,8 +85,9 @@ export function useFirmarAutorizador() {
       fd.append('nombre_autorizador', nombre)
       fd.append('cargo_autorizador',  cargo)
       return fetch(`${API_BASE}/dotaciones/solicitudes/${id}/firma-autorizador`, {
-        method: 'PATCH',
-        body:   fd,
+        method:  'PATCH',
+        headers: publicHeaders(),
+        body:    fd,
       }).then(r => { if (!r.ok) throw new Error('error'); return r.json() as Promise<DotacionSolicitud> })
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dotaciones', 'all-solicitudes'] }) },

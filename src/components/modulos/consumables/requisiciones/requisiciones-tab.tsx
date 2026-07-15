@@ -770,7 +770,7 @@ async function exportExcelUnificado(rqs: Requisicion[]) {
     import('exceljs'),
     import('@/src/lib/report-header'),
   ])
-  const ExcelJS = (excelModule as { default?: typeof excelModule }).default ?? excelModule
+  const ExcelJS = (excelModule as unknown as { default?: typeof excelModule }).default ?? excelModule
   const wb      = new ExcelJS.Workbook()
   const logoBuf = await fetchLogoBuffer('/assets/logo-full.png')
 

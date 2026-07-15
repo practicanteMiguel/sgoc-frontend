@@ -138,7 +138,7 @@ export async function exportDotacionExcel(sol: DotacionSolicitud): Promise<void>
     import('exceljs'),
     import('@/src/lib/report-header'),
   ])
-  const ExcelJS = (excelModule as { default?: typeof excelModule }).default ?? excelModule
+  const ExcelJS = (excelModule as unknown as { default?: typeof excelModule }).default ?? excelModule
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Solicitud')
 

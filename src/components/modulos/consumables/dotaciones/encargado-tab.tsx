@@ -6,25 +6,34 @@ import { formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   Loader2, ChevronDown, ChevronUp, Image as ImageIcon, CheckCircle2, X,
   FileDown, FileSpreadsheet, Plus, Trash2, ChevronLeft, ChevronRight, FileText, Package,
-  Eye, BarChart2, type LucideIcon,
+  Eye, BarChart2, History, Search, PackagePlus, type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAllDotacionSolicitudes, useGenerarDotacionRQ } from '@/src/hooks/dotaciones/use-dotaciones'
+import {
+  useIndumentariaCatalog,
+  useCreateIndumentariaItem,
+  useUpdateIndumentariaItem,
+} from '@/src/hooks/dotaciones/use-indumentaria'
+import type { TipoEntrega, IndumentariaItem } from '@/src/types/indumentaria.types'
 import { useRequisiciones, useRequisicion } from '@/src/hooks/consumables/use-requisiciones'
+import { useQueryClient } from '@tanstack/react-query'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
+import { api } from '@/src/lib/axios'
 import { ESTADO_DOTACION_LABELS, ESTADO_DOTACION_COLORS } from '@/src/types/dotaciones.types'
 import { ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
-import type { DotacionSolicitud, EstadoDotacion } from '@/src/types/dotaciones.types'
+import type { DotacionSolicitud, EstadoDotacion, Reposicion } from '@/src/types/dotaciones.types'
 import type { Requisicion } from '@/src/types/consumables.types'
 import { exportDotacionPdf, exportDotacionExcel } from '@/src/lib/dotacion-export'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
-type Tab = 'indumentaria' | 'requisiciones' | 'informe'
+type Tab = 'indumentaria' | 'requisiciones' | 'historial' | 'informe'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'indumentaria',  label: 'Indumentaria',  icon: Package   },
   { id: 'requisiciones', label: 'Requisiciones', icon: FileText  },
+  { id: 'historial',     label: 'Historial',     icon: History   },
   { id: 'informe',       label: 'Informe',       icon: BarChart2 },
 ]
 
@@ -103,7 +112,7 @@ async function exportRQPdf(rq: Requisicion) {
 
 async function exportRQExcel(rq: Requisicion) {
   const excelModule = await import('exceljs')
-  const ExcelJS = (excelModule as { default?: typeof excelModule }).default ?? excelModule
+  const ExcelJS = (excelModule as unknown as { default?: typeof excelModule }).default ?? excelModule
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('RQ Dotacion')
   ws.columns = [{ width: 14 }, { width: 36 }, { width: 10 }, { width: 16 }, { width: 10 }, { width: 16 }]
@@ -598,14 +607,265 @@ function SolicitudModal({
   )
 }
 
+// ── Item form modal (crear / editar) ──────────────────────────────────────────
+function ItemFormModal({
+  item,
+  onClose,
+}: {
+  item?: IndumentariaItem
+  onClose: () => void
+}) {
+  const crear   = useCreateIndumentariaItem()
+  const editar  = useUpdateIndumentariaItem()
+  const isEdit  = !!item
+
+  const [nombre,    setNombre]    = useState(item?.nombre    ?? '')
+  const [codigo,    setCodigo]    = useState(item?.codigo    ?? '')
+  const [unidad,    setUnidad]    = useState(item?.unidad    ?? 'UNIDAD')
+  const [valor,     setValor]     = useState(item?.valor_unitario != null ? String(item.valor_unitario) : '')
+  const [proveedor, setProveedor] = useState(item?.proveedor ?? '')
+  const [activo,    setActivo]    = useState(item?.activo    ?? true)
+
+  const isPending = crear.isPending || editar.isPending
+
+  function submit() {
+    if (!nombre.trim()) { toast.error('El nombre es requerido'); return }
+    const payload = {
+      nombre:         nombre.trim(),
+      ...(codigo.trim()    ? { codigo:    codigo.trim()    } : {}),
+      unidad:         unidad.trim() || 'UNIDAD',
+      valor_unitario: valor ? parseFloat(valor) : null,
+      proveedor:      proveedor.trim() || null,
+    }
+
+    if (isEdit) {
+      editar.mutate({ id: item!.id, ...payload, activo }, { onSuccess: onClose })
+    } else {
+      crear.mutate(payload, { onSuccess: onClose })
+    }
+  }
+
+  const INP: React.CSSProperties = {
+    border: '1.5px solid var(--color-border)',
+    background: 'var(--color-surface-0)',
+    color: 'var(--color-text-900)',
+    borderRadius: 8,
+    padding: '6px 10px',
+    fontSize: 12,
+    outline: 'none',
+    width: '100%',
+  }
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(0,0,0,0.22)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+            {isEdit ? 'Editar item' : 'Nuevo item'}
+          </p>
+          <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70 transition-opacity" style={{ color: 'var(--color-text-400)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Nombre *</label>
+              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej. Botas de seguridad" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Codigo</label>
+              <input value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="Ej. EPP-001" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Unidad</label>
+              <input value={unidad} onChange={e => setUnidad(e.target.value)} placeholder="UNIDAD" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Valor unitario</label>
+              <input type="number" value={valor} onChange={e => setValor(e.target.value)} placeholder="0" min="0" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Proveedor</label>
+              <input value={proveedor} onChange={e => setProveedor(e.target.value)} placeholder="Opcional" style={INP} />
+            </div>
+          </div>
+
+          {isEdit && (
+            <label className="flex items-center gap-2 cursor-pointer mt-1">
+              <div
+                onClick={() => setActivo(v => !v)}
+                className="w-9 h-5 rounded-full transition-colors relative shrink-0"
+                style={{ background: activo ? '#1a3a3a' : 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
+              >
+                <span
+                  className="absolute top-0.5 w-4 h-4 rounded-full transition-transform"
+                  style={{ background: '#fff', transform: activo ? 'translateX(16px)' : 'translateX(2px)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
+                />
+              </div>
+              <span className="text-xs font-medium" style={{ color: 'var(--color-text-700)' }}>
+                {activo ? 'Activo' : 'Inactivo'}
+              </span>
+            </label>
+          )}
+        </div>
+
+        <div className="px-5 py-4 flex gap-3 justify-end shrink-0" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <button onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-medium"
+            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
+            Cancelar
+          </button>
+          <button onClick={submit} disabled={isPending}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
+            style={{ background: '#1a3a3a', color: '#fff', opacity: isPending ? 0.7 : 1 }}>
+            {isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            {isPending ? 'Guardando...' : (isEdit ? 'Guardar cambios' : 'Crear item')}
+          </button>
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
 // ── Tab: Indumentaria ─────────────────────────────────────────────────────────
 function IndumentariaTab() {
+  const { data: rawItems, isLoading } = useIndumentariaCatalog()
+  const items = Array.isArray(rawItems) ? rawItems : []
+
+  const [search,       setSearch]       = useState('')
+  const [activoFilter, setActivoFilter] = useState<boolean | undefined>(undefined)
+  const [editItem,     setEditItem]     = useState<IndumentariaItem | null>(null)
+
+  const filtered = items
+    .filter(i => activoFilter === undefined || i.activo === activoFilter)
+    .filter(i => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return i.nombre.toLowerCase().includes(q)
+        || (i.codigo ?? '').toLowerCase().includes(q)
+        || (i.proveedor ?? '').toLowerCase().includes(q)
+    })
+
   return (
-    <div className="flex flex-col items-center justify-center py-20 rounded-xl"
-      style={{ border: '1px dashed var(--color-border)', background: 'var(--color-surface-1)' }}>
-      <Package size={30} className="mb-3" style={{ color: 'var(--color-text-400)' }} />
-      <p className="text-sm font-medium" style={{ color: 'var(--color-text-700)' }}>Indumentaria</p>
-      <p className="text-xs mt-1" style={{ color: 'var(--color-text-400)' }}>Esta seccion estara disponible proximamente</p>
+    <div className="flex flex-col gap-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-48">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: 'var(--color-text-400)' }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por codigo, nombre o proveedor..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm outline-none"
+            style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)' }}
+            onFocus={e => { e.target.style.borderColor = 'var(--color-secundary)' }}
+            onBlur={e  => { e.target.style.borderColor = 'var(--color-border)' }}
+          />
+        </div>
+
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+          {([undefined, true, false] as const).map((val) => (
+            <button
+              key={String(val)}
+              onClick={() => setActivoFilter(val)}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+              style={
+                activoFilter === val
+                  ? { background: 'var(--color-surface-0)', color: 'var(--color-text-900)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }
+                  : { color: 'var(--color-text-400)' }
+              }
+            >
+              {val === undefined ? 'Todos' : val ? 'Activos' : 'Inactivos'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex justify-center py-14">
+          <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 rounded-xl"
+          style={{ border: '1px dashed var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <Package size={30} className="mb-3" style={{ color: 'var(--color-text-400)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--color-text-700)' }}>
+            {search.trim() ? 'Sin resultados' : 'Sin items en el catalogo'}
+          </p>
+          {!search.trim() && (
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-400)' }}>
+              Los items se gestionan desde el area de compras
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: '#1a3a3a', color: '#fff' }}>
+                  {['Codigo', 'Nombre', 'Unidad', 'Valor unitario', 'Proveedor', 'Estado'].map(h => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((item, idx) => (
+                  <tr
+                    key={item.id}
+                    className="hover:opacity-90 transition-opacity cursor-pointer"
+                    style={{ borderBottom: '1px solid var(--color-border)', background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)' }}
+                    onClick={() => setEditItem(item)}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>
+                      {item.codigo || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>
+                      {item.nombre}
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                      {item.unidad}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-semibold text-right whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
+                      {item.valor_unitario != null ? fmtCop(item.valor_unitario) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                      {item.proveedor || '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={
+                          item.activo
+                            ? { background: '#16a34a22', color: '#16a34a' }
+                            : { background: '#6b728022', color: '#6b7280' }
+                        }
+                      >
+                        {item.activo ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2.5" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>
+              {filtered.length} item{filtered.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {editItem && <ItemFormModal item={editItem} onClose={() => setEditItem(null)} />}
     </div>
   )
 }
@@ -640,7 +900,11 @@ function RequisicionesTab() {
   const { data: solicitudes = [], isLoading: loadingSols } = useAllDotacionSolicitudes()
   const { data: requisiciones = [], isLoading: loadingRQs } = useRequisiciones({ mes, anio })
 
-  const sols = solicitudes as DotacionSolicitud[]
+  const sols = (solicitudes as DotacionSolicitud[]).filter(sol => {
+    if (!sol.fecha) return true
+    const d = new Date(sol.fecha)
+    return d.getMonth() + 1 === mes && d.getFullYear() === anio
+  })
   const rqs  = (Array.isArray(requisiciones) ? requisiciones : []).filter(r => r.categoria === 'DOTACION') as Requisicion[]
 
   if (selectedRQId) {
@@ -649,6 +913,26 @@ function RequisicionesTab() {
 
   return (
     <div className="flex flex-col gap-6">
+
+      {/* Selector de periodo (afecta reposiciones y requisiciones) */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 rounded-lg px-2 py-1.5"
+          style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+          <button onClick={() => adjustPeriod(-1)}
+            className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--color-text-700)' }}>
+            <ChevronLeft size={13} />
+          </button>
+          <span className="text-xs font-semibold px-1 min-w-28 text-center" style={{ color: 'var(--color-text-900)' }}>
+            {MESES[mes - 1]} {anio}
+          </span>
+          <button onClick={() => adjustPeriod(1)}
+            className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--color-text-700)' }}>
+            <ChevronRight size={13} />
+          </button>
+        </div>
+      </div>
 
       {/* Reposiciones */}
       <div className="flex flex-col gap-3">
@@ -662,7 +946,7 @@ function RequisicionesTab() {
         ) : sols.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 rounded-xl"
             style={{ border: '1px dashed var(--color-border)', background: 'var(--color-surface-1)' }}>
-            <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>Sin reposiciones</p>
+            <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>Sin reposiciones para {MESES[mes - 1]} {anio}</p>
           </div>
         ) : (
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
@@ -705,25 +989,7 @@ function RequisicionesTab() {
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <p className="text-sm font-semibold" style={{ color: 'var(--color-text-700)' }}>Requisiciones generadas</p>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-lg px-2 py-1.5"
-              style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
-              <button onClick={() => adjustPeriod(-1)}
-                className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
-                style={{ color: 'var(--color-text-700)' }}>
-                <ChevronLeft size={13} />
-              </button>
-              <span className="text-xs font-semibold px-1 min-w-28 text-center" style={{ color: 'var(--color-text-900)' }}>
-                {MESES[mes - 1]} {anio}
-              </span>
-              <button onClick={() => adjustPeriod(1)}
-                className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
-                style={{ color: 'var(--color-text-700)' }}>
-                <ChevronRight size={13} />
-              </button>
-            </div>
-            <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{rqs.length} RQ{rqs.length !== 1 ? 's' : ''}</p>
-          </div>
+          <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{rqs.length} RQ{rqs.length !== 1 ? 's' : ''}</p>
         </div>
 
         {loadingRQs ? (
@@ -786,6 +1052,334 @@ function RequisicionesTab() {
   )
 }
 
+// ── Generar Entrega modal ─────────────────────────────────────────────────────
+interface EntregaItemRow {
+  _id: string
+  indumentaria_id: string
+  cantidad: string
+}
+
+function makeEntregaItem(): EntregaItemRow {
+  return { _id: Math.random().toString(36).slice(2), indumentaria_id: '', cantidad: '1' }
+}
+
+function GenerarEntregaModal({
+  sol,
+  repo,
+  onClose,
+}: {
+  sol: DotacionSolicitud
+  repo: Reposicion
+  onClose: () => void
+}) {
+  const { data: rawCatalog, isLoading: loadingCatalog } = useIndumentariaCatalog()
+  const catalog = Array.isArray(rawCatalog) ? rawCatalog : []
+  const qc = useQueryClient()
+  const [tipo, setTipo]         = useState<TipoEntrega>('REPOSICION')
+  const [fecha, setFecha]       = useState(() => new Date().toISOString().split('T')[0])
+  const [obs, setObs]           = useState('')
+  const [items, setItems]       = useState<EntregaItemRow[]>(() => [makeEntregaItem()])
+  const [submitting, setSubmitting] = useState(false)
+
+  const activeCatalog = catalog.filter(i => i.activo)
+
+  function setItemField(id: string, field: keyof Omit<EntregaItemRow, '_id'>, val: string) {
+    setItems(prev => prev.map(it => it._id === id ? { ...it, [field]: val } : it))
+  }
+
+  async function submit() {
+    const invalid = items.find(it => !it.indumentaria_id)
+    if (invalid) { toast.error('Seleccione el item de todos los registros'); return }
+
+    setSubmitting(true)
+    try {
+      for (const item of items) {
+        await api.post('/indumentaria/entregas', {
+          empleado_id:      repo.empleado.id,
+          indumentaria_id:  item.indumentaria_id,
+          tipo,
+          cantidad:         parseInt(item.cantidad) || 1,
+          fecha_entrega:    fecha,
+          ...(obs.trim() ? { observacion: obs.trim() } : {}),
+        })
+      }
+      qc.invalidateQueries({ queryKey: ['indumentaria', 'historial', repo.empleado.id] })
+      toast.success(`${items.length} entrega${items.length !== 1 ? 's' : ''} registrada${items.length !== 1 ? 's' : ''}`)
+      onClose()
+    } catch {
+      toast.error('Error al registrar las entregas')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const INP: React.CSSProperties = {
+    border: '1.5px solid var(--color-border)',
+    background: 'var(--color-surface-0)',
+    color: 'var(--color-text-900)',
+    borderRadius: 8,
+    padding: '6px 10px',
+    fontSize: 12,
+    outline: 'none',
+    width: '100%',
+  }
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-xl rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', maxHeight: '88vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-4 flex items-start justify-between gap-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+              {repo.empleado.first_name} {repo.empleado.last_name}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
+              {repo.empleado.position} &middot; {sol.campo?.name ?? '-'} &middot; {sol.contrato}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--color-text-400)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
+          {/* Tipo + Fecha */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Tipo de entrega</label>
+              <select value={tipo} onChange={e => setTipo(e.target.value as TipoEntrega)} style={{ ...INP, appearance: 'none' as const }}>
+                <option value="TOCACION">Dotacion inicial</option>
+                <option value="REPOSICION">Reposicion</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Fecha de entrega</label>
+              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={INP} />
+            </div>
+          </div>
+
+          {/* Items */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-400)' }}>
+              Items de indumentaria
+            </p>
+            {loadingCatalog ? (
+              <div className="flex justify-center py-6">
+                <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+              </div>
+            ) : activeCatalog.length === 0 ? (
+              <div className="rounded-xl py-6 flex flex-col items-center" style={{ border: '1px dashed var(--color-border)' }}>
+                <Package size={20} className="mb-1" style={{ color: 'var(--color-text-400)' }} />
+                <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>Sin items en el catalogo activo</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {items.map((item, idx) => (
+                  <div key={item._id} className="rounded-xl p-3 flex items-center gap-2"
+                    style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                    <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--color-text-400)', minWidth: 16 }}>{idx + 1}</span>
+                    <select
+                      value={item.indumentaria_id}
+                      onChange={e => setItemField(item._id, 'indumentaria_id', e.target.value)}
+                      className="flex-1"
+                      style={{ ...INP, appearance: 'none' as const }}
+                    >
+                      <option value="">Seleccionar item...</option>
+                      {activeCatalog.map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      value={item.cantidad}
+                      onChange={e => setItemField(item._id, 'cantidad', e.target.value)}
+                      min="1"
+                      placeholder="Cant."
+                      style={{ ...INP, width: 72 }}
+                    />
+                    {items.length > 1 && (
+                      <button onClick={() => setItems(prev => prev.filter(it => it._id !== item._id))}
+                        className="p-0.5 rounded transition-opacity hover:opacity-70 shrink-0" style={{ color: '#ef4444' }}>
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => setItems(prev => [...prev, makeEntregaItem()])}
+                  className="mt-1 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
+                >
+                  <Plus size={13} /> Agregar item
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Observacion */}
+          <div>
+            <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Observacion (opcional)</label>
+            <textarea
+              value={obs}
+              onChange={e => setObs(e.target.value)}
+              placeholder="Ej. reposicion por desgaste en campo..."
+              rows={2}
+              style={{ ...INP, resize: 'none' as const }}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 flex gap-3 justify-end shrink-0"
+          style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <button onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-medium"
+            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
+            Cancelar
+          </button>
+          <button onClick={submit} disabled={submitting || loadingCatalog}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
+            style={{ background: '#1a3a3a', color: '#fff', opacity: submitting ? 0.7 : 1 }}>
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            {submitting ? 'Registrando...' : 'Registrar entrega'}
+          </button>
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
+// ── Tab: Historial ────────────────────────────────────────────────────────────
+function HistorialTab() {
+  const { data: solicitudes = [], isLoading } = useAllDotacionSolicitudes()
+  const [search, setSearch]       = useState('')
+  const [selectedSol, setSelectedSol]           = useState<DotacionSolicitud | null>(null)
+  const [entregaTarget, setEntregaTarget]       = useState<{ sol: DotacionSolicitud; repo: Reposicion } | null>(null)
+
+  const rows = (solicitudes as DotacionSolicitud[]).flatMap(sol =>
+    sol.reposiciones.map(repo => ({ sol, repo }))
+  )
+
+  const filtered = search.trim()
+    ? rows.filter(({ repo }) =>
+        `${repo.empleado.first_name} ${repo.empleado.last_name}`.toLowerCase().includes(search.toLowerCase())
+      )
+    : rows
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: 'var(--color-text-400)' }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar empleado..."
+            className="pl-8 pr-3 py-2 text-xs rounded-lg outline-none"
+            style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)', minWidth: 220 }}
+          />
+        </div>
+        <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
+          {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-14">
+          <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 rounded-xl"
+          style={{ border: '1px dashed var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <History size={30} className="mb-3" style={{ color: 'var(--color-text-400)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--color-text-700)' }}>Sin registros</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--color-text-400)' }}>Los empleados de reposiciones apareceran aqui automaticamente</p>
+        </div>
+      ) : (
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: '#1a3a3a', color: '#fff' }}>
+                  {['Empleado', 'Cargo', 'Campo', 'Fecha emitida', 'Fecha autorizada', 'Solic. compras', 'N° RQ', 'Fecha entrega', '', ''].map((h, i) => (
+                    <th key={i} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(({ sol, repo }, idx) => (
+                  <tr key={`${sol.id}-${repo.id}`}
+                    style={{
+                      borderBottom: '1px solid var(--color-border)',
+                      background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)',
+                    }}>
+                    <td className="px-4 py-3 font-medium text-sm whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
+                      {repo.empleado.first_name} {repo.empleado.last_name}
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                      {repo.empleado.position}
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-700)' }}>
+                      {sol.campo?.name ?? '-'}
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                      {formatDate(sol.fecha)}
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                      {sol.fecha_autorizacion ? formatDate(sol.fecha_autorizacion) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                      {sol.fecha_solicitud_compras ? formatDate(sol.fecha_solicitud_compras) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
+                      {sol.numero_rq ? `#${sol.numero_rq}` : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+                      {repo.fecha_entrega ? formatDate(repo.fecha_entrega) : '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setSelectedSol(sol)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                        title="Ver reposicion"
+                        style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}>
+                        <Eye size={13} />
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setEntregaTarget({ sol, repo })}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity whitespace-nowrap"
+                        style={{ background: '#1a3a3a', color: '#fff' }}>
+                        <PackagePlus size={11} /> Entregar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {selectedSol && <SolicitudModal sol={selectedSol} onClose={() => setSelectedSol(null)} />}
+      {entregaTarget && (
+        <GenerarEntregaModal
+          sol={entregaTarget.sol}
+          repo={entregaTarget.repo}
+          onClose={() => setEntregaTarget(null)}
+        />
+      )}
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function EncargadoDotacionTab() {
   const [tab, setTab] = useState<Tab>('requisiciones')
@@ -816,6 +1410,7 @@ export function EncargadoDotacionTab() {
 
       {tab === 'indumentaria'  && <IndumentariaTab />}
       {tab === 'requisiciones' && <RequisicionesTab />}
+      {tab === 'historial'     && <HistorialTab />}
       {tab === 'informe'       && <InformeTab />}
     </div>
   )

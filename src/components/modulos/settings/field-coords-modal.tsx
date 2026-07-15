@@ -24,32 +24,22 @@ function buildIcon(L: typeof LeafletLib) {
   });
 }
 
-interface FieldCoordsModalProps {
-  field:   Field;
-  onClose: () => void;
+interface MapPickerProps {
+  lat:      number | null;
+  lng:      number | null;
+  onChange: (lat: number, lng: number) => void;
 }
 
-export function FieldCoordsModal({ field, onClose }: FieldCoordsModalProps) {
-  const update = useUpdateField();
-  const initialLat = field.center_lat != null ? Number(field.center_lat) : null;
-  const initialLng = field.center_lng != null ? Number(field.center_lng) : null;
-
-  const [lat, setLat] = useState<number | null>(initialLat);
-  const [lng, setLng] = useState<number | null>(initialLng);
-
-  const isDirty = lat !== initialLat || lng !== initialLng;
-
+function MapPicker({ lat, lng, onChange }: MapPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef       = useRef<LeafletMap | null>(null);
   const leafletRef   = useRef<typeof LeafletLib | null>(null);
   const markerRef    = useRef<LeafletMarker | null>(null);
-  const { theme }    = useAuthStore();
-  const [mapReady, setMapReady] = useState(false);
+  const onChangeRef  = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  const onChangeRef = useRef((newLat: number, newLng: number) => {
-    setLat(newLat);
-    setLng(newLng);
-  });
+  const [mapReady, setMapReady] = useState(false);
+  const { theme } = useAuthStore();
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -119,6 +109,29 @@ export function FieldCoordsModal({ field, onClose }: FieldCoordsModalProps) {
     };
   }, []);
 
+  return (
+    <div
+      ref={containerRef}
+      style={{ height: '280px', width: '100%', borderRadius: '10px', overflow: 'hidden', zIndex: 0, cursor: 'crosshair' }}
+    />
+  );
+}
+
+interface FieldCoordsModalProps {
+  field:   Field;
+  onClose: () => void;
+}
+
+export function FieldCoordsModal({ field, onClose }: FieldCoordsModalProps) {
+  const update = useUpdateField();
+  const initialLat = field.center_lat != null ? Number(field.center_lat) : null;
+  const initialLng = field.center_lng != null ? Number(field.center_lng) : null;
+
+  const [lat, setLat] = useState<number | null>(initialLat);
+  const [lng, setLng] = useState<number | null>(initialLng);
+
+  const isDirty = lat !== initialLat || lng !== initialLng;
+
   function handleGeolocate() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition((pos) => {
@@ -182,9 +195,10 @@ export function FieldCoordsModal({ field, onClose }: FieldCoordsModalProps) {
             </button>
           </div>
 
-          <div
-            ref={containerRef}
-            style={{ height: '280px', width: '100%', borderRadius: '10px', overflow: 'hidden', zIndex: 0, cursor: 'crosshair' }}
+          <MapPicker
+            lat={lat}
+            lng={lng}
+            onChange={(newLat, newLng) => { setLat(newLat); setLng(newLng); }}
           />
 
           {hasCoords ? (

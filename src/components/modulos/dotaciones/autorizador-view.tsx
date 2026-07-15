@@ -240,7 +240,7 @@ function SolicitudDetailModal({
     <ModalPortal onClose={onClose}>
       <div
         className="w-full max-w-2xl rounded-xl flex flex-col overflow-hidden"
-        style={{ background: '#ffffff', border: '1px solid #d1d5db', boxShadow: '0 24px 64px rgba(4,24,24,0.25)', maxHeight: '90vh' }}
+        style={{ ...CSS_VARS, background: '#ffffff', border: '1px solid #d1d5db', boxShadow: '0 24px 64px rgba(4,24,24,0.25)', maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -296,7 +296,7 @@ function SolicitudDetailModal({
             </div>
 
             {/* Reposiciones */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2">
+            <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 flex flex-col gap-2">
               {solicitud.reposiciones.map((rep, i) => (
                 <ReposicionDetailRow key={rep.id} rep={rep} index={i} />
               ))}

@@ -50,6 +50,9 @@ export interface DotacionSolicitud {
   firma_autorizador_url?: string | null
   nombre_autorizador?: string | null
   cargo_autorizador?: string | null
+  fecha_autorizacion?: string | null
+  fecha_solicitud_compras?: string | null
+  numero_rq?: number | null
 }
 
 export interface CreateReposicionDto {
