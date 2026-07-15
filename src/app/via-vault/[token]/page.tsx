@@ -6,6 +6,10 @@ import { Upload, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Lock, MapPi
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
 
+interface UploadGroupResponse extends VaultCaptureGroup {
+  message?: string
+}
+
 async function uploadGroup(
   token: string,
   files: File[],
@@ -13,7 +17,7 @@ async function uploadGroup(
   lng: number,
   via_name: string,
   comment: string,
-): Promise<unknown> {
+): Promise<UploadGroupResponse> {
   const fd = new FormData()
   for (const f of files) fd.append('images', f)
   fd.append('lat', String(lat))
