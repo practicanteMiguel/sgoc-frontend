@@ -14,6 +14,7 @@ import { useIndumentariaCatalog, useCreateIndumentariaItem, useUpdateIndumentari
 import { InsumoModal } from '@/src/components/modulos/consumables/insumos/insumo-modal'
 import type { IndumentariaItem } from '@/src/types/indumentaria.types'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
+import { EntregaParcialBadge } from '@/src/components/modulos/consumables/entrega-parcial-badge'
 import { CATEGORIAS, CATEGORIA_LABELS, ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { Insumo, CategoriaInsumo, CerrarMesResult, InsumoBorrador, Requisicion, EstadoRQ } from '@/src/types/consumables.types'
 
@@ -743,7 +744,7 @@ async function exportConstanciaPdf(rq: Requisicion) {
 function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => void }) {
   const { data: rq, isLoading } = useRequisicion(rqId)
   const [loadingConstancia, setLoadingConstancia] = useState(false)
-  const [showRecepcion, setShowRecepcion] = useState(false)
+  const [showRecepcion, setShowRecepcion] = useState<boolean | null>(null)
 
   if (isLoading) {
     return (
@@ -765,7 +766,7 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
   const isEntregado = rq.recepcion_completada || rq.estado === 'ENTREGADO'
   const totalEstCOP = sortedItems.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.solicitado ?? 0)) * i.valor_unitario : s, 0)
   const totalRecCOP = sortedItems.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.recibido   ?? 0)) * i.valor_unitario : s, 0)
-  const showEv      = showRecepcion && isEntregado
+  const showEv      = (showRecepcion ?? isEntregado) && isEntregado
 
   async function handleConstancia() {
     setLoadingConstancia(true)
@@ -833,6 +834,9 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
                     {rq.entrega_completa ? 'Entrega completa' : 'Entrega parcial'}
                   </span>
                 )}
+                {showEv && rq.tiene_faltante && (
+                  <EntregaParcialBadge fechaPrimeraEntrega={rq.fecha_primera_entrega} categoria={rq.categoria} itemsPendientes={rq.items_pendientes} />
+                )}
                 {showEv && (
                   <button
                     onClick={handleConstancia}
@@ -845,7 +849,7 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
                   </button>
                 )}
                 <button
-                  onClick={() => setShowRecepcion((v) => !v)}
+                  onClick={() => setShowRecepcion(!showEv)}
                   className="ml-auto relative rounded-full shrink-0"
                   style={{ width: 40, height: 22, background: showEv ? '#16a34a' : '#d1d5db', border: 'none', padding: 0, cursor: 'pointer' }}
                 >
@@ -1049,10 +1053,10 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
     PEDIDO_REALIZADO: 'Pedido realizado', EN_BODEGA: 'En bodega', ENTREGADO: 'Entregado', PENDIENTE: 'Pendiente',
   }
   const NEXT_ESTADO: Record<string, EstadoRQ> = {
-    APROBADA: 'PEDIDO_REALIZADO', PEDIDO_REALIZADO: 'EN_BODEGA', EN_BODEGA: 'ENTREGADO',
+    APROBADA: 'PEDIDO_REALIZADO', PEDIDO_REALIZADO: 'EN_BODEGA',
   }
   const NEXT_LABEL: Record<string, string> = {
-    APROBADA: 'Pedido realizado', PEDIDO_REALIZADO: 'Confirmar en bodega', EN_BODEGA: 'Confirmar entrega',
+    APROBADA: 'Pedido realizado', PEDIDO_REALIZADO: 'Confirmar en bodega',
   }
 
 
@@ -1126,12 +1130,17 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
                       <td className="px-4 py-3 text-xs text-gray-500">{rq.lote}</td>
                       <td className="px-4 py-3 text-xs text-gray-700 max-w-36 truncate">{rq.lugar}</td>
                       <td className="px-4 py-3">
-                        <span
-                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: `${color}22`, color }}
-                        >
-                          {BADGE_LABELS[rq.estado] ?? rq.estado}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={{ background: `${color}22`, color }}
+                          >
+                            {BADGE_LABELS[rq.estado] ?? rq.estado}
+                          </span>
+                          {rq.tiene_faltante && (
+                            <EntregaParcialBadge fechaPrimeraEntrega={rq.fecha_primera_entrega} categoria={rq.categoria} itemsPendientes={rq.items_pendientes} />
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {formatDate(rq.created_at)}

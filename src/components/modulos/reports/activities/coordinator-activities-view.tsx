@@ -13,6 +13,8 @@ import { LogbookDetail } from './logbook-detail'
 import { ReportGenerate } from './report-generate'
 import type { WeeklyLogSummary, TechnicalReport } from '@/src/types/activities.types'
 
+type LogWithCrew = WeeklyLogSummary & { crew: NonNullable<WeeklyLogSummary['crew']> }
+
 // Contract field ID to exclude (same pattern as evidencias)
 const CONTRACT_FIELD_ID = '5f96a67e-b392-4c77-95ae-5d80f5c0f05c'
 
@@ -53,13 +55,13 @@ export function CoordinatorActivitiesView() {
 
   // Fetch logs for all crews in the field (we pass no crew_id to get all)
   const { data: allLogs = [], isLoading: loadingLogs } = useLogs()
-  const fieldLogs = (allLogs as WeeklyLogSummary[]).filter((l) =>
-    crews.some((c) => c.id === l.crew.id),
+  const fieldLogs = (allLogs as WeeklyLogSummary[]).filter((l): l is LogWithCrew =>
+    l.crew !== null && l.crew.field?.id === fieldId,
   )
 
   const { data: allReports = [], isLoading: loadingReports } = useTechnicalReports()
   const fieldReports = (allReports as TechnicalReport[]).filter((r) =>
-    crews.some((c) => c.id === r.crew?.id),
+    r.crew?.field?.id === fieldId,
   )
 
   const scheduled   = fieldReports.filter((r) =>

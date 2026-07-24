@@ -147,12 +147,18 @@ export function ReportWeeklyChart({ activities, forms, weekNumber }: Props) {
   }, [activities, forms, weekNumber])
 
   const data = useMemo(() => {
-    return rawData.reduce<(typeof rawData[number] & { projPct: number; cumulExec: number })[]>(
+    return rawData.reduce<(typeof rawData[number] & { rawProj: number; rawExec: number; projPct: number; cumulExec: number })[]>(
       (acc, d) => {
-        const prev     = acc[acc.length - 1]
-        const cumProj  = (prev?.projPct  ?? 0) + d.dailyProj
-        const cumExec  = (prev?.cumulExec ?? 0) + d.dailyExec
-        return [...acc, { ...d, projPct: Math.round(cumProj), cumulExec: Math.round(cumExec) }]
+        const prev    = acc[acc.length - 1]
+        const rawProj = (prev?.rawProj ?? 0) + d.dailyProj
+        const rawExec = (prev?.rawExec ?? 0) + d.dailyExec
+        return [...acc, {
+          ...d,
+          rawProj,
+          rawExec,
+          projPct:   Math.min(100, Math.round(rawProj)),
+          cumulExec: Math.min(100, Math.round(rawExec)),
+        }]
       },
       [],
     )

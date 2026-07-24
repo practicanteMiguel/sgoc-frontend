@@ -177,30 +177,18 @@ function EnviarPlantillasModal({ mes, anio, onClose }: { mes: number; anio: numb
           </div>
           {result.solicitudes.length > 0 && (
             <div className="overflow-y-auto flex-1 px-6 pb-4 flex flex-col gap-2">
-              {result.solicitudes.map((s) => {
-                const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/consumables/solicitudes/${s.id}`
-                return (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg"
-                    style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text-900)' }}>{s.lugar}</p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>CC {s.lote}</p>
-                    </div>
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 hover:opacity-80 transition-opacity"
-                      style={{ background: 'var(--color-primary)', color: '#fff' }}
-                    >
-                      Ver
-                    </a>
+              {result.solicitudes.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg"
+                  style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text-900)' }}>{s.lugar}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>CC {s.lote}</p>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           )}
           <div className="px-6 pb-5 pt-2">

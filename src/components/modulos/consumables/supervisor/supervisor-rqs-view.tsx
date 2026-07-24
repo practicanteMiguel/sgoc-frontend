@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, ChevronLeft, ChevronRight, Package, PackageCheck, Clock } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Package, PackageCheck, Clock, AlertTriangle } from 'lucide-react'
 import { useMisSolicitudes, useSolicitudRequisiciones } from '@/src/hooks/consumables/use-solicitudes'
 import { CATEGORIA_LABELS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { EstadoRQ } from '@/src/types/consumables.types'
 import { RecepcionModal } from './recepcion-modal'
+import { EntregaParcialBadge } from '../entrega-parcial-badge'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -30,7 +31,7 @@ function EstadoBadge({ estado }: { estado: string }) {
   )
 }
 
-const ESTADOS_RECIBIBLES = new Set(['PEDIDO_REALIZADO', 'EN_BODEGA'])
+const ESTADOS_RECIBIBLES = new Set(['EN_BODEGA'])
 
 function SolicitudRQBlock({ solicitudId, lugar, lote }: { solicitudId: string; lugar: string; lote: number }) {
   const { data: rqs = [], isLoading } = useSolicitudRequisiciones(solicitudId)
@@ -76,6 +77,9 @@ function SolicitudRQBlock({ solicitudId, lugar, lote }: { solicitudId: string; l
                   {CATEGORIA_LABELS[rq.categoria]}
                 </span>
                 <EstadoBadge estado={rq.estado} />
+                {rq.tiene_faltante && (
+                  <EntregaParcialBadge fechaPrimeraEntrega={rq.fecha_primera_entrega} categoria={rq.categoria} itemsPendientes={rq.items_pendientes} />
+                )}
               </div>
               <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
                 {lugar} &middot; CC {lote}
@@ -93,7 +97,18 @@ function SolicitudRQBlock({ solicitudId, lugar, lote }: { solicitudId: string; l
               </button>
             )}
 
-            {rq.estado === 'ENTREGADO' && (
+            {rq.tiene_faltante && (
+              <button
+                onClick={() => setRecibiendoId(rq.id)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity"
+                style={{ background: '#f59e0b', color: '#fff' }}
+              >
+                <AlertTriangle size={13} />
+                Entrega faltante
+              </button>
+            )}
+
+            {rq.estado === 'ENTREGADO' && !rq.tiene_faltante && (
               <div
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold"
                 style={{ background: 'rgba(22,163,74,0.1)', color: '#15803d' }}

@@ -2,19 +2,23 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
-import { formatCOP } from '@/src/lib/utils'
-import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, Send, Clock, Search, Eye, X, Plus, Pencil, Trash2, PenLine, FileText, Package } from 'lucide-react'
+import { formatCOP, formatDateShort } from '@/src/lib/utils'
+import {
+  Loader2, ChevronLeft, ChevronRight, CheckCircle2, Send, Clock, Search, Eye, X, Plus, Pencil, Trash2, PenLine, FileText, Package,
+  ClipboardCheck, Truck, Warehouse, PackageCheck, AlertTriangle,
+} from 'lucide-react'
 import {
   useMisSolicitudes, useSolicitud, useLlenarMiSolicitud, useSolicitudRequisiciones,
   useCrearAdicional, useEditarAdicional, useEliminarAdicional, useCrearSolicitudAdicional,
 } from '@/src/hooks/consumables/use-solicitudes'
 import { useRequisicion } from '@/src/hooks/consumables/use-requisiciones'
 import { RecepcionModal } from '../supervisor/recepcion-modal'
+import { EntregaParcialBadge } from '../entrega-parcial-badge'
 import { useFieldLugares } from '@/src/hooks/reports/use-fields'
 import { useAuthStore } from '@/src/stores/auth.store'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { CATEGORIAS, CATEGORIA_LABELS } from '@/src/types/consumables.types'
-import type { CategoriaInsumo, SolicitudItem } from '@/src/types/consumables.types'
+import type { CategoriaInsumo, SolicitudItem, EstadoRQ } from '@/src/types/consumables.types'
 import { fetchFirmaUrl, uploadFirma, getCargo, saveCargo } from '@/src/lib/firma'
 import { generarPdfsSolicitud } from '@/src/lib/solicitud-pdf'
 
@@ -748,6 +752,76 @@ function ProgressModal({ step }: { step: ProgressStep }) {
   )
 }
 
+/* ─────────────── RQProgressBar ─────────────── */
+
+const RQ_STEPS: { key: EstadoRQ; label: string; icon: typeof ClipboardCheck; color: string }[] = [
+  { key: 'APROBADA',         label: 'Aprobada',         icon: ClipboardCheck, color: '#3b82f6' },
+  { key: 'PEDIDO_REALIZADO', label: 'Pedido realizado', icon: Truck,          color: '#f59e0b' },
+  { key: 'EN_BODEGA',        label: 'En bodega',        icon: Warehouse,      color: '#0891b2' },
+  { key: 'ENTREGADO',        label: 'Entregado',        icon: PackageCheck,   color: '#16a34a' },
+]
+
+function RQProgressBar({ estado, fechaEntrega, description }: { estado: EstadoRQ; fechaEntrega?: string | null; description?: string }) {
+  const currentIndex = RQ_STEPS.findIndex((s) => s.key === estado)
+  if (currentIndex === -1) return null
+  const isEntregado = currentIndex === RQ_STEPS.length - 1
+
+  return (
+    <div className="pt-1 pb-0.5 w-full">
+      <div className="flex items-start">
+        {RQ_STEPS.map((step, idx) => {
+          const Icon       = step.icon
+          const isDone     = idx < currentIndex
+          const isCurrent  = idx === currentIndex
+          const isReached  = isDone || isCurrent
+          const nodeColor  = isDone ? '#16a34a' : step.color
+          return (
+            <div key={step.key} className="flex-1 flex flex-col items-center gap-1.5 relative">
+              {idx > 0 && (
+                <div
+                  className="absolute h-[3px] rounded-full"
+                  style={{
+                    top: 15, right: '50%', width: '100%',
+                    background: idx <= currentIndex ? '#16a34a' : 'var(--color-border)',
+                  }}
+                />
+              )}
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style={{
+                  position:   'relative',
+                  zIndex:     1,
+                  background: isReached ? nodeColor : 'var(--color-surface-1)',
+                  color:      isReached ? '#fff' : 'var(--color-text-400)',
+                  border:     isReached ? 'none' : '1.5px solid var(--color-border)',
+                  boxShadow:  isCurrent ? `0 0 0 4px ${nodeColor}22` : 'none',
+                }}
+              >
+                <Icon size={14} />
+              </div>
+              <span
+                className="text-xs font-semibold text-center leading-tight px-0.5"
+                style={{ color: isReached ? 'var(--color-text-900)' : 'var(--color-text-400)' }}
+              >
+                {step.label}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      {isEntregado && fechaEntrega ? (
+        <p className="text-xs font-semibold text-center mt-1.5" style={{ color: '#16a34a' }}>
+          Recibido el {formatDateShort(fechaEntrega)}
+        </p>
+      ) : description ? (
+        <p className="text-xs text-center mt-1.5" style={{ color: 'var(--color-text-400)' }}>
+          {description}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 /* ─────────────── MiSolicitudTab ─────────────── */
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -793,7 +867,7 @@ export function MiSolicitudTab() {
   const [busqueda,     setBusqueda]     = useState('')
   const [previewRqId,   setPreviewRqId]   = useState<string | null>(null)
   const [recibiendoRqId, setRecibiendoRqId] = useState<string | null>(null)
-  const ESTADOS_RECIBIBLES = new Set(['PEDIDO_REALIZADO', 'EN_BODEGA'])
+  const ESTADOS_RECIBIBLES = new Set(['EN_BODEGA'])
   const [showConfirm,   setShowConfirm]   = useState(false)
   const [showFirmaStep, setShowFirmaStep] = useState(false)
   const [progressStep,  setProgressStep]  = useState<ProgressStep | null>(null)
@@ -1087,11 +1161,6 @@ export function MiSolicitudTab() {
               EN_BODEGA:        { color: '#0891b2', desc: 'Insumos disponibles en bodega, ya puedes pasar a recoger' },
               ENTREGADO:        { color: '#16a34a', desc: 'Insumos recibidos' },
             }
-            const RQ_LABELS: Record<string, string> = {
-              APROBADA: 'Aprobada', PEDIDO_REALIZADO: 'Pedido realizado',
-              EN_BODEGA: 'En bodega', ENTREGADO: 'Recibido',
-              ABIERTA: 'Abierta', COMPLETADA: 'Completada',
-            }
             return (
               <>
                 <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
@@ -1113,11 +1182,10 @@ export function MiSolicitudTab() {
                   ) : (
                     <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
                       {rqsSolicitud.map((rq) => {
-                        const info  = RQ_INFO[rq.estado]
-                        const color = info?.color ?? '#6b7280'
+                        const info = RQ_INFO[rq.estado]
                         return (
-                          <div key={rq.id} className="flex items-center gap-3 px-5 py-3 flex-wrap" style={{ background: 'var(--color-surface-0)' }}>
-                            <div className="flex-1 min-w-0">
+                          <div key={rq.id} className="flex flex-col gap-3 px-5 py-4" style={{ background: 'var(--color-surface-0)' }}>
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-bold" style={{ color: 'var(--color-text-900)' }}>
                                   RQ #{rq.numero_rq}
@@ -1128,39 +1196,42 @@ export function MiSolicitudTab() {
                                 >
                                   {CATEGORIA_LABELS[rq.categoria]}
                                 </span>
-                                <span
-                                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                                  style={{ background: `${color}22`, color }}
-                                >
-                                  {RQ_LABELS[rq.estado] ?? rq.estado}
-                                </span>
+                                {rq.tiene_faltante && (
+                                  <EntregaParcialBadge fechaPrimeraEntrega={rq.fecha_primera_entrega} categoria={rq.categoria} itemsPendientes={rq.items_pendientes} />
+                                )}
                               </div>
-                              {info && (
-                                <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
-                                  {info.desc}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {ESTADOS_RECIBIBLES.has(rq.estado) && (
+                              <div className="flex items-center gap-2 shrink-0">
+                                {ESTADOS_RECIBIBLES.has(rq.estado) && (
+                                  <button
+                                    onClick={() => setRecibiendoRqId(rq.id)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity"
+                                    style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                  >
+                                    <Package size={12} />
+                                    Recibir insumos
+                                  </button>
+                                )}
+                                {rq.tiene_faltante && (
+                                  <button
+                                    onClick={() => setRecibiendoRqId(rq.id)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity"
+                                    style={{ background: '#f59e0b', color: '#fff' }}
+                                  >
+                                    <AlertTriangle size={12} />
+                                    Entrega faltante
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => setRecibiendoRqId(rq.id)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity"
-                                  style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                  onClick={() => setPreviewRqId(rq.id)}
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity shrink-0"
+                                  title="Ver lo solicitado"
+                                  style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)', border: '1px solid var(--color-border)' }}
                                 >
-                                  <Package size={12} />
-                                  Recibir insumos
+                                  <Eye size={13} />
                                 </button>
-                              )}
-                              <button
-                                onClick={() => setPreviewRqId(rq.id)}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity shrink-0"
-                                title="Ver lo solicitado"
-                                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)', border: '1px solid var(--color-border)' }}
-                              >
-                                <Eye size={13} />
-                              </button>
+                              </div>
                             </div>
+                            <RQProgressBar estado={rq.estado} fechaEntrega={rq.fecha_entrega} description={info?.desc} />
                           </div>
                         )
                       })}
@@ -1337,7 +1408,16 @@ export function MiSolicitudTab() {
               ) : (
                 <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+                      <colgroup>
+                        <col style={{ width: 90 }} />
+                        <col />
+                        <col style={{ width: 70 }} />
+                        <col style={{ width: 110 }} />
+                        <col style={{ width: 110 }} />
+                        <col style={{ width: 110 }} />
+                        <col style={{ width: 60 }} />
+                      </colgroup>
                       <thead>
                         <tr style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
                           {['Codigo', 'Descripcion', 'Unidad', 'V. Unitario', 'Solicitado', 'Total', ''].map((h) => (
@@ -1382,7 +1462,7 @@ export function MiSolicitudTab() {
                               </td>
 
                               {/* Descripcion + proveedor si es adicional */}
-                              <td className="px-3 py-2.5 text-xs font-medium" style={{ color: 'var(--color-text-900)', minWidth: 200 }}>
+                              <td className="px-3 py-2.5 text-xs font-medium" style={{ color: 'var(--color-text-900)' }}>
                                 {item.descripcion}
                                 {isAdicional && item.proveedor && (
                                   <span className="block text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
@@ -1400,7 +1480,7 @@ export function MiSolicitudTab() {
                               </td>
 
                               {/* Solicitado: input para plantilla, texto para adicional */}
-                              <td className="px-3 py-2.5" style={{ minWidth: 96 }}>
+                              <td className="px-3 py-2.5">
                                 {isAdicional ? (
                                   <span className="text-xs font-semibold block text-right px-2" style={{ color: 'var(--color-text-900)' }}>
                                     {item.solicitado ?? '-'}
@@ -1458,12 +1538,13 @@ export function MiSolicitudTab() {
                       {catActiva && (
                         <tfoot>
                           <tr style={{ background: 'var(--color-surface-1)', borderTop: '2px solid var(--color-border)' }}>
-                            <td colSpan={6} className="px-3 py-2.5 text-xs font-bold text-right" style={{ color: 'var(--color-text-600)' }}>
+                            <td colSpan={5} className="px-3 py-2.5 text-xs font-bold text-right" style={{ color: 'var(--color-text-600)' }}>
                               Subtotal {CATEGORIA_LABELS[catActiva]}
                             </td>
                             <td className="px-3 py-2.5 text-xs font-bold text-right whitespace-nowrap" style={{ color: 'var(--color-primary)' }}>
                               {formatCOP(totalCategoria(catActiva))}
                             </td>
+                            <td></td>
                           </tr>
                         </tfoot>
                       )}

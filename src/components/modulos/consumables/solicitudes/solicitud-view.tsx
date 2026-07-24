@@ -232,7 +232,15 @@ export function SolicitudView({ id }: Props) {
                 </div>
                 <div className="rounded-2xl bg-white border border-[#d1dede] overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+                      <colgroup>
+                        <col style={{ width: 90 }} />
+                        <col />
+                        <col style={{ width: 70 }} />
+                        <col style={{ width: 110 }} />
+                        <col style={{ width: 110 }} />
+                        <col style={{ width: 120 }} />
+                      </colgroup>
                       <thead>
                         <tr style={{ background: '#1a3a3a', color: '#fff' }}>
                           {['Codigo', 'Descripcion', 'Unidad', 'V. Unitario', 'Solicitado', 'Total'].map((h) => (
@@ -250,19 +258,19 @@ export function SolicitudView({ id }: Props) {
                               key={item.id}
                               style={{ borderBottom: '1px solid #e5e7eb', background: idx % 2 === 0 ? '#fff' : '#f9fafb' }}
                             >
-                              <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-500">
+                              <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-500 truncate">
                                 {item.codigo}
                               </td>
-                              <td className="px-4 py-3 font-medium text-gray-900 max-w-56 truncate">
+                              <td className="px-4 py-3 font-medium text-gray-900 truncate">
                                 {item.descripcion}
                               </td>
-                              <td className="px-4 py-3 text-xs text-gray-500">
+                              <td className="px-4 py-3 text-xs text-gray-500 truncate">
                                 {item.unidad}
                               </td>
-                              <td className="px-4 py-3 text-xs font-semibold text-right text-gray-700">
+                              <td className="px-4 py-3 text-xs font-semibold text-right text-gray-700 whitespace-nowrap">
                                 {formatCOP(item.valor_unitario)}
                               </td>
-                              <td className="px-4 py-3" style={{ minWidth: 96 }}>
+                              <td className="px-4 py-3">
                                 <input
                                   type="number"
                                   min="0"
@@ -274,7 +282,7 @@ export function SolicitudView({ id }: Props) {
                                   onBlur={(e)  => { e.target.style.borderColor = '#d1d5db' }}
                                 />
                               </td>
-                              <td className="px-4 py-3 text-xs font-semibold text-right text-gray-900">
+                              <td className="px-4 py-3 text-xs font-semibold text-right text-gray-900 whitespace-nowrap">
                                 {formatCOP(t)}
                               </td>
                             </tr>

@@ -8,6 +8,7 @@ import { fetchFirmaUrl } from '@/src/lib/firma'
 import { getAuthState } from '@/src/stores/auth.store'
 import { CATEGORIA_LABELS, ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { Requisicion, RQItem } from '@/src/types/consumables.types'
+import { EntregaParcialBadge } from '../entrega-parcial-badge'
 import { formatCOP } from '@/src/lib/utils'
 import type { ImageRange } from 'exceljs'
 
@@ -536,6 +537,7 @@ export function RequisicionDetail({ id, onBack }: Props) {
     setFiltroOpen(false)
     setFiltroInput('')
     setFiltroActivo('')
+    setShowRecepcion(!!rq.recepcion_completada)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rq?.id])
 
@@ -740,6 +742,9 @@ export function RequisicionDetail({ id, onBack }: Props) {
               >
                 {rq.entrega_completa ? 'Entrega completa' : 'Entrega parcial'}
               </span>
+            )}
+            {showRecepcion && rq.tiene_faltante && (
+              <EntregaParcialBadge fechaPrimeraEntrega={rq.fecha_primera_entrega} categoria={rq.categoria} itemsPendientes={rq.items_pendientes} />
             )}
             {showRecepcion && (
               <button

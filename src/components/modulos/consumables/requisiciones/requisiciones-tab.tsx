@@ -6,7 +6,7 @@ import { formatCOP, formatDateShort as formatDate } from '@/src/lib/utils'
 import type { ImageRange } from 'exceljs'
 import {
   Plus, Loader2, Eye, Trash2, AlertTriangle, FileText,
-  ChevronLeft, ChevronRight, ChevronDown, ClipboardCheck, ExternalLink, CheckCircle2, RotateCcw,
+  ChevronLeft, ChevronRight, ChevronDown, ClipboardCheck, CheckCircle2, RotateCcw,
   Pencil, Check, X, Banknote, MapPin, FileSpreadsheet, PenLine,
 } from 'lucide-react'
 import { fetchFirmaUrl, uploadFirma } from '@/src/lib/firma'
@@ -21,6 +21,7 @@ import {
 import type { Field } from '@/src/types/reports.types'
 import { RequisicionDetail } from './requisicion-detail'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
+import { EntregaParcialBadge } from '../entrega-parcial-badge'
 import { CATEGORIAS, CATEGORIA_LABELS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type {
   Requisicion, RequisicionSummary, CategoriaInsumo, SolicitudItem, GenerarRQsResult, AjusteSolicitadoDto,
@@ -415,13 +416,6 @@ function RevisionSolicitudModal({ solicitudId, onClose }: { solicitudId: string;
                     {CATEGORIA_LABELS[rq.categoria]}
                   </p>
                 </div>
-                <a
-                  href={`/dashboard/consumables/requisiciones/${rq.id}`}
-                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-80 transition-opacity"
-                  style={{ background: 'var(--color-primary)', color: '#fff' }}
-                >
-                  <ExternalLink size={11} /> Ver
-                </a>
               </div>
             ))}
           </div>
@@ -1810,7 +1804,12 @@ export function RequisicionesTab() {
                         {rq.lugar}
                       </td>
                       <td className="px-4 py-3">
-                        <EstadoBadge estado={rq.estado} />
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <EstadoBadge estado={rq.estado} />
+                          {rq.tiene_faltante && (
+                            <EntregaParcialBadge fechaPrimeraEntrega={rq.fecha_primera_entrega} categoria={rq.categoria} itemsPendientes={rq.items_pendientes} />
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         {facturadoSet.has(rq.id) ? (

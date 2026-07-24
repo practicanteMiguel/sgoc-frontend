@@ -18,6 +18,8 @@ import { fetchLogoBase64, fetchLogoBuffer } from '@/src/lib/report-header'
 import type { ImageRange } from 'exceljs'
 import type { Crew, WeeklyLog, WeeklyLogSummary, TechnicalReport } from '@/src/types/activities.types'
 
+type LogWithCrew = WeeklyLogSummary & { crew: NonNullable<WeeklyLogSummary['crew']> }
+
 type SubTab = 'cuadrillas' | 'bitacoras' | 'informes'
 
 type DrillView =
@@ -404,11 +406,9 @@ export function SupervisorActivitiesView() {
   const { data: reports = [], isLoading: loadingReports } = useTechnicalReports()
   const deleteCrew = useDeleteCrew()
 
-  const fieldCrewIds = useMemo(() => new Set(crews.map((c) => c.id)), [crews])
-
   const fieldLogs = useMemo(
-    () => (logs as WeeklyLogSummary[]).filter((l) => fieldCrewIds.has(l.crew.id)),
-    [logs, fieldCrewIds],
+    () => (logs as WeeklyLogSummary[]).filter((l): l is LogWithCrew => l.crew !== null && l.crew.field?.id === fieldId),
+    [logs, fieldId],
   )
 
   // Distinct week numbers present in logbooks
@@ -433,8 +433,8 @@ export function SupervisorActivitiesView() {
   }, [reports])
 
   const fieldReports = useMemo(
-    () => (reports as TechnicalReport[]).filter((r) => fieldCrewIds.has(r.crew?.id ?? '')),
-    [reports, fieldCrewIds],
+    () => (reports as TechnicalReport[]).filter((r) => r.crew?.field?.id === fieldId),
+    [reports, fieldId],
   )
 
   // Distinct weeks in reports

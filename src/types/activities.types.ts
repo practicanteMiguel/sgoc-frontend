@@ -49,7 +49,7 @@ export interface WeeklyLogSummary {
   id: string
   week_number: number
   year: number
-  crew: { id: string; name: string }
+  crew: { id: string; name: string; field?: CrewField } | null
   created_at: string
 }
 

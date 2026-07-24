@@ -79,6 +79,17 @@ export interface Requisicion {
   total_solicitado?: number | null
   total_recibido?: number | null
   entrega_completa?: boolean | null
+  tiene_faltante?: boolean
+  items_pendientes?: number
+  fecha_primera_entrega?: string | null
+  entrega_eventos?: RequisicionEntregaEvento[]
+}
+
+export interface RequisicionEntregaEvento {
+  fecha_entrega: string
+  entrega_completa: boolean
+  total_solicitado: number
+  total_recibido: number
 }
 
 export interface RecepcionItemDto {
@@ -102,6 +113,14 @@ export interface RequisicionSummary {
   created_at: string
   mes?: number
   anio?: number
+  fecha_entrega?: string | null
+  recepcion_completada?: boolean | null
+  total_solicitado?: number | null
+  total_recibido?: number | null
+  entrega_completa?: boolean | null
+  tiene_faltante?: boolean
+  items_pendientes?: number
+  fecha_primera_entrega?: string | null
 }
 
 export interface CreateRequisicionDto {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Loader2, Equal, Search, X, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { useRequisicion, useRecepcionRQ } from '@/src/hooks/consumables/use-requisiciones'
 import { CATEGORIA_LABELS } from '@/src/types/consumables.types'
@@ -22,6 +22,18 @@ export function RecepcionModal({ rqId, onClose }: Props) {
   const [busqueda, setBusqueda]       = useState('')
   const [fechaEntrega, setFechaEntrega] = useState(() => new Date().toISOString().split('T')[0])
   const [cantidades, setCantidades]   = useState<Record<string, string>>({})
+
+  const esEntregaFaltante = !!rq?.recepcion_completada
+
+  useEffect(() => {
+    if (!rq) return
+    const init: Record<string, string> = {}
+    for (const item of rq.items) {
+      init[item.id] = item.recibido != null ? String(item.recibido) : ''
+    }
+    setCantidades(init)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rq?.id])
 
   const sortedItems = useMemo(
     () => rq ? [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' })) : [],
@@ -89,7 +101,7 @@ export function RecepcionModal({ rqId, onClose }: Props) {
   return (
     <ModalPortal onClose={onClose}>
       <div
-        className="w-full max-w-4xl rounded-2xl flex flex-col"
+        className="w-full max-w-4xl rounded-2xl overflow-hidden flex flex-col"
         style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -100,7 +112,7 @@ export function RecepcionModal({ rqId, onClose }: Props) {
         >
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-primary)' }}>
-              Recepcion de insumos
+              {esEntregaFaltante ? 'Entrega faltante' : 'Recepcion de insumos'}
             </p>
             <h2 className="text-sm font-bold mt-0.5" style={{ color: 'var(--color-text-900)' }}>
               RQ #{rq.numero_rq} &middot; {CATEGORIA_LABELS[rq.categoria]} &middot; {rq.lugar} CC{rq.lote}
@@ -167,6 +179,7 @@ export function RecepcionModal({ rqId, onClose }: Props) {
                     const val = cantidades[item.id] ?? ''
                     const rec = val === '' ? null : Math.round(Math.max(0, Number(val)))
                     const sol = Math.round(Number(item.solicitado ?? 0))
+                    const yaCompleto = esEntregaFaltante && item.recibido != null && Math.round(Number(item.recibido)) >= sol
                     const borderColor = rec === null
                       ? 'var(--color-border)'
                       : rec === sol ? '#16a34a'
@@ -178,6 +191,7 @@ export function RecepcionModal({ rqId, onClose }: Props) {
                         style={{
                           borderBottom: '1px solid var(--color-border)',
                           background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)',
+                          opacity: yaCompleto ? 0.55 : 1,
                         }}
                       >
                         <td className="px-4 py-2.5 font-mono text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--color-text-400)' }}>
@@ -193,30 +207,37 @@ export function RecepcionModal({ rqId, onClose }: Props) {
                           {sol}
                         </td>
                         <td className="px-4 py-2.5" style={{ minWidth: 140 }}>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="0"
-                              value={val}
-                              onChange={(e) => setCantidades((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                              placeholder="0"
-                              className="w-16 rounded-md px-2 py-1 text-xs text-right"
-                              style={{
-                                border: `1.5px solid ${borderColor}`,
-                                background: 'var(--color-surface-0)',
-                                color: 'var(--color-text-900)',
-                                outline: 'none',
-                              }}
-                            />
-                            <button
-                              onClick={() => setCantidades((prev) => ({ ...prev, [item.id]: String(sol) }))}
-                              title="Igual al pedido"
-                              className="w-7 h-7 flex items-center justify-center rounded-md hover:opacity-80 transition-opacity"
-                              style={{ background: 'var(--color-primary)', color: '#fff' }}
-                            >
-                              <Equal size={12} />
-                            </button>
-                          </div>
+                          {yaCompleto ? (
+                            <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: '#16a34a' }} title="Ya se entrego completo, no se puede modificar">
+                              <CheckCircle2 size={13} />
+                              {rec} uds · Completo
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="0"
+                                value={val}
+                                onChange={(e) => setCantidades((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                placeholder="0"
+                                className="w-16 rounded-md px-2 py-1 text-xs text-right"
+                                style={{
+                                  border: `1.5px solid ${borderColor}`,
+                                  background: 'var(--color-surface-0)',
+                                  color: 'var(--color-text-900)',
+                                  outline: 'none',
+                                }}
+                              />
+                              <button
+                                onClick={() => setCantidades((prev) => ({ ...prev, [item.id]: String(sol) }))}
+                                title="Igual al pedido"
+                                className="w-7 h-7 flex items-center justify-center rounded-md hover:opacity-80 transition-opacity"
+                                style={{ background: 'var(--color-primary)', color: '#fff' }}
+                              >
+                                <Equal size={12} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )
@@ -386,7 +407,9 @@ export function RecepcionModal({ rqId, onClose }: Props) {
               </button>
               <div className="flex flex-col items-end gap-1">
                 <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
-                  Tu firma se registrara automaticamente y la RQ pasara a Entregado
+                  {esEntregaFaltante
+                    ? 'Tu firma se registrara automaticamente y quedara constancia de esta entrega'
+                    : 'Tu firma se registrara automaticamente y la RQ pasara a Entregado'}
                 </p>
                 <button
                   onClick={handleConfirmar}
