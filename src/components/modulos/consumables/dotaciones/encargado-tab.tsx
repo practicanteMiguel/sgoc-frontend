@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   Loader2, ChevronDown, ChevronUp, Image as ImageIcon, CheckCircle2, X,
   FileDown, FileSpreadsheet, Plus, Trash2, ChevronLeft, ChevronRight, FileText, Package,
-  Eye, BarChart2, History, Search, PackagePlus, type LucideIcon,
+  Eye, BarChart2, History, Search, PackagePlus, Calendar, type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAllDotacionSolicitudes, useGenerarDotacionRQ } from '@/src/hooks/dotaciones/use-dotaciones'
@@ -285,22 +285,106 @@ function DotacionRQDetail({ rqId, onBack }: { rqId: string; onBack: () => void }
 // ── Generar RQ modal ──────────────────────────────────────────────────────────
 interface ItemRow {
   _id: string
-  codigo: string
-  descripcion: string
-  unidad: string
+  indumentariaId: string
   tipo: 'ORDINARIA' | 'EXTRAORDINARIA'
   valorUnitario: string
   solicitado: string
 }
 
 function makeItem(): ItemRow {
-  return { _id: Math.random().toString(36).slice(2), codigo: '', descripcion: '', unidad: 'UNIDAD', tipo: 'ORDINARIA', valorUnitario: '', solicitado: '1' }
+  return { _id: Math.random().toString(36).slice(2), indumentariaId: '', tipo: 'ORDINARIA', valorUnitario: '', solicitado: '1' }
 }
 
 function rowTotal(item: ItemRow): number {
   const v = parseFloat(item.valorUnitario)
   const s = parseInt(item.solicitado)
   return isNaN(v) || isNaN(s) ? 0 : v * s
+}
+
+const PICKER_INP: React.CSSProperties = {
+  border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)',
+  borderRadius: 8, padding: '6px 10px 6px 28px', fontSize: 12, outline: 'none', width: '100%',
+}
+
+// ── Selector de item del catalogo de indumentaria ──────────────────────────
+function IndumentariaPicker({
+  catalog,
+  selectedId,
+  onSelect,
+}: {
+  catalog: IndumentariaItem[]
+  selectedId: string
+  onSelect: (item: IndumentariaItem) => void
+}) {
+  const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
+  const boxRef = useRef<HTMLDivElement>(null)
+  const selected = catalog.find(c => c.id === selectedId) ?? null
+
+  useEffect(() => {
+    if (!open) return
+    function onDocMouseDown(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [open])
+
+  const filtered = catalog.filter(c => {
+    if (!query.trim()) return true
+    const q = query.toLowerCase()
+    return c.nombre.toLowerCase().includes(q) || (c.codigo ?? '').toLowerCase().includes(q)
+  })
+
+  if (selected && !open) {
+    return (
+      <div className="col-span-4 flex items-center justify-between gap-2 rounded-lg px-3 py-2"
+        style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text-900)' }}>
+            {selected.codigo ? `${selected.codigo} · ` : ''}{selected.nombre}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{selected.unidad}</p>
+        </div>
+        <button type="button" onClick={() => { setQuery(''); setOpen(true) }}
+          className="text-xs font-medium shrink-0 px-2 py-1 rounded-md transition-opacity hover:opacity-70"
+          style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}>
+          Cambiar
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="col-span-4 relative" ref={boxRef}>
+      <div className="relative">
+        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-400)' }} />
+        <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          placeholder="Buscar item del catalogo *"
+          style={PICKER_INP}
+        />
+      </div>
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-1 rounded-lg overflow-y-auto z-10"
+          style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-0)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', maxHeight: 190 }}>
+          {filtered.length === 0 ? (
+            <p className="text-xs px-3 py-2" style={{ color: 'var(--color-text-400)' }}>Sin resultados</p>
+          ) : filtered.slice(0, 30).map(c => (
+            <button key={c.id} type="button"
+              onClick={() => { onSelect(c); setOpen(false); setQuery('') }}
+              className="w-full text-left px-3 py-2 text-xs transition-colors hover:opacity-80"
+              style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <span className="font-semibold" style={{ color: 'var(--color-text-900)' }}>{c.nombre}</span>
+              <span style={{ color: 'var(--color-text-400)' }}> &middot; {c.codigo || 's/codigo'} &middot; {c.unidad}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function GenerarRQModal({
@@ -316,9 +400,17 @@ function GenerarRQModal({
   const [obs, setObs]           = useState('')
   const [items, setItems]       = useState<ItemRow[]>(() => [makeItem()])
   const generar = useGenerarDotacionRQ()
+  const { data: catalogRaw } = useIndumentariaCatalog()
+  const catalog = (Array.isArray(catalogRaw) ? catalogRaw : []).filter(c => c.activo)
 
   function setField(id: string, field: keyof Omit<ItemRow, '_id'>, val: string) {
     setItems(prev => prev.map(it => it._id === id ? { ...it, [field]: val } : it))
+  }
+
+  function selectIndumentaria(id: string, item: IndumentariaItem) {
+    setItems(prev => prev.map(it => it._id === id
+      ? { ...it, indumentariaId: item.id, valorUnitario: it.valorUnitario || (item.valor_unitario != null ? String(item.valor_unitario) : '') }
+      : it))
   }
 
   const totalGeneral = items.reduce((s, it) => s + rowTotal(it), 0)
@@ -327,7 +419,7 @@ function GenerarRQModal({
     const num = parseInt(numeroRQ)
     if (isNaN(num) || num <= 0) { toast.error('Ingrese un numero de RQ valido'); return }
     if (items.length === 0) { toast.error('Agregue al menos un item'); return }
-    const invalid = items.find(it => !it.descripcion.trim() || !it.unidad.trim() || !it.valorUnitario || !it.solicitado)
+    const invalid = items.find(it => !it.indumentariaId || !it.valorUnitario || !it.solicitado)
     if (invalid) { toast.error('Complete todos los campos requeridos de los items'); return }
 
     generar.mutate({
@@ -339,9 +431,7 @@ function GenerarRQModal({
       estado:             'APROBADA',
       ...(obs.trim() ? { observaciones: obs.trim() } : {}),
       items: items.map(it => ({
-        ...(it.codigo.trim() ? { codigo: it.codigo.trim() } : {}),
-        descripcion:      it.descripcion.trim(),
-        unidad:           it.unidad.trim(),
+        indumentaria_id:  it.indumentariaId,
         tipo_requisicion: it.tipo,
         valor_unitario:   parseFloat(it.valorUnitario),
         solicitado:       parseInt(it.solicitado),
@@ -412,11 +502,13 @@ function GenerarRQModal({
                     )}
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    <input value={item.codigo} onChange={e => setField(item._id, 'codigo', e.target.value)} placeholder="Codigo" style={INP} />
-                    <input value={item.descripcion} onChange={e => setField(item._id, 'descripcion', e.target.value)} placeholder="Descripcion *" className="col-span-3" style={INP} />
+                    <IndumentariaPicker
+                      catalog={catalog}
+                      selectedId={item.indumentariaId}
+                      onSelect={i => selectIndumentaria(item._id, i)}
+                    />
                   </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    <input value={item.unidad} onChange={e => setField(item._id, 'unidad', e.target.value)} placeholder="Unidad *" style={INP} />
+                  <div className="grid grid-cols-3 gap-2">
                     <select value={item.tipo} onChange={e => setField(item._id, 'tipo', e.target.value)} style={{ ...INP, appearance: 'none' as const }}>
                       <option value="ORDINARIA">Ordinaria</option>
                       <option value="EXTRAORDINARIA">Extraordinaria</option>
@@ -487,74 +579,111 @@ function SolicitudModal({
     })
   }
 
+  const totalFotos = sol.reposiciones.reduce((n, r) => n + r.imagenes.length, 0)
+
   return (
     <>
       <ModalPortal onClose={onClose}>
         <div
-          className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col"
+          className="w-full max-w-2xl rounded-xl flex flex-col overflow-hidden"
           style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', maxHeight: '85vh' }}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-5 py-4 flex items-start justify-between gap-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div className="px-5 py-4 flex items-start justify-between gap-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>{sol.campo?.name ?? '—'}</p>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <EstadoBadge estado={sol.estado} />
               </div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+                {sol.campo?.name ?? 'Solicitud'} - {formatDate(sol.fecha)}
+              </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
-                {formatDate(sol.fecha)} &middot; {sol.contrato} &middot; {sol.inspeccion_realizada_por}
+                {sol.inspeccion_realizada_por} &middot; {sol.cargo_inspector} &middot; Contrato {sol.contrato}
               </p>
             </div>
-            <button onClick={onClose} className="p-1 rounded-lg transition-opacity hover:opacity-70 shrink-0" style={{ color: 'var(--color-text-400)' }}>
+            <button onClick={onClose} className="p-1.5 rounded-lg transition-opacity hover:opacity-70 shrink-0" style={{ color: 'var(--color-text-400)' }}>
               <X size={18} />
             </button>
           </div>
 
+          {/* Stats bar */}
+          <div className="px-5 py-3 flex gap-6 shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+            <div className="flex items-center gap-1.5">
+              <FileText size={13} style={{ color: 'var(--color-text-400)' }} />
+              <span className="text-xs" style={{ color: 'var(--color-text-600)' }}>
+                <strong>{sol.reposiciones.length}</strong> reposicion{sol.reposiciones.length !== 1 ? 'es' : ''}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Calendar size={13} style={{ color: 'var(--color-text-400)' }} />
+              <span className="text-xs" style={{ color: 'var(--color-text-600)' }}>
+                Emitida <strong>{formatDate(sol.created_at)}</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ImageIcon size={13} style={{ color: 'var(--color-text-400)' }} />
+              <span className="text-xs" style={{ color: 'var(--color-text-600)' }}>
+                <strong>{totalFotos}</strong> foto{totalFotos !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
           {/* Reposiciones */}
-          <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-3">
+          <div className="overflow-y-auto flex-1 min-h-0 px-5 py-4 flex flex-col gap-2">
             {sol.reposiciones.map((repo, i) => (
-              <div key={repo.id} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+              <div key={repo.id} style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
                 <button type="button" onClick={() => toggle(i)}
                   className="w-full flex items-center justify-between px-4 py-3 text-left"
                   style={{ background: 'var(--color-surface-1)' }}>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-900)' }}>{repo.empleado.first_name} {repo.empleado.last_name}</p>
-                    <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{repo.empleado.position}</p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0"
+                      style={{ background: 'var(--color-surface-3)', color: 'var(--color-text-600)' }}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-900)' }}>{repo.empleado.first_name} {repo.empleado.last_name}</p>
+                      <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{repo.empleado.position}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <div className="flex items-center gap-3 shrink-0 ml-3">
                     {repo.imagenes.length > 0 && (
                       <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-text-400)' }}>
-                        <ImageIcon size={11} />{repo.imagenes.length}
+                        <ImageIcon size={12} />{repo.imagenes.length}
                       </span>
                     )}
                     {expanded.has(i)
-                      ? <ChevronUp size={14} style={{ color: 'var(--color-text-400)' }} />
-                      : <ChevronDown size={14} style={{ color: 'var(--color-text-400)' }} />}
+                      ? <ChevronUp size={15} style={{ color: 'var(--color-text-400)' }} />
+                      : <ChevronDown size={15} style={{ color: 'var(--color-text-400)' }} />}
                   </div>
                 </button>
 
                 {expanded.has(i) && (
-                  <div className="px-4 pb-4 pt-3 flex flex-col gap-3" style={{ background: 'var(--color-surface-0)' }}>
+                  <div className="px-4 py-3 flex flex-col gap-3" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
                     <div>
-                      <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-400)' }}>Condicion encontrada</p>
-                      <p className="text-sm" style={{ color: 'var(--color-text-900)' }}>{repo.condicion_encontrada}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>Condicion encontrada</p>
+                      <p className="text-sm" style={{ color: 'var(--color-text-700)' }}>{repo.condicion_encontrada}</p>
                     </div>
                     {repo.fecha_entrega && (
                       <div>
-                        <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-400)' }}>Fecha entrega estimada</p>
-                        <p className="text-sm" style={{ color: 'var(--color-text-900)' }}>{formatDate(repo.fecha_entrega)}</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>Fecha de entrega</p>
+                        <p className="text-sm" style={{ color: 'var(--color-text-700)' }}>{formatDate(repo.fecha_entrega)}</p>
                       </div>
                     )}
                     {repo.imagenes.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {repo.imagenes.map(img => (
-                          <button key={img.id} type="button" onClick={() => setLightbox(img.url)}
-                            className="rounded-lg overflow-hidden transition-opacity hover:opacity-80 relative"
-                            style={{ width: 64, height: 64, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}>
-                            <Image src={img.url} alt={img.original_name} fill className="object-cover" unoptimized />
-                          </button>
-                        ))}
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-400)' }}>Fotos</p>
+                        <div className="flex flex-wrap gap-2">
+                          {repo.imagenes.map(img => (
+                            <button key={img.id} type="button" onClick={() => setLightbox(img.url)}
+                              className="relative overflow-hidden rounded-lg"
+                              style={{ width: 72, height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}>
+                              <Image src={img.url} alt={img.original_name} fill className="object-contain" unoptimized />
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -563,35 +692,35 @@ function SolicitudModal({
             ))}
           </div>
 
-          {/* Export buttons */}
-          <div className="px-5 py-3 flex gap-2 shrink-0" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
-            <button
-              onClick={async () => { setLoadingPdf(true); try { await exportDotacionPdf(sol) } finally { setLoadingPdf(false) } }}
-              disabled={loadingPdf || loadingXlsx}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-              style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
-            >
-              {loadingPdf ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />} PDF
-            </button>
-            <button
-              onClick={async () => { setLoadingXlsx(true); try { await exportDotacionExcel(sol) } finally { setLoadingXlsx(false) } }}
-              disabled={loadingPdf || loadingXlsx}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-              style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
-            >
-              {loadingXlsx ? <Loader2 size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />} Excel
-            </button>
-          </div>
-
-          {sol.estado === 'autorizada' && (
-            <div className="px-5 py-4 shrink-0" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
-              <button onClick={() => setShowGenerar(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold w-full justify-center"
-                style={{ background: '#1a3a3a', color: '#fff' }}>
-                <CheckCircle2 size={15} /> Generar RQ
+          {/* Export + Generar RQ */}
+          <div className="px-5 py-3 flex items-center justify-between gap-3 shrink-0" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => { setLoadingPdf(true); try { await exportDotacionPdf(sol) } finally { setLoadingPdf(false) } }}
+                disabled={loadingPdf || loadingXlsx}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
+              >
+                {loadingPdf ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />} PDF
+              </button>
+              <button
+                onClick={async () => { setLoadingXlsx(true); try { await exportDotacionExcel(sol) } finally { setLoadingXlsx(false) } }}
+                disabled={loadingPdf || loadingXlsx}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
+              >
+                {loadingXlsx ? <Loader2 size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />} Excel
               </button>
             </div>
-          )}
+
+            {sol.estado === 'autorizada' && (
+              <button onClick={() => setShowGenerar(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold"
+                style={{ background: '#1a3a3a', color: '#fff' }}>
+                <CheckCircle2 size={13} /> Generar RQ
+              </button>
+            )}
+          </div>
         </div>
       </ModalPortal>
 

@@ -1055,8 +1055,12 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
   const NEXT_ESTADO: Record<string, EstadoRQ> = {
     APROBADA: 'PEDIDO_REALIZADO', PEDIDO_REALIZADO: 'EN_BODEGA',
   }
+  // Solo dotaciones se marcan como entregadas desde compras (las demas categorias usan el flujo de recepcion del supervisor)
+  const NEXT_ESTADO_DOTACION: Record<string, EstadoRQ> = {
+    ...NEXT_ESTADO, EN_BODEGA: 'ENTREGADO',
+  }
   const NEXT_LABEL: Record<string, string> = {
-    APROBADA: 'Pedido realizado', PEDIDO_REALIZADO: 'Confirmar en bodega',
+    APROBADA: 'Pedido realizado', PEDIDO_REALIZADO: 'Confirmar en bodega', EN_BODEGA: 'Marcar como entregada',
   }
 
 
@@ -1115,7 +1119,7 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
               <tbody>
                 {rqs.map((rq, idx) => {
                   const color      = BADGE_COLORS[rq.estado] ?? '#6b7280'
-                  const nextEstado = NEXT_ESTADO[rq.estado]
+                  const nextEstado = (rq.categoria === 'DOTACION' ? NEXT_ESTADO_DOTACION : NEXT_ESTADO)[rq.estado]
                   return (
                     <tr
                       key={rq.id}

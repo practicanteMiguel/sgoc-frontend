@@ -779,7 +779,7 @@ function RQProgressBar({ estado, fechaEntrega, description }: { estado: EstadoRQ
             <div key={step.key} className="flex-1 flex flex-col items-center gap-1.5 relative">
               {idx > 0 && (
                 <div
-                  className="absolute h-[3px] rounded-full"
+                  className="absolute h-0.75 rounded-full"
                   style={{
                     top: 15, right: '50%', width: '100%',
                     background: idx <= currentIndex ? '#16a34a' : 'var(--color-border)',

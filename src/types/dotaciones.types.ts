@@ -64,10 +64,8 @@ export interface CreateReposicionDto {
 export type TipoRequisicion = 'ORDINARIA' | 'EXTRAORDINARIA'
 
 export interface DotacionRQItemDto {
-  codigo?: string
-  descripcion: string
-  unidad: string
-  tipo_requisicion?: TipoRequisicion
+  indumentaria_id: string
+  tipo_requisicion: TipoRequisicion
   valor_unitario: number
   solicitado: number
 }

@@ -69,9 +69,9 @@ function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {
                     key={img.id}
                     onClick={() => setLightbox(img.url)}
                     className="relative overflow-hidden rounded-lg"
-                    style={{ width: 72, height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
+                    style={{ width: 72, height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}
                   >
-                    <Image src={img.url} alt={img.original_name} fill className="object-cover" unoptimized />
+                    <Image src={img.url} alt={img.original_name} fill className="object-contain" unoptimized />
                   </button>
                 ))}
               </div>
@@ -136,7 +136,7 @@ function SolicitudModal({ solicitud, onClose }: { solicitud: DotacionSolicitud; 
               {solicitud.campo?.name ?? 'Solicitud'} - {formatDate(solicitud.fecha)}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
-              {solicitud.inspeccion_realizada_por} &middot; {solicitud.cargo_inspector}
+              {solicitud.inspeccion_realizada_por} &middot; {solicitud.cargo_inspector} &middot; Contrato {solicitud.contrato}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-text-400)' }}>
@@ -147,24 +147,23 @@ function SolicitudModal({ solicitud, onClose }: { solicitud: DotacionSolicitud; 
         {/* Meta */}
         <div className="px-5 py-3 flex gap-6 shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
           <div className="flex items-center gap-1.5">
-            <FileText size={13} style={{ color: 'var(--color-text-400)' }} />
-            <span className="text-xs" style={{ color: 'var(--color-text-600)' }}>Contrato: <strong>{solicitud.contrato}</strong></span>
+            <User size={13} style={{ color: 'var(--color-text-400)' }} />
+            <span className="text-xs" style={{ color: 'var(--color-text-600)' }}><strong>{solicitud.reposiciones.length}</strong> reposicion{solicitud.reposiciones.length !== 1 ? 'es' : ''}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Calendar size={13} style={{ color: 'var(--color-text-400)' }} />
-            <span className="text-xs" style={{ color: 'var(--color-text-600)' }}>Emitida: <strong>{formatDate(solicitud.created_at)}</strong></span>
+            <span className="text-xs" style={{ color: 'var(--color-text-600)' }}>Emitida <strong>{formatDate(solicitud.created_at)}</strong></span>
           </div>
           <div className="flex items-center gap-1.5">
-            <User size={13} style={{ color: 'var(--color-text-400)' }} />
-            <span className="text-xs" style={{ color: 'var(--color-text-600)' }}>{solicitud.reposiciones.length} reposicion{solicitud.reposiciones.length !== 1 ? 'es' : ''}</span>
+            <ImageIcon size={13} style={{ color: 'var(--color-text-400)' }} />
+            <span className="text-xs" style={{ color: 'var(--color-text-600)' }}>
+              <strong>{solicitud.reposiciones.reduce((n, r) => n + r.imagenes.length, 0)}</strong> fotos
+            </span>
           </div>
         </div>
 
         {/* Reposiciones */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>
-            Reposiciones ({solicitud.reposiciones.length})
-          </p>
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 py-4 flex flex-col gap-2">
           {solicitud.reposiciones.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>Sin reposiciones registradas.</p>
           ) : (

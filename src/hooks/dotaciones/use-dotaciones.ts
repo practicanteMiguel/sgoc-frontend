@@ -119,15 +119,19 @@ export function useAutorizarDotacion() {
     mutationFn: ({ id, estado }: { id: string; estado: string }) =>
       fetch(`${API_BASE}/dotaciones/solicitudes/${id}/estado`, {
         method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...publicHeaders() },
         body:    JSON.stringify({ estado }),
       }).then(r => { if (!r.ok) throw new Error('error'); return r.json() as Promise<DotacionSolicitud> }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['dotaciones', 'all-solicitudes'] })
-      toast.success('Solicitud autorizada')
+      const msg: Record<string, string> = {
+        autorizada: 'Solicitud autorizada',
+        entregada:  'Solicitud marcada como entregada',
+      }
+      toast.success(msg[data.estado] ?? 'Estado actualizado')
     },
     onError: () => {
-      toast.error('Error al autorizar la solicitud')
+      toast.error('Error al actualizar el estado de la solicitud')
     },
   })
 }
@@ -138,7 +142,7 @@ export function useGenerarDotacionRQ() {
     mutationFn: ({ id, ...body }: { id: string } & GenerarDotacionRQDto) =>
       fetch(`${API_BASE}/dotaciones/solicitudes/${id}/rq`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...publicHeaders() },
         body:    JSON.stringify(body),
       }).then(async r => {
         if (!r.ok) {
