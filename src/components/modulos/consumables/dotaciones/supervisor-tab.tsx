@@ -3,25 +3,42 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { formatDateShort as formatDate } from '@/src/lib/utils'
-import { Loader2, Link2, Copy, Check, Plus, ChevronDown, ChevronUp, User, Calendar, FileText, Eye, X, Image as ImageIcon, FileDown, FileSpreadsheet } from 'lucide-react'
+import {
+  Loader2, Link2, Copy, Check, Plus, RefreshCw, ChevronDown, ChevronUp, User, Calendar, FileText, Eye, X,
+  Image as ImageIcon, FileDown, FileSpreadsheet, ChevronLeft, ChevronRight, Package, PackageCheck, Clock,
+} from 'lucide-react'
 import { useMyDotacionSpace, useCreateOrGetDotacionSpace, useDotacionSolicitudesByToken } from '@/src/hooks/dotaciones/use-dotaciones'
+import { useRequisiciones } from '@/src/hooks/consumables/use-requisiciones'
+import { useEntregasPorNumeroRQ } from '@/src/hooks/dotaciones/use-indumentaria'
+import type { IndumentariaEntrega } from '@/src/types/indumentaria.types'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { ESTADO_DOTACION_LABELS, ESTADO_DOTACION_COLORS } from '@/src/types/dotaciones.types'
 import type { DotacionSolicitud, Reposicion } from '@/src/types/dotaciones.types'
+import { ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
+import type { EstadoRQ } from '@/src/types/consumables.types'
 import { exportDotacionPdf, exportDotacionExcel } from '@/src/lib/dotacion-export'
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const RQ_PIPELINE: EstadoRQ[] = ['APROBADA', 'PEDIDO_REALIZADO', 'EN_BODEGA', 'ENTREGADO']
 
 
 // ── Reposicion detail row ──────────────────────────────────────────────────
-function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {
+function ReposicionRow({ rep, index, entregado, fechaEntregaRQ, entregasEsteEmpleado }: {
+  rep: Reposicion
+  index: number
+  entregado: boolean
+  fechaEntregaRQ: string | null
+  entregasEsteEmpleado: IndumentariaEntrega[]
+}) {
   const [open, setOpen] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
 
   return (
-    <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
+    <div style={{ border: entregado ? '1px solid #16a34a' : '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
       <button
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
-        style={{ background: 'var(--color-surface-1)' }}
+        style={{ background: entregado ? 'rgba(22,163,74,0.1)' : 'var(--color-surface-1)' }}
       >
         <div className="flex items-center gap-3">
           <span
@@ -38,6 +55,11 @@ function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {entregado && (
+            <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#16a34a' }}>
+              <PackageCheck size={12} /> Entregado
+            </span>
+          )}
           {rep.imagenes.length > 0 && (
             <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-text-400)' }}>
               <ImageIcon size={12} />
@@ -54,10 +76,20 @@ function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {
             <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>Condicion encontrada</p>
             <p className="text-sm" style={{ color: 'var(--color-text-700)' }}>{rep.condicion_encontrada}</p>
           </div>
-          {rep.fecha_entrega && (
+          {fechaEntregaRQ && (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>Fecha de entrega</p>
-              <p className="text-sm" style={{ color: 'var(--color-text-700)' }}>{formatDate(rep.fecha_entrega)}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#16a34a' }}>Fecha de entrega al empleado</p>
+              <p className="text-sm font-medium" style={{ color: '#16a34a' }}>{formatDate(fechaEntregaRQ)}</p>
+            </div>
+          )}
+          {entregasEsteEmpleado.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>Entregado</p>
+              <ul className="text-sm flex flex-col gap-0.5" style={{ color: 'var(--color-text-700)' }}>
+                {entregasEsteEmpleado.map(e => (
+                  <li key={e.id}>{e.cantidad} x {e.indumentaria?.nombre ?? 'Item'}{e.talla && ` (talla ${e.talla})`}</li>
+                ))}
+              </ul>
             </div>
           )}
           {rep.imagenes.length > 0 && (
@@ -68,10 +100,11 @@ function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {
                   <button
                     key={img.id}
                     onClick={() => setLightbox(img.url)}
-                    className="relative overflow-hidden rounded-lg"
-                    style={{ width: 72, height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}
+                    className="overflow-hidden rounded-lg"
+                    style={{ height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}
                   >
-                    <Image src={img.url} alt={img.original_name} fill className="object-contain" unoptimized />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img.url} alt={img.original_name} style={{ height: '100%', width: 'auto', display: 'block' }} />
                   </button>
                 ))}
               </div>
@@ -109,10 +142,133 @@ function ReposicionRow({ rep, index }: { rep: Reposicion; index: number }) {
   )
 }
 
+// ── Seguimiento de la RQ generada a partir de la solicitud ─────────────────
+function SeguimientoRQModal({ solicitud, onClose }: { solicitud: DotacionSolicitud; onClose: () => void }) {
+  const { data: requisiciones = [], isLoading } = useRequisiciones()
+  const rq = requisiciones.find(r => r.categoria === 'DOTACION' && r.solicitud_id === solicitud.id)
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-lg rounded-xl flex flex-col overflow-hidden"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(4,24,24,0.25)', maxHeight: '85vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-4 flex items-start justify-between gap-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-primary)' }}>Seguimiento de RQ</p>
+            <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--color-text-900)' }}>
+              {solicitud.campo?.name ?? 'Solicitud'} - {formatDate(solicitud.fecha)}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-text-400)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-5 py-5 flex flex-col gap-4 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+            </div>
+          ) : !rq ? (
+            <div
+              className="flex flex-col items-center justify-center py-10 rounded-xl text-center gap-2"
+              style={{ border: '1px dashed var(--color-border)' }}
+            >
+              <Package size={22} style={{ color: 'var(--color-text-400)' }} />
+              <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>Aun no se ha generado la RQ para esta solicitud.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-bold" style={{ color: 'var(--color-text-900)' }}>RQ #{rq.numero_rq}</span>
+                <span
+                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: `${ESTADO_COLORS[rq.estado]}22`, color: ESTADO_COLORS[rq.estado] }}
+                >
+                  {ESTADO_LABELS[rq.estado]}
+                </span>
+              </div>
+
+              {/* Stepper */}
+              <div className="flex items-center gap-1">
+                {RQ_PIPELINE.map((estado, i) => {
+                  const currentIdx = RQ_PIPELINE.indexOf(rq.estado)
+                  const reached = currentIdx >= i
+                  return (
+                    <div key={estado} className="flex items-center flex-1">
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                          style={{
+                            background: reached ? ESTADO_COLORS[estado] : 'var(--color-surface-2)',
+                            color: reached ? '#fff' : 'var(--color-text-400)',
+                          }}
+                        >
+                          {reached ? <Check size={12} /> : i + 1}
+                        </div>
+                        <span
+                          className="text-[10px] text-center leading-tight"
+                          style={{ color: reached ? 'var(--color-text-900)' : 'var(--color-text-400)', fontWeight: reached ? 600 : 400 }}
+                        >
+                          {ESTADO_LABELS[estado]}
+                        </span>
+                      </div>
+                      {i < RQ_PIPELINE.length - 1 && (
+                        <div
+                          className="h-0.5 flex-1 -mt-4"
+                          style={{ background: currentIdx > i ? ESTADO_COLORS[estado] : 'var(--color-surface-2)' }}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="rounded-xl p-3 flex flex-col gap-2" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
+                {rq.estado === 'ENTREGADO' ? (
+                  <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: '#16a34a' }}>
+                    <PackageCheck size={13} />
+                    Entregado{rq.fecha_entrega ? ` el ${formatDate(rq.fecha_entrega)}` : ''}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>
+                    <Clock size={13} />
+                    En proceso
+                  </div>
+                )}
+                {rq.estado === 'ENTREGADO' && rq.nombre_receptor && (
+                  <p className="text-xs" style={{ color: 'var(--color-text-600)' }}>
+                    Recibido por: <strong>{rq.nombre_receptor}</strong>
+                    {rq.cargo_receptor && <> &middot; {rq.cargo_receptor}</>}
+                  </p>
+                )}
+                {rq.total_solicitado != null && (
+                  <p className="text-xs" style={{ color: 'var(--color-text-600)' }}>
+                    Total solicitado: <strong>{rq.total_solicitado} uds</strong>
+                    {rq.total_recibido != null && <> &middot; Recibido: <strong>{rq.total_recibido} uds</strong></>}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
 // ── Solicitud detail modal ─────────────────────────────────────────────────
 function SolicitudModal({ solicitud, onClose }: { solicitud: DotacionSolicitud; onClose: () => void }) {
   const [loadingPdf, setLoadingPdf]   = useState(false)
   const [loadingXlsx, setLoadingXlsx] = useState(false)
+
+  const { data: allRQs = [] } = useRequisiciones()
+  const rq = allRQs.find(r => r.categoria === 'DOTACION' && r.solicitud_id === solicitud.id)
+  const numeroRq = rq?.numero_rq != null ? String(rq.numero_rq) : null
+  const { data: entregasRQ = [] } = useEntregasPorNumeroRQ(numeroRq)
 
   return (
     <ModalPortal onClose={onClose}>
@@ -163,13 +319,23 @@ function SolicitudModal({ solicitud, onClose }: { solicitud: DotacionSolicitud; 
         </div>
 
         {/* Reposiciones */}
-        <div className="overflow-y-auto flex-1 min-h-0 px-5 py-4 flex flex-col gap-2">
+        <div className="overflow-y-auto px-5 py-4 flex flex-col gap-2" style={{ maxHeight: 420 }}>
           {solicitud.reposiciones.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>Sin reposiciones registradas.</p>
           ) : (
-            solicitud.reposiciones.map((rep, i) => (
-              <ReposicionRow key={rep.id} rep={rep} index={i} />
-            ))
+            solicitud.reposiciones.map((rep, i) => {
+              const entregasEsteEmpleado = entregasRQ.filter(e => e.empleado_id === rep.empleado.id)
+              return (
+                <ReposicionRow
+                  key={rep.id}
+                  rep={rep}
+                  index={i}
+                  entregado={entregasEsteEmpleado.length > 0}
+                  fechaEntregaRQ={entregasEsteEmpleado[0]?.fecha_entrega ?? null}
+                  entregasEsteEmpleado={entregasEsteEmpleado}
+                />
+              )
+            })
           )}
         </div>
 
@@ -204,12 +370,28 @@ function SolicitudModal({ solicitud, onClose }: { solicitud: DotacionSolicitud; 
 
 // ── Main supervisor tab ────────────────────────────────────────────────────
 export function SupervisorDotacionTab() {
+  const now = new Date()
   const { data: space, isLoading, status } = useMyDotacionSpace()
   const create = useCreateOrGetDotacionSpace()
   const hasSpace = !!(space?.vault_token)
   const { data: solicitudes, isLoading: loadingSols } = useDotacionSolicitudesByToken(hasSpace ? space!.vault_token : null)
   const [copied, setCopied] = useState(false)
   const [selected, setSelected] = useState<DotacionSolicitud | null>(null)
+  const [seguimiento, setSeguimiento] = useState<DotacionSolicitud | null>(null)
+  const [mes,  setMes]  = useState(now.getMonth() + 1)
+  const [anio, setAnio] = useState(now.getFullYear())
+
+  function adjustPeriod(delta: number) {
+    let m = mes + delta, a = anio
+    if (m < 1)  { m = 12; a-- }
+    if (m > 12) { m = 1;  a++ }
+    setMes(m); setAnio(a)
+  }
+
+  const solicitudesDelMes = (solicitudes ?? []).filter(sol => {
+    const d = new Date(sol.fecha)
+    return d.getMonth() + 1 === mes && d.getFullYear() === anio
+  })
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const hseLink = hasSpace ? `${origin}/dotaciones/${space!.vault_token}` : ''
@@ -277,6 +459,16 @@ export function SupervisorDotacionTab() {
               Comparte este enlace con el HSE del campo para que registre las solicitudes de reposicion.
             </p>
           </div>
+          <button
+            onClick={() => create.mutate()}
+            disabled={create.isPending}
+            title="Si fuiste reasignado a otra planta y el espacio sigue mostrando la anterior, usa este boton para regenerarlo"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity shrink-0"
+            style={{ background: 'var(--color-surface-0)', color: 'var(--color-text-600)', border: '1.5px solid var(--color-border)', opacity: create.isPending ? 0.7 : 1 }}
+          >
+            {create.isPending ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+            {create.isPending ? 'Actualizando...' : 'Crear espacio nuevamente'}
+          </button>
         </div>
 
         <div className="flex gap-2">
@@ -301,26 +493,46 @@ export function SupervisorDotacionTab() {
 
       {/* Solicitudes list */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <p className="text-sm font-semibold" style={{ color: 'var(--color-text-700)' }}>
             Solicitudes recibidas
           </p>
-          {loadingSols && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />}
+          <div className="flex items-center gap-2">
+            {loadingSols && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />}
+            <div className="flex items-center gap-1 rounded-lg px-2 py-1.5"
+              style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+              <button onClick={() => adjustPeriod(-1)}
+                className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-text-700)' }}>
+                <ChevronLeft size={13} />
+              </button>
+              <span className="text-xs font-semibold px-1 min-w-24 text-center" style={{ color: 'var(--color-text-900)' }}>
+                {MESES[mes - 1]} {anio}
+              </span>
+              <button onClick={() => adjustPeriod(1)}
+                className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-text-700)' }}>
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {!loadingSols && (!solicitudes || solicitudes.length === 0) ? (
+        {!loadingSols && solicitudesDelMes.length === 0 ? (
           <div
             className="rounded-xl flex flex-col items-center justify-center py-12 text-center gap-2"
             style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}
           >
             <FileText size={24} style={{ color: 'var(--color-text-400)' }} />
             <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>
-              Aun no hay solicitudes. El HSE debe usar el enlace para registrarlas.
+              {!solicitudes || solicitudes.length === 0
+                ? 'Aun no hay solicitudes. El HSE debe usar el enlace para registrarlas.'
+                : `Sin solicitudes para ${MESES[mes - 1]} ${anio}.`}
             </p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {(solicitudes ?? []).map(sol => (
+            {solicitudesDelMes.map(sol => (
               <div
                 key={sol.id}
                 className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
@@ -358,6 +570,16 @@ export function SupervisorDotacionTab() {
                     <Eye size={13} />
                     Ver
                   </button>
+                  {sol.numero_rq && (
+                    <button
+                      onClick={() => setSeguimiento(sol)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                      style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}
+                    >
+                      <Package size={13} />
+                      Seguimiento
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -367,6 +589,9 @@ export function SupervisorDotacionTab() {
 
       {selected && (
         <SolicitudModal solicitud={selected} onClose={() => setSelected(null)} />
+      )}
+      {seguimiento && (
+        <SeguimientoRQModal solicitud={seguimiento} onClose={() => setSeguimiento(null)} />
       )}
     </div>
   )

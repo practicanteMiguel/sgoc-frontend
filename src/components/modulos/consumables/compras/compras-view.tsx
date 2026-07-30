@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { formatCOP, formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   ShoppingCart, Package, FileText,
   Plus, Search, Loader2, Trash2, AlertTriangle, ChevronLeft, ChevronRight,
-  XCircle, Lock, Bell, Clock, PackageCheck, FileDown, CheckCircle2, X,
+  XCircle, Lock, Bell, Clock, PackageCheck, FileDown, CheckCircle2, X, PenLine,
 } from 'lucide-react'
 import { useInsumos, useDeleteInsumo, useCerrarMes, usePeriodosCerrados, useBorradores, useGuardarBorrador } from '@/src/hooks/consumables/use-insumos'
-import { useRequisiciones, useRequisicion, useCambiarEstadoRQ } from '@/src/hooks/consumables/use-requisiciones'
+import { useRequisiciones, useRequisicion, useCambiarEstadoRQ, useRecepcionDotacionRQ } from '@/src/hooks/consumables/use-requisiciones'
 import { useIndumentariaCatalog, useCreateIndumentariaItem, useUpdateIndumentariaItem, useDeleteIndumentariaItem } from '@/src/hooks/dotaciones/use-indumentaria'
 import { InsumoModal } from '@/src/components/modulos/consumables/insumos/insumo-modal'
 import type { IndumentariaItem } from '@/src/types/indumentaria.types'
@@ -619,6 +619,9 @@ function InsumosComprasTab() {
 async function exportConstanciaPdf(rq: Requisicion) {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const items  = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
+  const receptorLabel = rq.categoria === 'DOTACION'
+    ? [rq.nombre_receptor, rq.cargo_receptor].filter(Boolean).join(' · ') || '-'
+    : rq.nombre_solicitante ?? '-'
 
   const header = `
 <div style="display:flex;align-items:center;padding-bottom:14px;border-bottom:3px solid #1E4A8A;margin-bottom:20px;">
@@ -642,7 +645,7 @@ async function exportConstanciaPdf(rq: Requisicion) {
   const infoHtml = `
     <div style="display:flex;gap:10px;margin-bottom:18px;">
       ${[
-        ['Receptor',         rq.nombre_solicitante ?? '-'],
+        ['Receptor',         receptorLabel],
         ['Contrato',         rq.numero_contrato    ?? '-'],
         ['Fecha de entrega', rq.fecha_entrega       ?? '-'],
         ['Total solicitado', rq.total_solicitado != null ? `${rq.total_solicitado} uds` : '-'],
@@ -724,7 +727,7 @@ async function exportConstanciaPdf(rq: Requisicion) {
     <div style="font-size:10px;font-weight:bold;color:#374151;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">
       FIRMA DEL RECEPTOR
     </div>
-    <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">Nombre: <span style="color:#111;font-weight:600;">${rq.nombre_solicitante ?? ''}</span></div>
+    <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">Nombre: <span style="color:#111;font-weight:600;">${receptorLabel}</span></div>
     <div style="font-size:10px;color:#6b7280;margin-bottom:6px;">Fecha de entrega: <span style="color:#111;font-weight:600;">${rq.fecha_entrega ?? '-'}</span></div>
     ${sigHtml}
   </div>
@@ -738,6 +741,368 @@ async function exportConstanciaPdf(rq: Requisicion) {
     html2canvas: { scale: 2, useCORS: true },
     jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
   }).from(html).save()
+}
+
+// ── Recepcion de dotacion (compras llena cantidades y quien recibe firma) ──
+function RecepcionDotacionModal({ rqId, onClose }: { rqId: string; onClose: () => void }) {
+  const { data: rq, isLoading } = useRequisicion(rqId)
+  const recepcion = useRecepcionDotacionRQ()
+
+  const [fase, setFase]                 = useState<'llenado' | 'firma'>('llenado')
+  const [fechaEntrega, setFechaEntrega]  = useState(() => new Date().toISOString().split('T')[0])
+  const [cantidades, setCantidades]      = useState<Record<string, string>>({})
+  const [nombreReceptor, setNombreReceptor] = useState('')
+  const [cargoReceptor, setCargoReceptor]   = useState('')
+  const [hasStrokes, setHasStrokes]     = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing   = useRef(false)
+
+  useEffect(() => {
+    if (!rq) return
+    const init: Record<string, string> = {}
+    for (const item of rq.items) {
+      init[item.id] = item.recibido != null ? String(Math.round(Number(item.recibido))) : ''
+    }
+    setCantidades(init)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rq?.id])
+
+  useEffect(() => {
+    if (fase !== 'firma') return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.strokeStyle = '#111827'
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    setHasStrokes(false)
+  }, [fase])
+
+  function getPos(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current!
+    const rect = canvas.getBoundingClientRect()
+    const sx = canvas.width / rect.width
+    const sy = canvas.height / rect.height
+    if ('touches' in e) {
+      const t = e.touches[0]
+      return { x: (t.clientX - rect.left) * sx, y: (t.clientY - rect.top) * sy }
+    }
+    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy }
+  }
+
+  const startDraw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    drawing.current = true
+    const { x, y } = getPos(e)
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+  }, [])
+
+  const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    if (!drawing.current) return
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    const { x, y } = getPos(e)
+    ctx.lineTo(x, y)
+    ctx.stroke()
+    setHasStrokes(true)
+  }, [])
+
+  const endDraw = useCallback(() => { drawing.current = false }, [])
+
+  function handleLimpiar() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    setHasStrokes(false)
+  }
+
+  function getRec(itemId: string): number {
+    const v = cantidades[itemId]
+    return v === undefined || v === '' ? 0 : Math.round(Math.max(0, Number(v)))
+  }
+
+  function handleConfirmar() {
+    if (!rq || !canvasRef.current || !hasStrokes || !nombreReceptor.trim() || !cargoReceptor.trim()) return
+    canvasRef.current.toBlob(blob => {
+      if (!blob) return
+      recepcion.mutate({
+        id: rqId,
+        firmaBlob: blob,
+        fecha_entrega: fechaEntrega,
+        nombre_receptor: nombreReceptor.trim(),
+        cargo_receptor: cargoReceptor.trim(),
+        items: rq.items.map(item => ({ id: item.id, recibido: getRec(item.id) })),
+      }, { onSuccess: () => onClose() })
+    }, 'image/png')
+  }
+
+  if (isLoading || !rq) {
+    return (
+      <ModalPortal onClose={onClose}>
+        <div className="w-full max-w-lg rounded-xl flex items-center justify-center py-24 bg-white"
+          style={{ border: '1px solid #d1d5db', boxShadow: '0 24px 64px rgba(4,24,24,0.25)' }}>
+          <Loader2 size={24} className="animate-spin text-[#1a6b6b]" />
+        </div>
+      </ModalPortal>
+    )
+  }
+
+  const sortedItems  = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
+  const totalSolUnid = sortedItems.reduce((s, i) => s + Math.round(Number(i.solicitado ?? 0)), 0)
+  const totalRecUnid = sortedItems.reduce((s, i) => s + getRec(i.id), 0)
+  const canConfirm   = hasStrokes && nombreReceptor.trim() !== '' && cargoReceptor.trim() !== ''
+
+  const novedades = sortedItems
+    .map(item => {
+      const sol  = Math.round(Number(item.solicitado ?? 0))
+      const rec  = getRec(item.id)
+      const diff = rec - sol
+      return { descripcion: item.descripcion, unidad: item.unidad, diff }
+    })
+    .filter(n => n.diff !== 0)
+  const hayFaltantes = novedades.some(n => n.diff < 0)
+  const alertColor = hayFaltantes
+    ? { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)', title: '#b45309' }
+    : { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.3)', title: '#1d4ed8' }
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-2xl rounded-xl overflow-hidden flex flex-col bg-white"
+        style={{ border: '1px solid #d1d5db', boxShadow: '0 24px 64px rgba(4,24,24,0.25)', maxHeight: '90vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 flex items-center justify-between gap-3 shrink-0" style={{ borderBottom: '1px solid #e5e7eb', background: '#f8fafc' }}>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#1a6b6b]">
+              {fase === 'llenado' ? 'Entrega de dotacion' : 'Firma de quien recibe'}
+            </p>
+            <h2 className="text-sm font-bold mt-0.5 text-gray-900">
+              RQ #{rq.numero_rq} &middot; {rq.lugar}
+            </h2>
+          </div>
+          <button onClick={onClose} className="hover:opacity-70 transition-opacity text-gray-400">
+            <X size={18} />
+          </button>
+        </div>
+
+        {fase === 'llenado' ? (
+          <>
+            <div className="px-6 py-3 flex items-end gap-3 flex-wrap shrink-0" style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-400">Fecha de entrega</label>
+                <input
+                  type="date"
+                  value={fechaEntrega}
+                  onChange={(e) => setFechaEntrega(e.target.value)}
+                  className="rounded-lg px-3 py-1.5 text-sm"
+                  style={{ border: '1.5px solid #d1d5db', background: '#fff', color: '#111827', outline: 'none' }}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0">
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                    {['Codigo', 'Descripcion', 'Unidad', 'Pedido', 'Recibido'].map((h) => (
+                      <th key={h} className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-left whitespace-nowrap text-gray-400">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedItems.map((item, idx) => {
+                    const val = cantidades[item.id] ?? ''
+                    const rec = val === '' ? null : Math.round(Math.max(0, Number(val)))
+                    const sol = Math.round(Number(item.solicitado ?? 0))
+                    const borderColor = rec === null
+                      ? '#d1d5db'
+                      : rec === sol ? '#16a34a'
+                      : rec < sol  ? '#f59e0b'
+                      :               '#3b82f6'
+                    return (
+                      <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb', background: idx % 2 === 0 ? '#fff' : '#f9fafb' }}>
+                        <td className="px-4 py-2.5 font-mono text-xs font-semibold whitespace-nowrap text-gray-400">{item.codigo}</td>
+                        <td className="px-4 py-2.5 text-xs font-medium text-gray-900" style={{ minWidth: 220 }}>{item.descripcion}</td>
+                        <td className="px-4 py-2.5 text-xs whitespace-nowrap text-gray-400">{item.unidad}</td>
+                        <td className="px-4 py-2.5 text-xs font-bold text-center whitespace-nowrap text-gray-900">{sol}</td>
+                        <td className="px-4 py-2.5" style={{ minWidth: 100 }}>
+                          <input
+                            type="number"
+                            min="0"
+                            value={val}
+                            onChange={(e) => setCantidades((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                            placeholder="0"
+                            className="w-20 rounded-md px-2 py-1 text-xs text-right"
+                            style={{ border: `1.5px solid ${borderColor}`, background: '#fff', color: '#111827', outline: 'none' }}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {novedades.length > 0 && (
+              <div className="px-6 py-3 shrink-0" style={{ borderTop: '1px solid #e5e7eb', background: alertColor.bg }}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <AlertTriangle size={13} style={{ color: alertColor.title }} />
+                  <span className="text-xs font-bold" style={{ color: alertColor.title }}>Novedades en la entrega</span>
+                </div>
+                <ul className="flex flex-col gap-0.5">
+                  {novedades.map((n, i) => (
+                    <li key={i} className="text-xs" style={{ color: n.diff < 0 ? '#92400e' : '#1d4ed8' }}>
+                      {n.diff < 0
+                        ? `Faltan ${Math.abs(n.diff)} ${n.unidad} de ${n.descripcion}`
+                        : `Se estan entregando ${n.diff} ${n.unidad} de mas de ${n.descripcion}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="px-6 py-3 flex flex-wrap items-center gap-3 shrink-0" style={{ borderTop: '1px solid #e5e7eb', background: '#f8fafc' }}>
+              <div className="flex gap-6 flex-1 text-xs min-w-fit">
+                <span className="text-gray-400">Pedido: <strong className="text-gray-900">{totalSolUnid} uds</strong></span>
+                <span className="text-gray-400">
+                  Recibido: <strong style={{
+                    color: totalRecUnid === 0 ? '#9ca3af'
+                      : totalRecUnid === totalSolUnid ? '#16a34a'
+                      : totalRecUnid > totalSolUnid ? '#3b82f6'
+                      : '#f59e0b',
+                  }}>
+                    {totalRecUnid} uds
+                  </strong>
+                </span>
+              </div>
+              <button
+                onClick={() => setFase('firma')}
+                disabled={!fechaEntrega}
+                className="px-5 py-2 rounded-xl text-sm font-bold transition-opacity"
+                style={{ background: '#1a6b6b', color: '#fff', opacity: !fechaEntrega ? 0.5 : 1 }}
+              >
+                Continuar a firma
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+            {novedades.length > 0 && (
+              <div className="rounded-xl p-3" style={{ background: alertColor.bg, border: `1px solid ${alertColor.border}` }}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <AlertTriangle size={13} style={{ color: alertColor.title }} />
+                  <span className="text-xs font-bold" style={{ color: alertColor.title }}>Hay novedades en esta entrega</span>
+                </div>
+                <ul className="flex flex-col gap-0.5 mb-1.5">
+                  {novedades.map((n, i) => (
+                    <li key={i} className="text-xs" style={{ color: n.diff < 0 ? '#92400e' : '#1d4ed8' }}>
+                      {n.diff < 0
+                        ? `Faltan ${Math.abs(n.diff)} ${n.unidad} de ${n.descripcion}`
+                        : `Se estan entregando ${n.diff} ${n.unidad} de mas de ${n.descripcion}`}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs" style={{ color: alertColor.title }}>
+                  La firma quedara registrada por las cantidades efectivamente recibidas, dejando constancia de estas novedades.
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-500">Nombre de quien recibe *</label>
+                <input
+                  value={nombreReceptor}
+                  onChange={e => setNombreReceptor(e.target.value)}
+                  placeholder="Ej: Juan Perez"
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{ border: '1.5px solid #d1d5db', outline: 'none', color: '#111827' }}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-gray-500">Cargo *</label>
+                <input
+                  value={cargoReceptor}
+                  onChange={e => setCargoReceptor(e.target.value)}
+                  placeholder="Ej: HSE Campo"
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{ border: '1.5px solid #d1d5db', outline: 'none', color: '#111827' }}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-500">Firma *</label>
+              <div style={{ border: '1.5px solid #d1d5db', borderRadius: 8, overflow: 'hidden', background: '#fff', touchAction: 'none' }}>
+                <canvas
+                  ref={canvasRef}
+                  width={600}
+                  height={180}
+                  style={{ display: 'block', width: '100%', cursor: 'crosshair', touchAction: 'none' }}
+                  onMouseDown={startDraw}
+                  onMouseMove={draw}
+                  onMouseUp={endDraw}
+                  onMouseLeave={endDraw}
+                  onTouchStart={startDraw}
+                  onTouchMove={draw}
+                  onTouchEnd={endDraw}
+                />
+              </div>
+              <p className="text-xs text-gray-400">
+                Con esta firma se confirma que las cantidades recibidas ({totalRecUnid} uds) corresponden a lo entregado.
+              </p>
+            </div>
+
+            <div className="flex gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setFase('llenado')}
+                disabled={recepcion.isPending}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium"
+                style={{ background: '#f8fafc', border: '1.5px solid #d1d5db', color: '#374151', opacity: recepcion.isPending ? 0.5 : 1 }}
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={handleLimpiar}
+                disabled={recepcion.isPending}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium"
+                style={{ background: '#f8fafc', border: '1.5px solid #d1d5db', color: '#374151', opacity: recepcion.isPending ? 0.5 : 1 }}
+              >
+                Limpiar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmar}
+                disabled={!canConfirm || recepcion.isPending}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-opacity"
+                style={{ background: '#1a6b6b', color: '#fff', opacity: (!canConfirm || recepcion.isPending) ? 0.5 : 1 }}
+              >
+                {recepcion.isPending ? <Loader2 size={15} className="animate-spin" /> : <PenLine size={15} />}
+                {recepcion.isPending ? 'Guardando...' : 'Confirmar entrega'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </ModalPortal>
+  )
 }
 
 // ── Detalle RQ compras ─────────────────────────────────────────────────────
@@ -811,7 +1176,7 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-6 py-5">
+        <div className="overflow-y-auto flex-1 min-h-0 px-6 py-5">
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
 
             {/* Toggle bar - solo cuando hay entrega */}
@@ -973,7 +1338,12 @@ function ComprasDetailModal({ rqId, onClose }: { rqId: string; onClose: () => vo
               <>
                 <div className="px-4 pt-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-4" style={{ borderTop: '1px solid #e5e7eb' }}>
                   {[
-                    { label: 'Receptor',         value: rq.nombre_solicitante ?? '-' },
+                    {
+                      label: 'Receptor',
+                      value: rq.categoria === 'DOTACION'
+                        ? [rq.nombre_receptor, rq.cargo_receptor].filter(Boolean).join(' · ') || '-'
+                        : rq.nombre_solicitante ?? '-',
+                    },
                     { label: 'Fecha de entrega', value: rq.fecha_entrega       ?? '-' },
                     { label: 'Total solicitado', value: rq.total_solicitado != null ? `${rq.total_solicitado} uds` : '-' },
                     { label: 'Total recibido',   value: rq.total_recibido   != null ? `${rq.total_recibido} uds`   : '-' },
@@ -1038,6 +1408,7 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
   const { data: requisiciones = [], isLoading } = useRequisiciones({ mes, anio })
   const cambiar = useCambiarEstadoRQ()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [recepcionDotacionId, setRecepcionDotacionId] = useState<string | null>(null)
   const rqs = (Array.isArray(requisiciones) ? requisiciones : []).filter(r => {
     if (onlyCategoria    && r.categoria !== onlyCategoria)    return false
     if (excludeCategoria && r.categoria === excludeCategoria) return false
@@ -1055,12 +1426,8 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
   const NEXT_ESTADO: Record<string, EstadoRQ> = {
     APROBADA: 'PEDIDO_REALIZADO', PEDIDO_REALIZADO: 'EN_BODEGA',
   }
-  // Solo dotaciones se marcan como entregadas desde compras (las demas categorias usan el flujo de recepcion del supervisor)
-  const NEXT_ESTADO_DOTACION: Record<string, EstadoRQ> = {
-    ...NEXT_ESTADO, EN_BODEGA: 'ENTREGADO',
-  }
   const NEXT_LABEL: Record<string, string> = {
-    APROBADA: 'Pedido realizado', PEDIDO_REALIZADO: 'Confirmar en bodega', EN_BODEGA: 'Marcar como entregada',
+    APROBADA: 'Pedido realizado', PEDIDO_REALIZADO: 'Confirmar en bodega',
   }
 
 
@@ -1119,7 +1486,8 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
               <tbody>
                 {rqs.map((rq, idx) => {
                   const color      = BADGE_COLORS[rq.estado] ?? '#6b7280'
-                  const nextEstado = (rq.categoria === 'DOTACION' ? NEXT_ESTADO_DOTACION : NEXT_ESTADO)[rq.estado]
+                  const esEntregaDotacion = rq.categoria === 'DOTACION' && rq.estado === 'EN_BODEGA'
+                  const nextEstado = esEntregaDotacion ? undefined : NEXT_ESTADO[rq.estado]
                   return (
                     <tr
                       key={rq.id}
@@ -1158,6 +1526,15 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
                           >
                             Ver
                           </button>
+                          {esEntregaDotacion && (
+                            <button
+                              onClick={() => setRecepcionDotacionId(rq.id)}
+                              className="text-xs px-3 py-1.5 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                              style={{ background: '#1a6b6b', color: '#fff' }}
+                            >
+                              Registrar entrega
+                            </button>
+                          )}
                           {nextEstado && (
                             <button
                               onClick={() => cambiar.mutate({ id: rq.id, estado: nextEstado })}
@@ -1180,6 +1557,9 @@ function RQsComprasTab({ onlyCategoria, excludeCategoria }: {
       )}
 
       {selectedId && <ComprasDetailModal rqId={selectedId} onClose={() => setSelectedId(null)} />}
+      {recepcionDotacionId && (
+        <RecepcionDotacionModal rqId={recepcionDotacionId} onClose={() => setRecepcionDotacionId(null)} />
+      )}
     </div>
   )
 }

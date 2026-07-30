@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2, UserCheck } from 'lucide-react';
-import { useAssignSupervisor } from '@/src/hooks/reports/use-fields';
+import { X, Loader2, UserCheck, AlertTriangle } from 'lucide-react';
+import { useAssignSupervisor, useFields } from '@/src/hooks/reports/use-fields';
 import { useUsers } from '@/src/hooks/users/use-users';
 import { ModalPortal } from '@/src/components/ui/modal-portal';
 import { getInitials } from '@/src/lib/utils';
@@ -18,10 +18,17 @@ export function AssignSupervisorModal({ field, onClose }: AssignSupervisorModalP
   const assign = useAssignSupervisor();
 
   const { data: usersData, isLoading } = useUsers(1, 200);
+  const { data: fieldsData } = useFields(1, 200);
 
   const supervisors = (usersData?.data ?? []).filter((u) =>
     u.user_roles?.some((r) => r.role?.slug === 'supervisor'),
   );
+
+  const occupiedFieldBySupervisorId = new Map<string, Field>();
+  for (const f of fieldsData?.data ?? []) {
+    if (f.supervisor && f.id !== field.id) occupiedFieldBySupervisorId.set(f.supervisor.id, f);
+  }
+  const selectedOccupiedField = selectedId ? occupiedFieldBySupervisorId.get(selectedId) : undefined;
 
   const handleSubmit = () => {
     if (!selectedId) return;
@@ -75,6 +82,7 @@ export function AssignSupervisorModal({ field, onClose }: AssignSupervisorModalP
             <div className="flex flex-col gap-2">
               {supervisors.map((u) => {
                 const isSelected = selectedId === u.id;
+                const occupiedField = occupiedFieldBySupervisorId.get(u.id);
                 return (
                   <button
                     key={u.id}
@@ -103,6 +111,14 @@ export function AssignSupervisorModal({ field, onClose }: AssignSupervisorModalP
                         {u.position} - {u.email}
                       </p>
                     </div>
+                    {occupiedField && (
+                      <span
+                        className="text-xs shrink-0 px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(217,119,6,0.12)', color: '#b45309' }}
+                      >
+                        {occupiedField.name}
+                      </span>
+                    )}
                     {isSelected && (
                       <UserCheck size={16} style={{ color: 'var(--color-secondary)', flexShrink: 0 }} />
                     )}
@@ -112,6 +128,16 @@ export function AssignSupervisorModal({ field, onClose }: AssignSupervisorModalP
             </div>
           )}
         </div>
+
+        {selectedOccupiedField && (
+          <div
+            className="mx-6 mb-3 px-3 py-2 rounded-lg text-xs flex items-center gap-2 shrink-0"
+            style={{ background: 'rgba(217,119,6,0.1)', color: '#b45309' }}
+          >
+            <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+            Este supervisor ya pertenece a la planta &quot;{selectedOccupiedField.name}&quot;. Si continuas, sera reasignado a &quot;{field.name}&quot;.
+          </div>
+        )}
 
         <div
           className="flex gap-3 px-6 py-4 shrink-0"

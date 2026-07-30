@@ -288,6 +288,76 @@ export function sumWH(a: WeekHours, b: WeekHours): WeekHours {
   }
 }
 
+export interface HabitualidadAlert {
+  employeeId: string
+  sundaysWorked: number
+  pending: boolean
+}
+
+export interface WorkedRestAlert {
+  employeeId: string
+  fecha: string
+  turno: 'DLD' | 'DLN'
+}
+
+const SUNDAY_WORKED_TURNOS = new Set<Turno>(['D', 'N', 'DLD', 'DLN'])
+
+// Each employee's phase in the 12-day cycle shifts how many S days a full,
+// unadjusted month naturally contains (30/31 doesn't divide evenly by 12),
+// so the "no habitualidad adjustment" baseline must be computed per-employee
+// from their own cycle position, not a fixed fraction of totalDays.
+export function calcCyclePosForEmployee(idx: number, prevDays: Turno[] | undefined): number {
+  const defaultPos = (idx % 4) * 3
+  return inferNextCyclePos(prevDays ?? [], defaultPos)
+}
+
+export function calcNaturalCycleSCount(totalDays: number, startPos: number): number {
+  let count = 0
+  for (let d = 1; d <= totalDays; d++) {
+    if (CYCLE_6X6[(startPos + d - 1) % 12] === 'S') count++
+  }
+  return count
+}
+
+// Habitualidad: 3+ Sundays worked in the month owes the employee 1 extra rest
+// day (S) beyond what their own cycle phase would naturally give them.
+export function calcHabitualidad(
+  empId: string,
+  year: number,
+  month: number,
+  totalDays: number,
+  grid: Record<string, Record<string, Turno>>,
+  naturalExpectedS: number,
+): HabitualidadAlert | null {
+  let sundaysWorked = 0
+  let sCount = 0
+  for (let d = 1; d <= totalDays; d++) {
+    const fecha = padDate(year, month, d)
+    const dow   = new Date(year, month - 1, d).getDay()
+    const turno = grid[empId]?.[fecha] ?? 'S'
+    if (turno === 'S') sCount++
+    if (dow === 0 && SUNDAY_WORKED_TURNOS.has(turno)) sundaysWorked++
+  }
+  if (sundaysWorked < 3) return null
+  return { employeeId: empId, sundaysWorked, pending: sCount < naturalExpectedS + 1 }
+}
+
+export function calcWorkedRestDays(
+  empId: string,
+  year: number,
+  month: number,
+  totalDays: number,
+  grid: Record<string, Record<string, Turno>>,
+): WorkedRestAlert[] {
+  const out: WorkedRestAlert[] = []
+  for (let d = 1; d <= totalDays; d++) {
+    const fecha = padDate(year, month, d)
+    const turno = grid[empId]?.[fecha]
+    if (turno === 'DLD' || turno === 'DLN') out.push({ employeeId: empId, fecha, turno })
+  }
+  return out
+}
+
 export function dayBg(fecha: string, dow: number, holidays: Set<string>): string | undefined {
   if (holidays.has(fecha)) return 'rgba(239,68,68,0.12)'
   if (dow === 0) return 'rgba(99,102,241,0.08)'

@@ -15,11 +15,13 @@ import type { Deliverable, ScheduleTipo, Turno } from '@/src/types/compliance.ty
 import {
   TURNO_COLORS, TURNO_LABELS, ALL_TURNOS, MONTH_NAMES,
   daysInMonth, padDate, getColombianHolidays, getWeekGroups,
-  defaultTurno, build6x6Grid,
+  defaultTurno, build6x6Grid, calcHabitualidad, calcWorkedRestDays,
+  calcCyclePosForEmployee, calcNaturalCycleSCount,
 } from '@/src/lib/utils'
 import { ScheduleTable } from './schedule-table'
 import { HoursTable } from './hours-table'
 import { OvertimeTable } from './overtime-table'
+import { ScheduleNotifications } from './schedule-notifications'
 
 interface Props {
   deliverable: Deliverable
@@ -83,8 +85,45 @@ export function ScheduleGrid({ deliverable, readOnly = false, onClose }: Props) 
     [deliverable.anio, deliverable.mes, totalDays],
   )
 
+  const prevMap = useMemo<Record<string, Turno[]>>(() => {
+    const map: Record<string, Turno[]> = {}
+    if (prevScheduleDetail?.employees) {
+      for (const e of prevScheduleDetail.employees) {
+        map[e.employee.id] = [...e.days].sort((a, b) => a.fecha.localeCompare(b.fecha)).map((d) => d.turno)
+      }
+    }
+    return map
+  }, [prevScheduleDetail])
+
+  const habitualidadAlerts = useMemo(() => {
+    if (tipo !== '6x6') return []
+    return fieldEmployees
+      .map((emp, idx) => {
+        const startPos = calcCyclePosForEmployee(idx, prevMap[emp.id])
+        const naturalS = calcNaturalCycleSCount(totalDays, startPos)
+        return calcHabitualidad(emp.id, deliverable.anio, deliverable.mes, totalDays, grid, naturalS)
+      })
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+  }, [tipo, fieldEmployees, deliverable.anio, deliverable.mes, totalDays, grid, prevMap])
+
+  const workedRestAlerts = useMemo(() => {
+    if (tipo !== '6x6') return []
+    return fieldEmployees.flatMap((emp) => calcWorkedRestDays(emp.id, deliverable.anio, deliverable.mes, totalDays, grid))
+  }, [tipo, fieldEmployees, deliverable.anio, deliverable.mes, totalDays, grid])
+
+  const habitualidadPendingIds = useMemo(
+    () => new Set(habitualidadAlerts.filter((a) => a.pending).map((a) => a.employeeId)),
+    [habitualidadAlerts],
+  )
+
   function setCell(empId: string, fecha: string, turno: Turno) {
-    setGrid((prev) => ({ ...prev, [empId]: { ...(prev[empId] ?? {}), [fecha]: turno } }))
+    setGrid((prev) => {
+      if (turno === 'DLD' || turno === 'DLN') {
+        const current = prev[empId]?.[fecha] ?? defaultTurno(tipo, deliverable.anio, deliverable.mes, Number(fecha.split('-')[2]))
+        if (current !== 'S') return prev
+      }
+      return { ...prev, [empId]: { ...(prev[empId] ?? {}), [fecha]: turno } }
+    })
   }
 
   function insertAt(empId: string, insertIdx: number) {
@@ -143,16 +182,8 @@ export function ScheduleGrid({ deliverable, readOnly = false, onClose }: Props) 
 
   const handleAutoFill6x6 = useCallback(() => {
     if (fieldEmployees.length === 0) return
-    const prevMap: Record<string, Turno[]> = {}
-    if (prevScheduleDetail?.employees) {
-      for (const e of prevScheduleDetail.employees) {
-        prevMap[e.employee.id] = [...e.days]
-          .sort((a, b) => a.fecha.localeCompare(b.fecha))
-          .map((d) => d.turno)
-      }
-    }
     setGrid(build6x6Grid(deliverable.anio, deliverable.mes, fieldEmployees, prevMap))
-  }, [fieldEmployees, prevScheduleDetail, deliverable.anio, deliverable.mes])
+  }, [fieldEmployees, prevMap, deliverable.anio, deliverable.mes])
 
   async function handleSave() {
     if (!existingId || fieldEmployees.length === 0) return
@@ -304,7 +335,16 @@ export function ScheduleGrid({ deliverable, readOnly = false, onClose }: Props) 
         prevMonth={prevMes}
         prevEmpMap={prevEmpMap}
         prevMonthName={`${MONTH_NAMES[prevMes - 1]} ${prevAnio}`}
+        habitualidadPendingIds={habitualidadPendingIds}
       />
+
+      {tipo === '6x6' && (
+        <ScheduleNotifications
+          fieldEmployees={fieldEmployees}
+          habitualidadAlerts={habitualidadAlerts}
+          workedRestAlerts={workedRestAlerts}
+        />
+      )}
 
       {showHours && tipo === '6x6' && fieldEmployees.length > 0 && (
         <>

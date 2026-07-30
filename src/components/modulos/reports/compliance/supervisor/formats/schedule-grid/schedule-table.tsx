@@ -26,6 +26,7 @@ interface ScheduleTableProps {
   prevMonth?: number
   prevEmpMap?: Record<string, Record<string, Turno>>
   prevMonthName?: string
+  habitualidadPendingIds?: Set<string>
 }
 
 export function ScheduleTable({
@@ -33,6 +34,7 @@ export function ScheduleTable({
   grid, tipo, isClosed, readOnly, year, month, fillPending,
   onSetCell, onInsertAt, onShiftToEnd, onArmFill,
   showPrev, prevYear, prevMonth, prevEmpMap, prevMonthName,
+  habitualidadPendingIds,
 }: ScheduleTableProps) {
   return (
     <>
@@ -190,8 +192,14 @@ export function ScheduleTable({
                   className="py-2 px-3 sticky left-0 z-10"
                   style={{ background: 'var(--color-surface-0)', whiteSpace: 'nowrap', borderRight: '1px solid var(--color-border)' }}
                 >
-                  <p className="text-xs font-medium" style={{ color: 'var(--color-text-900)' }}>
+                  <p className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--color-text-900)' }}>
                     {emp.first_name} {emp.last_name}
+                    {habitualidadPendingIds?.has(emp.id) && (
+                      <span
+                        title="Habitualidad: requiere descanso adicional"
+                        style={{ width: 6, height: 6, borderRadius: '50%', background: '#d97706', display: 'inline-block', flexShrink: 0 }}
+                      />
+                    )}
                   </p>
                   <p style={{ fontSize: 10, color: 'var(--color-text-400)' }}>
                     CC {emp.identification_number} &middot; {emp.position}
@@ -220,9 +228,14 @@ export function ScheduleTable({
                             className="rounded text-xs font-bold text-center"
                             style={{ width: 46, height: 26, background: colors.bg, color: colors.color, border: 'none', cursor: 'pointer' }}
                           >
-                            {ALL_TURNOS.map((t) => (
-                              <option key={t} value={t}>{t}</option>
-                            ))}
+                            {ALL_TURNOS.map((t) => {
+                              const needsRestDay = (t === 'DLD' || t === 'DLN') && turno !== 'S'
+                              return (
+                                <option key={t} value={t} disabled={needsRestDay}>
+                                  {t}{needsRestDay ? ' ' : ''}
+                                </option>
+                              )
+                            })}
                           </select>
                           <div className="flex" style={{ width: 46, gap: 1 }}>
                             {([

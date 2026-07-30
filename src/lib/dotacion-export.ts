@@ -4,7 +4,8 @@ import { fetchLogoBase64 } from './report-header'
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const d = new Date(iso.includes('T') ? iso : iso + 'T00:00:00')
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function getImgExt(url: string): 'jpeg' | 'png' | 'gif' {
@@ -123,7 +124,7 @@ export async function exportDotacionPdf(sol: DotacionSolicitud): Promise<void> {
   await html2pdf()
     .set({
       margin:      [8, 8, 8, 8],
-      filename:    `Dotacion_${sol.campo?.name ?? 'solicitud'}_${fmtDate(sol.fecha)}.pdf`,
+      filename:    `Reposicion_Dotacion_${sol.campo?.name ?? 'solicitud'}_${fmtDate(sol.fecha)}.pdf`,
       html2canvas: { scale: 2, useCORS: true, logging: false },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
     })
@@ -334,7 +335,7 @@ export async function exportDotacionExcel(sol: DotacionSolicitud): Promise<void>
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href     = url
-  a.download = `Dotacion_${sol.campo?.name ?? 'solicitud'}_${fmtDate(sol.fecha)}.xlsx`
+  a.download = `Reposicion_Dotacion_${sol.campo?.name ?? 'solicitud'}_${fmtDate(sol.fecha)}.xlsx`
   a.click()
   URL.revokeObjectURL(url)
 }

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { formatDateShort as formatDate } from '@/src/lib/utils'
 import {
   Loader2, ChevronDown, ChevronUp, Image as ImageIcon, CheckCircle2, X,
   FileDown, FileSpreadsheet, Plus, Trash2, ChevronLeft, ChevronRight, FileText, Package,
-  Eye, BarChart2, History, Search, PackagePlus, Calendar, type LucideIcon,
+  Eye, BarChart2, History, Search, PackagePlus, Calendar, PackageCheck, PenLine, type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAllDotacionSolicitudes, useGenerarDotacionRQ } from '@/src/hooks/dotaciones/use-dotaciones'
@@ -14,16 +14,17 @@ import {
   useIndumentariaCatalog,
   useCreateIndumentariaItem,
   useUpdateIndumentariaItem,
+  useEntregasPorNumeroRQ,
+  useRegistrarEntregaBatch,
 } from '@/src/hooks/dotaciones/use-indumentaria'
 import type { TipoEntrega, IndumentariaItem } from '@/src/types/indumentaria.types'
 import { useRequisiciones, useRequisicion } from '@/src/hooks/consumables/use-requisiciones'
-import { useQueryClient } from '@tanstack/react-query'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
-import { api } from '@/src/lib/axios'
+import { EntregaParcialBadge } from '@/src/components/modulos/consumables/entrega-parcial-badge'
 import { ESTADO_DOTACION_LABELS, ESTADO_DOTACION_COLORS } from '@/src/types/dotaciones.types'
 import { ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { DotacionSolicitud, EstadoDotacion, Reposicion } from '@/src/types/dotaciones.types'
-import type { Requisicion } from '@/src/types/consumables.types'
+import type { Requisicion, RQItem } from '@/src/types/consumables.types'
 import { exportDotacionPdf, exportDotacionExcel } from '@/src/lib/dotacion-export'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -155,11 +156,133 @@ async function exportRQExcel(rq: Requisicion) {
   URL.revokeObjectURL(url)
 }
 
+// ── Constancia de entrega (PDF) ────────────────────────────────────────────
+async function exportConstanciaDotacionPdf(rq: Requisicion) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const items  = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
+  const receptorLabel = [rq.nombre_receptor, rq.cargo_receptor].filter(Boolean).join(' · ') || '-'
+  const fmt = (v: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v)
+
+  const header = `
+<div style="display:flex;align-items:center;padding-bottom:14px;border-bottom:3px solid #1E4A8A;margin-bottom:20px;">
+  <div style="flex:1;"><img src="${origin}/assets/logo-full.png" style="height:62px;width:auto;object-fit:contain;display:block;" onerror="this.style.visibility='hidden'" /></div>
+  <div style="flex:1;text-align:center;">
+    <div style="font-size:13px;font-weight:bold;color:#111;margin-bottom:3px;">SERVICIOS ASOCIADOS SAS.</div>
+    <div style="font-size:12px;font-weight:bold;color:#1E4A8A;margin-bottom:4px;">Constancia de Entrega de Dotacion</div>
+    <div style="font-size:11px;color:#555;">RQ #<strong>${rq.numero_rq}</strong></div>
+    <div style="font-size:11px;color:#555;margin-top:1px;">CC: <strong>${rq.lote}</strong> &nbsp;&middot;&nbsp; Lugar: <strong>${rq.lugar}</strong></div>
+  </div>
+  <div style="flex:1;text-align:right;">
+    <div style="font-size:9px;color:#6b7280;">Generado: ${new Date().toLocaleDateString('es-CO')}</div>
+    <div style="display:inline-block;margin-top:4px;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:bold;background:${rq.entrega_completa ? 'rgba(22,163,74,0.15)' : 'rgba(245,158,11,0.15)'};color:${rq.entrega_completa ? '#15803d' : '#b45309'};">
+      ${rq.entrega_completa ? 'Entrega completa' : 'Entrega parcial'}
+    </div>
+  </div>
+</div>`
+
+  const infoHtml = `
+    <div style="display:flex;gap:10px;margin-bottom:18px;">
+      ${[
+        ['Receptor',         receptorLabel],
+        ['Fecha de entrega', rq.fecha_entrega ?? '-'],
+        ['Total solicitado', rq.total_solicitado != null ? `${rq.total_solicitado} uds` : '-'],
+        ['Total recibido',   rq.total_recibido   != null ? `${rq.total_recibido} uds`   : '-'],
+      ].map(([label, value]) => `
+        <div style="flex:1;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;">
+          <div style="font-size:9px;color:#6b7280;margin-bottom:2px;">${label}</div>
+          <div style="font-size:11px;font-weight:600;color:#111;">${value}</div>
+        </div>`).join('')}
+    </div>`
+
+  const totalEstCOP = items.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.solicitado ?? 0)) * i.valor_unitario : s, 0)
+  const totalRecCOP = items.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.recibido   ?? 0)) * i.valor_unitario : s, 0)
+
+  const rows = items.map((item, i) => {
+    const sol      = Math.round(Number(item.solicitado ?? 0))
+    const rec      = Math.round(Number(item.recibido   ?? 0))
+    const diff     = rec - sol
+    const totEst   = item.valor_unitario != null ? sol * item.valor_unitario : null
+    const totRec   = item.valor_unitario != null ? rec * item.valor_unitario : null
+    const recColor  = rec === sol ? '#16a34a' : rec < sol ? '#ef4444' : '#3b82f6'
+    const diffColor = diff === 0  ? '#16a34a' : diff < 0  ? '#ef4444' : '#3b82f6'
+    const td = (val: string, extra = '') => `<td style="padding:6px 5px;border:1px solid #e5e7eb;font-size:9px;${extra}">${val}</td>`
+    return `<tr style="${i % 2 === 1 ? 'background:#f9fafb;' : ''}">
+      ${td(item.codigo,      'font-family:monospace;')}
+      ${td(item.descripcion, 'word-break:break-word;')}
+      ${td(item.unidad,      'text-align:center;')}
+      ${td(item.valor_unitario != null ? fmt(item.valor_unitario) : '-', 'text-align:right;')}
+      ${td(String(sol),      'text-align:center;font-weight:bold;')}
+      ${td(totEst != null ? fmt(totEst) : '-', 'text-align:right;')}
+      ${td(String(rec),      `text-align:center;font-weight:bold;color:${recColor};`)}
+      ${td(totRec != null ? fmt(totRec) : '-', `text-align:right;font-weight:bold;color:${totRec != null && totEst != null && totRec < totEst ? '#ef4444' : '#16a34a'};`)}
+      ${td(diff === 0 ? '=' : (diff > 0 ? '+' : '') + String(diff), `text-align:center;font-weight:bold;color:${diffColor};`)}
+    </tr>`
+  }).join('')
+
+  const tableHtml = `
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-family:Arial,sans-serif;margin-bottom:20px;">
+      <colgroup>
+        <col style="width:10%"><col style="width:30%"><col style="width:8%">
+        <col style="width:12%"><col style="width:8%"><col style="width:12%">
+        <col style="width:8%"><col style="width:12%">
+      </colgroup>
+      <thead>
+        <tr style="background:#1a3a3a;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+          <th style="padding:7px 5px;text-align:left;font-size:9px;border:1px solid #1a3a3a;">Codigo</th>
+          <th style="padding:7px 5px;text-align:left;font-size:9px;border:1px solid #1a3a3a;">Descripcion</th>
+          <th style="padding:7px 5px;text-align:center;font-size:9px;border:1px solid #1a3a3a;">Unidad</th>
+          <th style="padding:7px 5px;text-align:right;font-size:9px;border:1px solid #1a3a3a;">V. Unitario</th>
+          <th style="padding:7px 5px;text-align:center;font-size:9px;border:1px solid #1a3a3a;">Solicitado</th>
+          <th style="padding:7px 5px;text-align:right;font-size:9px;border:1px solid #1a3a3a;">Total Est.</th>
+          <th style="padding:7px 5px;text-align:center;font-size:9px;border:1px solid #1a3a3a;">Recibido</th>
+          <th style="padding:7px 5px;text-align:right;font-size:9px;border:1px solid #1a3a3a;">Total Rec.</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr style="background:#f3f4f6;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+          <td colspan="4" style="padding:8px 5px;text-align:right;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:#374151;">TOTALES</td>
+          <td style="padding:8px 5px;text-align:center;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:#111;">${rq.total_solicitado ?? '-'} uds</td>
+          <td style="padding:8px 5px;text-align:right;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:#1a3a3a;">${fmt(totalEstCOP)}</td>
+          <td style="padding:8px 5px;text-align:center;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:${rq.entrega_completa ? '#16a34a' : '#ef4444'};">${rq.total_recibido ?? '-'} uds</td>
+          <td style="padding:8px 5px;text-align:right;font-size:10px;font-weight:bold;border:1px solid #e5e7eb;color:${rq.entrega_completa ? '#16a34a' : '#ef4444'};">${fmt(totalRecCOP)}</td>
+        </tr>
+      </tfoot>
+    </table>`
+
+  const sigHtml = rq.firma_recepcion_url
+    ? `<img src="${rq.firma_recepcion_url}" crossorigin="anonymous" style="max-height:100px;width:auto;object-fit:contain;display:block;margin-top:8px;" />`
+    : '<div style="height:80px;border-bottom:2px solid #374151;margin:8px 0 0;"></div>'
+
+  const footer = `
+<div style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+  <div style="padding:16px 20px;">
+    <div style="font-size:10px;font-weight:bold;color:#374151;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">
+      FIRMA DEL RECEPTOR
+    </div>
+    <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">Nombre: <span style="color:#111;font-weight:600;">${receptorLabel}</span></div>
+    <div style="font-size:10px;color:#6b7280;margin-bottom:6px;">Fecha de entrega: <span style="color:#111;font-weight:600;">${rq.fecha_entrega ?? '-'}</span></div>
+    ${sigHtml}
+  </div>
+</div>`
+
+  const html = `<div style="font-family:Arial,sans-serif;padding:20px;color:#111;background:#fff;">${header}${infoHtml}${tableHtml}${footer}</div>`
+  const { default: html2pdf } = await import('html2pdf.js')
+  await html2pdf().set({
+    margin:      8,
+    filename:    `Constancia-Entrega-RQ-${rq.numero_rq}.pdf`,
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+  }).from(html).save()
+}
+
 // ── RQ detail inline view ─────────────────────────────────────────────────────
 function DotacionRQDetail({ rqId, onBack }: { rqId: string; onBack: () => void }) {
   const { data: rq, isLoading } = useRequisicion(rqId)
   const [loadingPdf, setLoadingPdf] = useState(false)
   const [loadingXls, setLoadingXls] = useState(false)
+  const [loadingConstancia, setLoadingConstancia] = useState(false)
+  const [showRecepcion, setShowRecepcion] = useState<boolean | null>(null)
 
   if (isLoading) {
     return (
@@ -174,6 +297,9 @@ function DotacionRQDetail({ rqId, onBack }: { rqId: string; onBack: () => void }
   const estadoColor = ESTADO_COLORS[rq.estado] ?? '#6b7280'
   const sorted      = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
   const totalEst    = sorted.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.solicitado ?? 0)) * i.valor_unitario : s, 0)
+  const totalRecCOP = sorted.reduce((s, i) => i.valor_unitario != null ? s + Math.round(Number(i.recibido   ?? 0)) * i.valor_unitario : s, 0)
+  const isEntregado = rq.recepcion_completada || rq.estado === 'ENTREGADO'
+  const showEv      = (showRecepcion ?? isEntregado) && isEntregado
 
   return (
     <div className="flex flex-col gap-4">
@@ -237,20 +363,89 @@ function DotacionRQDetail({ rqId, onBack }: { rqId: string; onBack: () => void }
 
       {/* Items table */}
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+        {/* Toggle bar - solo cuando hay entrega */}
+        {isEntregado && (
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 flex-wrap"
+            style={{ background: showEv ? 'rgba(22,163,74,0.05)' : 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}
+          >
+            <PackageCheck size={14} style={{ color: showEv ? '#16a34a' : 'var(--color-text-400)' }} />
+            <span className="text-xs font-semibold" style={{ color: showEv ? '#15803d' : 'var(--color-text-600)' }}>
+              Evidencia de recepcion
+            </span>
+            {showEv && (
+              <span
+                className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                style={rq.entrega_completa
+                  ? { background: 'rgba(22,163,74,0.15)', color: '#15803d' }
+                  : { background: 'rgba(245,158,11,0.15)', color: '#b45309' }}
+              >
+                {rq.entrega_completa ? 'Entrega completa' : 'Entrega parcial'}
+              </span>
+            )}
+            {showEv && rq.tiene_faltante && (
+              <EntregaParcialBadge fechaPrimeraEntrega={rq.fecha_primera_entrega} categoria={rq.categoria} itemsPendientes={rq.items_pendientes} />
+            )}
+            {showEv && (
+              <button
+                onClick={async () => { setLoadingConstancia(true); try { await exportConstanciaDotacionPdf(rq) } finally { setLoadingConstancia(false) } }}
+                disabled={loadingConstancia}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)', opacity: loadingConstancia ? 0.6 : 1 }}
+              >
+                {loadingConstancia ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
+                Constancia PDF
+              </button>
+            )}
+            <button
+              onClick={() => setShowRecepcion(!showEv)}
+              className="ml-auto relative rounded-full shrink-0"
+              style={{ width: 40, height: 22, background: showEv ? '#16a34a' : 'var(--color-border)', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              <span
+                className="absolute top-1 w-4 h-4 bg-white rounded-full"
+                style={{ left: showEv ? 20 : 2, transition: 'left 0.15s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
+              />
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
-                {['Codigo', 'Descripcion', 'Unidad', 'Valor Unit.', 'Solicitado', 'Total'].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
-                    style={{ color: 'var(--color-text-400)' }}>{h}</th>
+                {[
+                  { label: 'Codigo',      align: 'text-left'   },
+                  { label: 'Descripcion', align: 'text-left'   },
+                  { label: 'Unidad',      align: 'text-left'   },
+                  { label: 'Valor Unit.', align: 'text-right'  },
+                  { label: 'Solicitado',  align: 'text-center' },
+                  { label: 'Total',       align: 'text-right'  },
+                ].map(({ label, align }) => (
+                  <th key={label} className={`${align} px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap`}
+                    style={{ color: 'var(--color-text-400)' }}>{label}</th>
                 ))}
+                {showEv && (
+                  <>
+                    <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                      style={{ color: '#16a34a', borderLeft: '2px solid var(--color-border)' }}>Recibido</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                      style={{ color: '#16a34a' }}>Total Rec.</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                      style={{ color: 'var(--color-text-400)' }}>Diferencia</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
               {sorted.map((item, idx) => {
                 const sol   = Math.round(Number(item.solicitado ?? 0))
                 const total = item.valor_unitario != null ? sol * item.valor_unitario : null
+                const rec    = Math.round(Number(item.recibido ?? 0))
+                const diff   = rec - sol
+                const totRec = item.valor_unitario != null ? rec * item.valor_unitario : null
+                const recColor  = rec === sol ? '#16a34a' : rec < sol ? '#ef4444' : '#3b82f6'
+                const diffColor = diff === 0  ? '#16a34a' : diff < 0  ? '#ef4444' : '#3b82f6'
                 return (
                   <tr key={item.id} style={{ borderBottom: '1px solid var(--color-border)', background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)' }}>
                     <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>{item.codigo || '-'}</td>
@@ -263,6 +458,17 @@ function DotacionRQDetail({ rqId, onBack }: { rqId: string; onBack: () => void }
                     <td className="px-4 py-3 text-xs font-semibold text-right whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
                       {total != null ? fmtCop(total) : '-'}
                     </td>
+                    {showEv && (
+                      <>
+                        <td className="px-4 py-3 text-xs text-center font-bold whitespace-nowrap" style={{ color: recColor, borderLeft: '2px solid var(--color-border)' }}>{rec}</td>
+                        <td className="px-4 py-3 text-xs text-right font-semibold whitespace-nowrap" style={{ color: totRec != null && total != null && totRec < total ? '#ef4444' : '#16a34a' }}>
+                          {totRec != null ? fmtCop(totRec) : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-center font-bold whitespace-nowrap" style={{ color: diffColor }}>
+                          {diff === 0 ? '=' : (diff > 0 ? '+' : '') + diff}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 )
               })}
@@ -271,10 +477,62 @@ function DotacionRQDetail({ rqId, onBack }: { rqId: string; onBack: () => void }
               <tr style={{ borderTop: '2px solid var(--color-border)', background: 'var(--color-surface-2)' }}>
                 <td colSpan={5} className="px-4 py-3 text-xs font-bold text-right" style={{ color: 'var(--color-text-600)' }}>TOTAL ESTIMADO</td>
                 <td className="px-4 py-3 text-sm font-bold text-right" style={{ color: 'var(--color-secundary)' }}>{fmtCop(totalEst)}</td>
+                {showEv && (
+                  <>
+                    <td className="px-4 py-3 text-xs text-center font-bold whitespace-nowrap"
+                      style={{ color: rq.entrega_completa ? '#16a34a' : '#f59e0b', borderLeft: '2px solid var(--color-border)' }}>
+                      {rq.total_recibido != null ? `${rq.total_recibido} uds` : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-bold text-right whitespace-nowrap"
+                      style={{ color: rq.entrega_completa ? '#16a34a' : '#f59e0b' }}>
+                      {totalRecCOP > 0 ? fmtCop(totalRecCOP) : '-'}
+                    </td>
+                    <td></td>
+                  </>
+                )}
               </tr>
             </tfoot>
           </table>
         </div>
+
+        {/* Info + firma cuando esta activa la evidencia */}
+        {showEv && (
+          <>
+            <div className="px-4 pt-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+              {[
+                { label: 'Receptor', value: [rq.nombre_receptor, rq.cargo_receptor].filter(Boolean).join(' · ') || '-' },
+                { label: 'Fecha de entrega', value: rq.fecha_entrega ?? '-' },
+                { label: 'Total solicitado', value: rq.total_solicitado != null ? `${rq.total_solicitado} uds` : '-' },
+                { label: 'Total recibido', value: rq.total_recibido != null ? `${rq.total_recibido} uds` : '-' },
+              ].map(({ label, value }, i) => (
+                <div key={label}>
+                  <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{label}</p>
+                  <p className="text-sm font-semibold mt-0.5" style={{ color: i === 3 ? (rq.entrega_completa ? '#16a34a' : '#f59e0b') : 'var(--color-text-900)' }}>
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 py-4 flex flex-col gap-1.5" style={{ borderTop: '1px solid var(--color-border)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-400)' }}>Firma del receptor</p>
+              {rq.firma_recepcion_url ? (
+                <div
+                  className="rounded-lg inline-flex items-center justify-center p-3 mt-1"
+                  style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', alignSelf: 'flex-start' }}
+                >
+                  <Image src={rq.firma_recepcion_url} alt="Firma receptor" width={200} height={80} style={{ maxHeight: 80, width: 'auto', objectFit: 'contain' }} unoptimized />
+                </div>
+              ) : (
+                <div
+                  className="h-16 rounded-lg mt-1 flex items-center justify-center"
+                  style={{ border: '1px dashed var(--color-border)', background: 'var(--color-surface-1)' }}
+                >
+                  <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>Sin firma registrada</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{sorted.length} item{sorted.length !== 1 ? 's' : ''}</p>
@@ -561,15 +819,25 @@ function GenerarRQModal({
 function SolicitudModal({
   sol,
   onClose,
+  initialRepoId,
 }: {
   sol: DotacionSolicitud
   onClose: () => void
+  initialRepoId?: string
 }) {
+  const initialIndex = initialRepoId
+    ? Math.max(0, sol.reposiciones.findIndex(r => r.id === initialRepoId))
+    : 0
   const [lightbox, setLightbox]       = useState<string | null>(null)
-  const [expanded, setExpanded]       = useState<Set<number>>(new Set([0]))
+  const [expanded, setExpanded]       = useState<Set<number>>(new Set([initialIndex]))
   const [loadingPdf, setLoadingPdf]   = useState(false)
   const [loadingXlsx, setLoadingXlsx] = useState(false)
   const [showGenerar, setShowGenerar] = useState(false)
+
+  const { data: allRQs = [] } = useRequisiciones()
+  const rq = allRQs.find(r => r.categoria === 'DOTACION' && r.solicitud_id === sol.id)
+  const numeroRq = rq?.numero_rq != null ? String(rq.numero_rq) : null
+  const { data: entregasRQ = [] } = useEntregasPorNumeroRQ(numeroRq)
 
   function toggle(i: number) {
     setExpanded(prev => {
@@ -630,12 +898,19 @@ function SolicitudModal({
           </div>
 
           {/* Reposiciones */}
-          <div className="overflow-y-auto flex-1 min-h-0 px-5 py-4 flex flex-col gap-2">
-            {sol.reposiciones.map((repo, i) => (
-              <div key={repo.id} style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
+          <div className="overflow-y-auto px-5 py-4 flex flex-col gap-2" style={{ maxHeight: 420 }}>
+            {sol.reposiciones.map((repo, i) => {
+              const entregasEsteEmpleado = entregasRQ.filter(e => e.empleado_id === repo.empleado.id)
+              const entregado = entregasEsteEmpleado.length > 0
+              const fechaEntregaRQ = entregasEsteEmpleado[0]?.fecha_entrega ?? null
+              return (
+              <div key={repo.id} style={{
+                border: entregado ? '1px solid #16a34a' : '1px solid var(--color-border)',
+                borderRadius: 8, overflow: 'hidden', flexShrink: 0,
+              }}>
                 <button type="button" onClick={() => toggle(i)}
                   className="w-full flex items-center justify-between px-4 py-3 text-left"
-                  style={{ background: 'var(--color-surface-1)' }}>
+                  style={{ background: entregado ? 'rgba(22,163,74,0.1)' : 'var(--color-surface-1)' }}>
                   <div className="flex items-center gap-3 min-w-0">
                     <span
                       className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0"
@@ -649,6 +924,11 @@ function SolicitudModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-3">
+                    {entregado && (
+                      <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#16a34a' }}>
+                        <PackageCheck size={12} /> Entregado
+                      </span>
+                    )}
                     {repo.imagenes.length > 0 && (
                       <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-text-400)' }}>
                         <ImageIcon size={12} />{repo.imagenes.length}
@@ -666,10 +946,20 @@ function SolicitudModal({
                       <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>Condicion encontrada</p>
                       <p className="text-sm" style={{ color: 'var(--color-text-700)' }}>{repo.condicion_encontrada}</p>
                     </div>
-                    {repo.fecha_entrega && (
+                    {fechaEntregaRQ && (
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>Fecha de entrega</p>
-                        <p className="text-sm" style={{ color: 'var(--color-text-700)' }}>{formatDate(repo.fecha_entrega)}</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#16a34a' }}>Fecha de entrega al empleado</p>
+                        <p className="text-sm font-medium" style={{ color: '#16a34a' }}>{formatDate(fechaEntregaRQ)}</p>
+                      </div>
+                    )}
+                    {entregasEsteEmpleado.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-400)' }}>Entregado</p>
+                        <ul className="text-sm flex flex-col gap-0.5" style={{ color: 'var(--color-text-700)' }}>
+                          {entregasEsteEmpleado.map(e => (
+                            <li key={e.id}>{e.cantidad} x {e.indumentaria?.nombre ?? 'Item'}{e.talla && ` (talla ${e.talla})`}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                     {repo.imagenes.length > 0 && (
@@ -678,9 +968,10 @@ function SolicitudModal({
                         <div className="flex flex-wrap gap-2">
                           {repo.imagenes.map(img => (
                             <button key={img.id} type="button" onClick={() => setLightbox(img.url)}
-                              className="relative overflow-hidden rounded-lg"
-                              style={{ width: 72, height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}>
-                              <Image src={img.url} alt={img.original_name} fill className="object-contain" unoptimized />
+                              className="overflow-hidden rounded-lg"
+                              style={{ height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={img.url} alt={img.original_name} style={{ height: '100%', width: 'auto', display: 'block' }} />
                             </button>
                           ))}
                         </div>
@@ -689,7 +980,8 @@ function SolicitudModal({
                   </div>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Export + Generar RQ */}
@@ -749,11 +1041,12 @@ function ItemFormModal({
   const isEdit  = !!item
 
   const [nombre,    setNombre]    = useState(item?.nombre    ?? '')
-  const [codigo,    setCodigo]    = useState(item?.codigo    ?? '')
+  const [codigo]                  = useState(item?.codigo    ?? '')
   const [unidad,    setUnidad]    = useState(item?.unidad    ?? 'UNIDAD')
   const [valor,     setValor]     = useState(item?.valor_unitario != null ? String(item.valor_unitario) : '')
   const [proveedor, setProveedor] = useState(item?.proveedor ?? '')
   const [activo,    setActivo]    = useState(item?.activo    ?? true)
+  const [requiereTalla, setRequiereTalla] = useState(item?.requiere_talla ?? false)
 
   const isPending = crear.isPending || editar.isPending
 
@@ -761,10 +1054,10 @@ function ItemFormModal({
     if (!nombre.trim()) { toast.error('El nombre es requerido'); return }
     const payload = {
       nombre:         nombre.trim(),
-      ...(codigo.trim()    ? { codigo:    codigo.trim()    } : {}),
       unidad:         unidad.trim() || 'UNIDAD',
       valor_unitario: valor ? parseFloat(valor) : null,
       proveedor:      proveedor.trim() || null,
+      requiere_talla: requiereTalla,
     }
 
     if (isEdit) {
@@ -807,10 +1100,12 @@ function ItemFormModal({
               <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Nombre *</label>
               <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej. Botas de seguridad" style={INP} />
             </div>
-            <div>
-              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Codigo</label>
-              <input value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="Ej. EPP-001" style={INP} />
-            </div>
+            {isEdit && (
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Codigo (automatico)</label>
+                <input value={codigo} disabled style={{ ...INP, opacity: 0.6, cursor: 'not-allowed' }} />
+              </div>
+            )}
             <div>
               <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Unidad</label>
               <input value={unidad} onChange={e => setUnidad(e.target.value)} placeholder="UNIDAD" style={INP} />
@@ -824,6 +1119,22 @@ function ItemFormModal({
               <input value={proveedor} onChange={e => setProveedor(e.target.value)} placeholder="Opcional" style={INP} />
             </div>
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer mt-1">
+            <div
+              onClick={() => setRequiereTalla(v => !v)}
+              className="w-9 h-5 rounded-full transition-colors relative shrink-0"
+              style={{ background: requiereTalla ? '#1a3a3a' : 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
+            >
+              <span
+                className="absolute top-0.5 w-4 h-4 rounded-full transition-transform"
+                style={{ background: '#fff', transform: requiereTalla ? 'translateX(16px)' : 'translateX(2px)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}
+              />
+            </div>
+            <span className="text-xs font-medium" style={{ color: 'var(--color-text-700)' }}>
+              Requiere talla
+            </span>
+          </label>
 
           {isEdit && (
             <label className="flex items-center gap-2 cursor-pointer mt-1">
@@ -1186,11 +1497,17 @@ interface EntregaItemRow {
   _id: string
   indumentaria_id: string
   cantidad: string
+  tipoTalla: '' | 'LETRA' | 'NUMERO_ROPA' | 'NUMERO_CALZADO'
+  talla: string
 }
 
 function makeEntregaItem(): EntregaItemRow {
-  return { _id: Math.random().toString(36).slice(2), indumentaria_id: '', cantidad: '1' }
+  return { _id: Math.random().toString(36).slice(2), indumentaria_id: '', cantidad: '1', tipoTalla: '', talla: '' }
 }
+
+const TALLAS_LETRA = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL']
+const TALLAS_NUMERO_ROPA = Array.from({ length: 17 }, (_, i) => String(10 + i * 2)) // 10..42 de 2 en 2
+const TALLAS_NUMERO_CALZADO = Array.from({ length: 34 }, (_, i) => String(10 + i)) // 10..43 de 1 en 1
 
 function GenerarEntregaModal({
   sol,
@@ -1201,45 +1518,158 @@ function GenerarEntregaModal({
   repo: Reposicion
   onClose: () => void
 }) {
-  const { data: rawCatalog, isLoading: loadingCatalog } = useIndumentariaCatalog()
-  const catalog = Array.isArray(rawCatalog) ? rawCatalog : []
-  const qc = useQueryClient()
+  const { data: allRQs = [] } = useRequisiciones()
+  const rqSummary = allRQs.find(r => r.categoria === 'DOTACION' && r.solicitud_id === sol.id)
+  const { data: rqDetail, isLoading: loadingRQ } = useRequisicion(rqSummary?.id ?? null)
+  const numeroRq = rqSummary?.numero_rq != null ? String(rqSummary.numero_rq) : null
+  const { data: entregasRQ = [], isLoading: loadingEntregas } = useEntregasPorNumeroRQ(numeroRq)
+  const { data: catalogRaw } = useIndumentariaCatalog()
+  const catalog = Array.isArray(catalogRaw) ? catalogRaw : []
+  const registrar = useRegistrarEntregaBatch()
+
+  function requiereTalla(indumentariaId: string): boolean {
+    return catalog.find(c => c.id === indumentariaId)?.requiere_talla ?? false
+  }
+
+  const [fase, setFase]         = useState<'seleccion' | 'resumen' | 'firma'>('seleccion')
   const [tipo, setTipo]         = useState<TipoEntrega>('REPOSICION')
   const [fecha, setFecha]       = useState(() => new Date().toISOString().split('T')[0])
   const [obs, setObs]           = useState('')
   const [items, setItems]       = useState<EntregaItemRow[]>(() => [makeEntregaItem()])
-  const [submitting, setSubmitting] = useState(false)
+  const [hasStrokes, setHasStrokes] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing   = useRef(false)
 
-  const activeCatalog = catalog.filter(i => i.activo)
+  const loadingItems = loadingRQ || loadingEntregas
+  const rqItems: RQItem[] = (rqDetail?.items ?? []).filter(i => i.indumentaria_id)
+
+  const entregadoPrevioPorItem = new Map<string, number>()
+  for (const e of entregasRQ) {
+    entregadoPrevioPorItem.set(e.indumentaria_id, (entregadoPrevioPorItem.get(e.indumentaria_id) ?? 0) + e.cantidad)
+  }
+
+  function disponibleBase(indumentariaId: string): number {
+    const rqItem = rqItems.find(i => i.indumentaria_id === indumentariaId)
+    if (!rqItem) return 0
+    const solicitado = Math.round(Number(rqItem.solicitado ?? 0))
+    const entregadoPrevio = entregadoPrevioPorItem.get(indumentariaId) ?? 0
+    return Math.max(0, solicitado - entregadoPrevio)
+  }
+
+  function disponiblePara(indumentariaId: string, excludeRowId: string): number {
+    const usadoEnForm = items.reduce((s, it) => (
+      it._id !== excludeRowId && it.indumentaria_id === indumentariaId ? s + (parseInt(it.cantidad) || 0) : s
+    ), 0)
+    return Math.max(0, disponibleBase(indumentariaId) - usadoEnForm)
+  }
+
+  const hayItemsDisponibles = rqItems.some(i => disponibleBase(i.indumentaria_id!) > 0)
 
   function setItemField(id: string, field: keyof Omit<EntregaItemRow, '_id'>, val: string) {
     setItems(prev => prev.map(it => it._id === id ? { ...it, [field]: val } : it))
   }
 
-  async function submit() {
-    const invalid = items.find(it => !it.indumentaria_id)
-    if (invalid) { toast.error('Seleccione el item de todos los registros'); return }
+  function selectItem(id: string, indumentariaId: string) {
+    setItems(prev => prev.map(it => it._id === id
+      ? { ...it, indumentaria_id: indumentariaId, cantidad: '1', tipoTalla: '', talla: '' }
+      : it))
+  }
 
-    setSubmitting(true)
-    try {
-      for (const item of items) {
-        await api.post('/indumentaria/entregas', {
-          empleado_id:      repo.empleado.id,
-          indumentaria_id:  item.indumentaria_id,
-          tipo,
-          cantidad:         parseInt(item.cantidad) || 1,
-          fecha_entrega:    fecha,
-          ...(obs.trim() ? { observacion: obs.trim() } : {}),
-        })
-      }
-      qc.invalidateQueries({ queryKey: ['indumentaria', 'historial', repo.empleado.id] })
-      toast.success(`${items.length} entrega${items.length !== 1 ? 's' : ''} registrada${items.length !== 1 ? 's' : ''}`)
-      onClose()
-    } catch {
-      toast.error('Error al registrar las entregas')
-    } finally {
-      setSubmitting(false)
+  function setTipoTalla(id: string, tipoTalla: EntregaItemRow['tipoTalla']) {
+    setItems(prev => prev.map(it => it._id === id ? { ...it, tipoTalla, talla: '' } : it))
+  }
+
+  function setCantidad(id: string, indumentariaId: string, val: string) {
+    const max = disponiblePara(indumentariaId, id)
+    const n = Math.min(Math.max(1, parseInt(val) || 1), Math.max(1, max))
+    setItemField(id, 'cantidad', String(n))
+  }
+
+  useEffect(() => {
+    if (fase !== 'firma') return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.strokeStyle = '#111827'
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+  }, [fase])
+
+  function getPos(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current!
+    const rect = canvas.getBoundingClientRect()
+    const sx = canvas.width / rect.width
+    const sy = canvas.height / rect.height
+    if ('touches' in e) {
+      const t = e.touches[0]
+      return { x: (t.clientX - rect.left) * sx, y: (t.clientY - rect.top) * sy }
     }
+    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy }
+  }
+
+  const startDraw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    drawing.current = true
+    const { x, y } = getPos(e)
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+  }, [])
+
+  const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    if (!drawing.current) return
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    const { x, y } = getPos(e)
+    ctx.lineTo(x, y)
+    ctx.stroke()
+    setHasStrokes(true)
+  }, [])
+
+  const endDraw = useCallback(() => { drawing.current = false }, [])
+
+  function handleLimpiar() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    setHasStrokes(false)
+  }
+
+  function irAResumen() {
+    const invalid = items.find(it => !it.indumentaria_id || !it.cantidad || Number(it.cantidad) < 1)
+    if (invalid) { toast.error('Seleccione el item y la cantidad de todos los registros'); return }
+    const sinTalla = items.find(it => requiereTalla(it.indumentaria_id) && !it.talla)
+    if (sinTalla) { toast.error('Indique la talla de todos los items que la requieren'); return }
+    setFase('resumen')
+  }
+
+  function handleConfirmar() {
+    if (!canvasRef.current || !hasStrokes) return
+    canvasRef.current.toBlob(blob => {
+      if (!blob) return
+      registrar.mutate({
+        empleadoId: repo.empleado.id,
+        tipo,
+        fechaEntrega: fecha,
+        numeroRq,
+        observacion: obs.trim() || undefined,
+        items: items.map(it => ({
+          indumentaria_id: it.indumentaria_id,
+          cantidad: parseInt(it.cantidad) || 1,
+          talla: it.talla || null,
+        })),
+        firmaBlob: blob,
+      }, { onSuccess: () => onClose() })
+    }, 'image/png')
   }
 
   const INP: React.CSSProperties = {
@@ -1268,6 +1698,7 @@ function GenerarEntregaModal({
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
               {repo.empleado.position} &middot; {sol.campo?.name ?? '-'} &middot; {sol.contrato}
+              {numeroRq && <> &middot; RQ #{numeroRq}</>}
             </p>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--color-text-400)' }}>
@@ -1275,107 +1706,347 @@ function GenerarEntregaModal({
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
-          {/* Tipo + Fecha */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Tipo de entrega</label>
-              <select value={tipo} onChange={e => setTipo(e.target.value as TipoEntrega)} style={{ ...INP, appearance: 'none' as const }}>
-                <option value="TOCACION">Dotacion inicial</option>
-                <option value="REPOSICION">Reposicion</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Fecha de entrega</label>
-              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={INP} />
-            </div>
-          </div>
+        {fase === 'seleccion' && (
+          <>
+            <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
+              {/* Tipo + Fecha */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Tipo de entrega</label>
+                  <select value={tipo} onChange={e => setTipo(e.target.value as TipoEntrega)} style={{ ...INP, appearance: 'none' as const }}>
+                    <option value="TOCACION">Dotacion inicial</option>
+                    <option value="REPOSICION">Reposicion</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Fecha de entrega</label>
+                  <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={INP} />
+                </div>
+              </div>
 
-          {/* Items */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-400)' }}>
-              Items de indumentaria
-            </p>
-            {loadingCatalog ? (
-              <div className="flex justify-center py-6">
-                <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
-              </div>
-            ) : activeCatalog.length === 0 ? (
-              <div className="rounded-xl py-6 flex flex-col items-center" style={{ border: '1px dashed var(--color-border)' }}>
-                <Package size={20} className="mb-1" style={{ color: 'var(--color-text-400)' }} />
-                <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>Sin items en el catalogo activo</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {items.map((item, idx) => (
-                  <div key={item._id} className="rounded-xl p-3 flex items-center gap-2"
-                    style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
-                    <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--color-text-400)', minWidth: 16 }}>{idx + 1}</span>
-                    <select
-                      value={item.indumentaria_id}
-                      onChange={e => setItemField(item._id, 'indumentaria_id', e.target.value)}
-                      className="flex-1"
-                      style={{ ...INP, appearance: 'none' as const }}
-                    >
-                      <option value="">Seleccionar item...</option>
-                      {activeCatalog.map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      value={item.cantidad}
-                      onChange={e => setItemField(item._id, 'cantidad', e.target.value)}
-                      min="1"
-                      placeholder="Cant."
-                      style={{ ...INP, width: 72 }}
-                    />
-                    {items.length > 1 && (
-                      <button onClick={() => setItems(prev => prev.filter(it => it._id !== item._id))}
-                        className="p-0.5 rounded transition-opacity hover:opacity-70 shrink-0" style={{ color: '#ef4444' }}>
-                        <Trash2 size={13} />
+              {/* Items */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-400)' }}>
+                  Items de la RQ
+                </p>
+                {loadingItems ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+                  </div>
+                ) : rqItems.length === 0 ? (
+                  <div className="rounded-xl py-6 flex flex-col items-center" style={{ border: '1px dashed var(--color-border)' }}>
+                    <Package size={20} className="mb-1" style={{ color: 'var(--color-text-400)' }} />
+                    <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>Esta RQ no tiene items de indumentaria</p>
+                  </div>
+                ) : !hayItemsDisponibles ? (
+                  <div className="rounded-xl py-6 flex flex-col items-center" style={{ border: '1px dashed var(--color-border)' }}>
+                    <PackageCheck size={20} className="mb-1" style={{ color: '#16a34a' }} />
+                    <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>Ya se entrego todo lo solicitado en esta RQ</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {items.map((item, idx) => {
+                      const maxQty = item.indumentaria_id ? disponiblePara(item.indumentaria_id, item._id) : 0
+                      const opciones = rqItems.filter(i =>
+                        i.indumentaria_id === item.indumentaria_id || disponiblePara(i.indumentaria_id!, item._id) > 0
+                      )
+                      const necesitaTalla = item.indumentaria_id && requiereTalla(item.indumentaria_id)
+                      const opcionesTalla =
+                        item.tipoTalla === 'LETRA'           ? TALLAS_LETRA :
+                        item.tipoTalla === 'NUMERO_ROPA'     ? TALLAS_NUMERO_ROPA :
+                        item.tipoTalla === 'NUMERO_CALZADO'  ? TALLAS_NUMERO_CALZADO : []
+                      return (
+                        <div key={item._id} className="rounded-xl p-3 flex flex-col gap-2"
+                          style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--color-text-400)', minWidth: 16 }}>{idx + 1}</span>
+                            <select
+                              value={item.indumentaria_id}
+                              onChange={e => selectItem(item._id, e.target.value)}
+                              className="flex-1"
+                              style={{ ...INP, appearance: 'none' as const }}
+                            >
+                              <option value="">Seleccionar item...</option>
+                              {opciones.map(i => (
+                                <option key={i.indumentaria_id} value={i.indumentaria_id!}>
+                                  {i.descripcion} (disp. {disponiblePara(i.indumentaria_id!, item._id)})
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              value={item.cantidad}
+                              onChange={e => setCantidad(item._id, item.indumentaria_id, e.target.value)}
+                              min={1}
+                              max={maxQty || undefined}
+                              disabled={!item.indumentaria_id}
+                              placeholder="Cant."
+                              style={{ ...INP, width: 72 }}
+                            />
+                            {items.length > 1 && (
+                              <button onClick={() => setItems(prev => prev.filter(it => it._id !== item._id))}
+                                className="p-0.5 rounded transition-opacity hover:opacity-70 shrink-0" style={{ color: '#ef4444' }}>
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                          {necesitaTalla && (
+                            <div className="flex items-center gap-2 pl-6">
+                              <select
+                                value={item.tipoTalla}
+                                onChange={e => setTipoTalla(item._id, e.target.value as EntregaItemRow['tipoTalla'])}
+                                style={{ ...INP, appearance: 'none' as const, width: 150 }}
+                              >
+                                <option value="">Tipo de talla...</option>
+                                <option value="LETRA">Letra (XS - 5XL)</option>
+                                <option value="NUMERO_ROPA">Numero - ropa</option>
+                                <option value="NUMERO_CALZADO">Numero - calzado</option>
+                              </select>
+                              <select
+                                value={item.talla}
+                                onChange={e => setItemField(item._id, 'talla', e.target.value)}
+                                disabled={!item.tipoTalla}
+                                style={{ ...INP, appearance: 'none' as const, width: 100 }}
+                              >
+                                <option value="">Talla...</option>
+                                {opcionesTalla.map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {items.length < rqItems.length && (
+                      <button
+                        onClick={() => setItems(prev => [...prev, makeEntregaItem()])}
+                        className="mt-1 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                        style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
+                      >
+                        <Plus size={13} /> Agregar item
                       </button>
                     )}
                   </div>
-                ))}
-                <button
-                  onClick={() => setItems(prev => [...prev, makeEntregaItem()])}
-                  className="mt-1 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
-                >
-                  <Plus size={13} /> Agregar item
-                </button>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Observacion */}
-          <div>
-            <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Observacion (opcional)</label>
-            <textarea
-              value={obs}
-              onChange={e => setObs(e.target.value)}
-              placeholder="Ej. reposicion por desgaste en campo..."
-              rows={2}
-              style={{ ...INP, resize: 'none' as const }}
-            />
-          </div>
-        </div>
+              {/* Observacion */}
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Observacion (opcional)</label>
+                <textarea
+                  value={obs}
+                  onChange={e => setObs(e.target.value)}
+                  placeholder="Ej. reposicion por desgaste en campo..."
+                  rows={2}
+                  style={{ ...INP, resize: 'none' as const }}
+                />
+              </div>
+            </div>
 
-        {/* Footer */}
-        <div className="px-5 py-4 flex gap-3 justify-end shrink-0"
-          style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
-          <button onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-medium"
-            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
-            Cancelar
+            {/* Footer */}
+            <div className="px-5 py-4 flex gap-3 justify-end shrink-0"
+              style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+              <button onClick={onClose}
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
+                Cancelar
+              </button>
+              <button onClick={irAResumen} disabled={loadingItems || !hayItemsDisponibles}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
+                style={{ background: '#1a3a3a', color: '#fff', opacity: (loadingItems || !hayItemsDisponibles) ? 0.6 : 1 }}>
+                Continuar
+              </button>
+            </div>
+          </>
+        )}
+
+        {fase === 'resumen' && (
+          <>
+            <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-3">
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>
+                Esto es lo que va a recibir {repo.empleado.first_name} {repo.empleado.last_name}:
+              </p>
+              <div className="flex flex-col gap-2">
+                {items.map(item => {
+                  const rqItem = rqItems.find(i => i.indumentaria_id === item.indumentaria_id)
+                  return (
+                    <div key={item._id} className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+                      style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                      <span className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>
+                        {rqItem?.descripcion ?? '-'}
+                        {item.talla && <span style={{ color: 'var(--color-text-400)' }}> &middot; Talla {item.talla}</span>}
+                      </span>
+                      <span className="text-sm font-bold" style={{ color: 'var(--color-secundary)' }}>
+                        {item.cantidad} {rqItem?.unidad ?? ''}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+              {obs.trim() && (
+                <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>Observacion: {obs.trim()}</p>
+              )}
+            </div>
+            <div className="px-5 py-4 flex gap-3 justify-end shrink-0"
+              style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+              <button onClick={() => setFase('seleccion')}
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
+                Corregir
+              </button>
+              <button onClick={() => { setHasStrokes(false); setFase('firma') }}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
+                style={{ background: '#1a3a3a', color: '#fff' }}>
+                De acuerdo
+              </button>
+            </div>
+          </>
+        )}
+
+        {fase === 'firma' && (
+          <>
+            <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-3">
+              <p className="text-xs font-medium" style={{ color: 'var(--color-text-500)' }}>
+                Firma de {repo.empleado.first_name} {repo.empleado.last_name} confirmando que recibio lo anterior.
+              </p>
+              <div style={{ border: '1.5px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', background: '#fff', touchAction: 'none' }}>
+                <canvas
+                  ref={canvasRef}
+                  width={560}
+                  height={180}
+                  style={{ display: 'block', width: '100%', cursor: 'crosshair', touchAction: 'none' }}
+                  onMouseDown={startDraw}
+                  onMouseMove={draw}
+                  onMouseUp={endDraw}
+                  onMouseLeave={endDraw}
+                  onTouchStart={startDraw}
+                  onTouchMove={draw}
+                  onTouchEnd={endDraw}
+                />
+              </div>
+            </div>
+            <div className="px-5 py-4 flex gap-3 justify-end shrink-0"
+              style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+              <button onClick={() => setFase('resumen')} disabled={registrar.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)', opacity: registrar.isPending ? 0.5 : 1 }}>
+                Volver
+              </button>
+              <button onClick={handleLimpiar} disabled={registrar.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)', opacity: registrar.isPending ? 0.5 : 1 }}>
+                Limpiar
+              </button>
+              <button onClick={handleConfirmar} disabled={!hasStrokes || registrar.isPending}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
+                style={{ background: '#1a3a3a', color: '#fff', opacity: (!hasStrokes || registrar.isPending) ? 0.6 : 1 }}>
+                {registrar.isPending ? <Loader2 size={14} className="animate-spin" /> : <PenLine size={14} />}
+                {registrar.isPending ? 'Registrando...' : 'Confirmar entrega'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </ModalPortal>
+  )
+}
+
+// ── Fila del historial (trae la fecha real de entrega al empleado) ─────────
+function HistorialRow({
+  sol,
+  repo,
+  idx,
+  onVer,
+  onEntregar,
+  onVerRQ,
+}: {
+  sol: DotacionSolicitud
+  repo: Reposicion
+  idx: number
+  onVer: () => void
+  onEntregar: () => void
+  onVerRQ: (rqId: string) => void
+}) {
+  const { data: allRQs = [] } = useRequisiciones()
+  const rq = allRQs.find(r => r.categoria === 'DOTACION' && r.solicitud_id === sol.id)
+  const numeroRq = rq?.numero_rq != null ? String(rq.numero_rq) : null
+  const { data: entregasRQ = [] } = useEntregasPorNumeroRQ(numeroRq)
+  const entregasEsteEmpleado = entregasRQ.filter(e => e.empleado_id === repo.empleado.id)
+  const fechaEntrega = entregasEsteEmpleado[0]?.fecha_entrega ?? null
+  const yaEntregado = entregasEsteEmpleado.length > 0
+  const puedeEntregar = (rq?.estado === 'EN_BODEGA' || rq?.estado === 'ENTREGADO') && !yaEntregado
+
+  return (
+    <tr
+      style={{
+        borderBottom: '1px solid var(--color-border)',
+        background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)',
+      }}>
+      <td className="px-4 py-3 font-medium text-sm whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
+        {repo.empleado.first_name} {repo.empleado.last_name}
+      </td>
+      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+        {repo.empleado.position}
+      </td>
+      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-700)' }}>
+        {sol.campo?.name ?? '-'}
+      </td>
+      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+        {formatDate(sol.fecha)}
+      </td>
+      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+        {sol.fecha_autorizacion ? formatDate(sol.fecha_autorizacion) : '-'}
+      </td>
+      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+        {sol.fecha_solicitud_compras ? formatDate(sol.fecha_solicitud_compras) : '-'}
+      </td>
+      <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap">
+        {sol.numero_rq && rq ? (
+          <button onClick={() => onVerRQ(rq.id)} className="hover:underline" style={{ color: 'var(--color-secundary)' }}>
+            #{sol.numero_rq}
           </button>
-          <button onClick={submit} disabled={submitting || loadingCatalog}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
-            style={{ background: '#1a3a3a', color: '#fff', opacity: submitting ? 0.7 : 1 }}>
-            {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-            {submitting ? 'Registrando...' : 'Registrar entrega'}
+        ) : sol.numero_rq ? (
+          <span style={{ color: 'var(--color-text-900)' }}>#{sol.numero_rq}</span>
+        ) : (
+          <span style={{ color: 'var(--color-text-900)' }}>-</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
+        {fechaEntrega ? formatDate(fechaEntrega) : '-'}
+      </td>
+      <td className="px-4 py-3">
+        <button
+          onClick={onVer}
+          className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+          title="Ver reposicion"
+          style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}>
+          <Eye size={13} />
+        </button>
+      </td>
+      <td className="px-4 py-3">
+        {puedeEntregar && (
+          <button
+            onClick={onEntregar}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity whitespace-nowrap"
+            style={{ background: '#1a3a3a', color: '#fff' }}>
+            <PackagePlus size={11} /> Entregar
           </button>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+// ── Modal con el detalle de la RQ (reutiliza la vista inline) ──────────────
+function RQDetailModal({ rqId, onClose }: { rqId: string; onClose: () => void }) {
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-4xl rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', maxHeight: '90vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="overflow-y-auto p-5">
+          <DotacionRQDetail rqId={rqId} onBack={onClose} />
         </div>
       </div>
     </ModalPortal>
@@ -1384,14 +2055,34 @@ function GenerarEntregaModal({
 
 // ── Tab: Historial ────────────────────────────────────────────────────────────
 function HistorialTab() {
+  const now = new Date()
   const { data: solicitudes = [], isLoading } = useAllDotacionSolicitudes()
   const [search, setSearch]       = useState('')
-  const [selectedSol, setSelectedSol]           = useState<DotacionSolicitud | null>(null)
+  const [mes,  setMes]            = useState(now.getMonth() + 1)
+  const [anio, setAnio]           = useState(now.getFullYear())
+  const [campoId, setCampoId]     = useState('')
+  const [selected, setSelected]                 = useState<{ sol: DotacionSolicitud; repo: Reposicion } | null>(null)
   const [entregaTarget, setEntregaTarget]       = useState<{ sol: DotacionSolicitud; repo: Reposicion } | null>(null)
+  const [rqDetailId, setRqDetailId]             = useState<string | null>(null)
 
-  const rows = (solicitudes as DotacionSolicitud[]).flatMap(sol =>
-    sol.reposiciones.map(repo => ({ sol, repo }))
-  )
+  function adjustPeriod(delta: number) {
+    let m = mes + delta, a = anio
+    if (m < 1)  { m = 12; a-- }
+    if (m > 12) { m = 1;  a++ }
+    setMes(m); setAnio(a)
+  }
+
+  const campos = Array.from(
+    new Map((solicitudes as DotacionSolicitud[]).filter(s => s.campo).map(s => [s.campo!.id, s.campo!.name])).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]))
+
+  const rows = (solicitudes as DotacionSolicitud[])
+    .filter(sol => {
+      const d = new Date(sol.fecha)
+      return d.getMonth() + 1 === mes && d.getFullYear() === anio
+    })
+    .filter(sol => !campoId || sol.campo?.id === campoId)
+    .flatMap(sol => sol.reposiciones.map(repo => ({ sol, repo })))
 
   const filtered = search.trim()
     ? rows.filter(({ repo }) =>
@@ -1402,7 +2093,37 @@ function HistorialTab() {
   return (
     <div className="flex flex-col gap-4">
       {/* Toolbar */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1 rounded-lg px-2 py-1.5"
+          style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+          <button onClick={() => adjustPeriod(-1)}
+            className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--color-text-700)' }}>
+            <ChevronLeft size={13} />
+          </button>
+          <span className="text-xs font-semibold px-1 min-w-28 text-center flex items-center gap-1.5" style={{ color: 'var(--color-text-900)' }}>
+            <Calendar size={12} style={{ color: 'var(--color-text-400)' }} />
+            {MESES[mes - 1]} {anio}
+          </span>
+          <button onClick={() => adjustPeriod(1)}
+            className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--color-text-700)' }}>
+            <ChevronRight size={13} />
+          </button>
+        </div>
+
+        <select
+          value={campoId}
+          onChange={e => setCampoId(e.target.value)}
+          className="px-3 py-2 text-xs rounded-lg outline-none cursor-pointer"
+          style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)', minWidth: 160 }}
+        >
+          <option value="">Todos los campos</option>
+          {campos.map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </select>
+
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
             style={{ color: 'var(--color-text-400)' }} />
@@ -1443,53 +2164,15 @@ function HistorialTab() {
               </thead>
               <tbody>
                 {filtered.map(({ sol, repo }, idx) => (
-                  <tr key={`${sol.id}-${repo.id}`}
-                    style={{
-                      borderBottom: '1px solid var(--color-border)',
-                      background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)',
-                    }}>
-                    <td className="px-4 py-3 font-medium text-sm whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
-                      {repo.empleado.first_name} {repo.empleado.last_name}
-                    </td>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
-                      {repo.empleado.position}
-                    </td>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-700)' }}>
-                      {sol.campo?.name ?? '-'}
-                    </td>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
-                      {formatDate(sol.fecha)}
-                    </td>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
-                      {sol.fecha_autorizacion ? formatDate(sol.fecha_autorizacion) : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
-                      {sol.fecha_solicitud_compras ? formatDate(sol.fecha_solicitud_compras) : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>
-                      {sol.numero_rq ? `#${sol.numero_rq}` : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--color-text-600)' }}>
-                      {repo.fecha_entrega ? formatDate(repo.fecha_entrega) : '-'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => setSelectedSol(sol)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
-                        title="Ver reposicion"
-                        style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}>
-                        <Eye size={13} />
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => setEntregaTarget({ sol, repo })}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity whitespace-nowrap"
-                        style={{ background: '#1a3a3a', color: '#fff' }}>
-                        <PackagePlus size={11} /> Entregar
-                      </button>
-                    </td>
-                  </tr>
+                  <HistorialRow
+                    key={`${sol.id}-${repo.id}`}
+                    sol={sol}
+                    repo={repo}
+                    idx={idx}
+                    onVer={() => setSelected({ sol, repo })}
+                    onEntregar={() => setEntregaTarget({ sol, repo })}
+                    onVerRQ={setRqDetailId}
+                  />
                 ))}
               </tbody>
             </table>
@@ -1497,13 +2180,18 @@ function HistorialTab() {
         </div>
       )}
 
-      {selectedSol && <SolicitudModal sol={selectedSol} onClose={() => setSelectedSol(null)} />}
+      {selected && (
+        <SolicitudModal sol={selected.sol} initialRepoId={selected.repo.id} onClose={() => setSelected(null)} />
+      )}
       {entregaTarget && (
         <GenerarEntregaModal
           sol={entregaTarget.sol}
           repo={entregaTarget.repo}
           onClose={() => setEntregaTarget(null)}
         />
+      )}
+      {rqDetailId && (
+        <RQDetailModal rqId={rqDetailId} onClose={() => setRqDetailId(null)} />
       )}
     </div>
   )

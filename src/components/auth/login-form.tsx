@@ -10,7 +10,7 @@ import { useLogin } from "@/src/hooks/auth/use-auth";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Mínimo 6 caracteres"),
+  password: z.string().min(1, "La contraseña es requerida"),
 });
 type LoginFormData = z.infer<typeof loginSchema>;
 

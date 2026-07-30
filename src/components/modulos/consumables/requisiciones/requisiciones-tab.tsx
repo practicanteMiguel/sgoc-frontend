@@ -1574,7 +1574,9 @@ export function RequisicionesTab() {
     setMes(m); setAnio(a)
   }
 
-  const { data: requisiciones = [], isLoading } = useRequisiciones({ mes, anio })
+  const { data: requisicionesRaw = [], isLoading } = useRequisiciones({ mes, anio })
+  // Las RQ de dotacion se gestionan y muestran desde el modulo de Dotaciones
+  const requisiciones = requisicionesRaw.filter(r => r.categoria !== 'DOTACION')
   const { data: informe } = useInformeFacturas(mes, anio)
   const facturadoSet = useMemo(() => {
     const set = new Set<string>()

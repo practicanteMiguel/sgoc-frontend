@@ -36,7 +36,7 @@ function ReposicionDetailRow({ rep, index }: { rep: Reposicion; index: number })
   const [lightbox, setLightbox] = useState<string | null>(null)
 
   return (
-    <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
+    <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
       <button
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
@@ -87,10 +87,11 @@ function ReposicionDetailRow({ rep, index }: { rep: Reposicion; index: number })
                   <button
                     key={img.id}
                     onClick={() => setLightbox(img.url)}
-                    className="relative overflow-hidden rounded-lg"
-                    style={{ width: 72, height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}
+                    className="overflow-hidden rounded-lg"
+                    style={{ height: 72, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', flexShrink: 0 }}
                   >
-                    <Image src={img.url} alt={img.original_name} fill className="object-contain" unoptimized />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img.url} alt={img.original_name} style={{ height: '100%', width: 'auto', display: 'block' }} />
                   </button>
                 ))}
               </div>
@@ -294,7 +295,7 @@ function SolicitudDetailModal({
             </div>
 
             {/* Reposiciones */}
-            <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 flex flex-col gap-2">
+            <div className="overflow-y-auto px-5 py-4 flex flex-col gap-2" style={{ maxHeight: 420 }}>
               {solicitud.reposiciones.map((rep, i) => (
                 <ReposicionDetailRow key={rep.id} rep={rep} index={i} />
               ))}

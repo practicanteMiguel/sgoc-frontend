@@ -34,6 +34,7 @@ export interface UpdateInsumoDto {
 export interface RQItem {
   id: string
   insumo_id: string
+  indumentaria_id?: string | null
   codigo: string
   descripcion: string
   unidad: string
@@ -76,6 +77,8 @@ export interface Requisicion {
   recepcion_completada?: boolean | null
   fecha_entrega?: string | null
   firma_recepcion_url?: string | null
+  nombre_receptor?: string | null
+  cargo_receptor?: string | null
   total_solicitado?: number | null
   total_recibido?: number | null
   entrega_completa?: boolean | null
@@ -83,6 +86,7 @@ export interface Requisicion {
   items_pendientes?: number
   fecha_primera_entrega?: string | null
   entrega_eventos?: RequisicionEntregaEvento[]
+  solicitud_id?: string | null
 }
 
 export interface RequisicionEntregaEvento {
@@ -121,6 +125,9 @@ export interface RequisicionSummary {
   tiene_faltante?: boolean
   items_pendientes?: number
   fecha_primera_entrega?: string | null
+  solicitud_id?: string | null
+  nombre_receptor?: string | null
+  cargo_receptor?: string | null
 }
 
 export interface CreateRequisicionDto {

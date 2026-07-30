@@ -8,6 +8,7 @@ export interface IndumentariaItem {
   valor_unitario?: number | null
   proveedor?: string | null
   activo: boolean
+  requiere_talla?: boolean
   created_at: string
 }
 
@@ -18,8 +19,11 @@ export interface IndumentariaEntrega {
   indumentaria?: IndumentariaItem
   tipo: TipoEntrega
   cantidad: number
+  talla?: string | null
   fecha_entrega: string
   observacion?: string | null
+  numero_rq?: string | null
+  firma_url?: string | null
   registrado_por?: string | null
   created_at: string
 }

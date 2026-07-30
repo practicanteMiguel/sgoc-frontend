@@ -17,11 +17,15 @@ const schema = z.object({
   last_name:     z.string().min(2, 'Mínimo 2 caracteres'),
   email:         z.string().email('Email inválido'),
   position:      z.string().min(2, 'Requerido'),
-  phone:         z.string().optional(),
+  phone:         z.string().optional().refine((val) => !val || /^\d{10}$/.test(val), {
+    message: 'El celular debe tener 10 digitos numericos',
+  }),
   role_slug:     z.string().min(1, 'Seleccioná un rol'),
   field_id:      z.string().optional(),
   module:        z.string().optional(),
-  temp_password: z.string().optional(),
+  temp_password: z.string().optional().refine((val) => !val || val.length >= 8, {
+    message: 'Mínimo 8 caracteres',
+  }),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -194,31 +198,51 @@ export function UserForm({ user, onClose }: UserFormProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { name: 'position' as const, label: 'Cargo',     placeholder: 'Ej: Supervisor de Planta' },
-                { name: 'phone'    as const, label: 'Teléfono', placeholder: '+57 300 000 0000'       },
-              ].map(({ name, label, placeholder }) => (
-                <div key={name} className="flex flex-col gap-1.5">
-                  <label className={LABEL_CLASS} style={{ color: 'var(--color-text-400)' }}>
-                    {label}
-                  </label>
-                  <input
-                    {...register(name)}
-                    placeholder={placeholder}
-                    style={{
-                      ...FIELD_STYLE,
-                      borderColor: errors[name] ? 'var(--color-danger)' : 'var(--color-border)',
-                    }}
-                    onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)'; e.target.style.boxShadow = '0 0 0 3px var(--color-secondary-muted)'; }}
-                    onBlur={(e)  => { e.target.style.borderColor = errors[name] ? 'var(--color-danger)' : 'var(--color-border)'; e.target.style.boxShadow = 'none'; }}
-                  />
-                  {errors[name] && (
-                    <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
-                      {errors[name]?.message}
-                    </span>
-                  )}
-                </div>
-              ))}
+              <div className="flex flex-col gap-1.5">
+                <label className={LABEL_CLASS} style={{ color: 'var(--color-text-400)' }}>
+                  Cargo
+                </label>
+                <input
+                  {...register('position')}
+                  placeholder="Ej: Supervisor de Planta"
+                  style={{
+                    ...FIELD_STYLE,
+                    borderColor: errors.position ? 'var(--color-danger)' : 'var(--color-border)',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)'; e.target.style.boxShadow = '0 0 0 3px var(--color-secondary-muted)'; }}
+                  onBlur={(e)  => { e.target.style.borderColor = errors.position ? 'var(--color-danger)' : 'var(--color-border)'; e.target.style.boxShadow = 'none'; }}
+                />
+                {errors.position && (
+                  <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
+                    {errors.position.message}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className={LABEL_CLASS} style={{ color: 'var(--color-text-400)' }}>
+                  Teléfono
+                </label>
+                <input
+                  {...register('phone', {
+                    onChange: (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10); },
+                  })}
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="3000000000"
+                  style={{
+                    ...FIELD_STYLE,
+                    borderColor: errors.phone ? 'var(--color-danger)' : 'var(--color-border)',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)'; e.target.style.boxShadow = '0 0 0 3px var(--color-secondary-muted)'; }}
+                  onBlur={(e)  => { e.target.style.borderColor = errors.phone ? 'var(--color-danger)' : 'var(--color-border)'; e.target.style.boxShadow = 'none'; }}
+                />
+                {errors.phone && (
+                  <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
+                    {errors.phone.message}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -314,11 +338,19 @@ export function UserForm({ user, onClose }: UserFormProps) {
                 <input
                   {...register('temp_password')}
                   type="text"
-                  placeholder="Se generará automáticamente si se deja vacío"
-                  style={FIELD_STYLE}
+                  placeholder="Mínimo 8 caracteres. Se generará automáticamente si se deja vacío"
+                  style={{
+                    ...FIELD_STYLE,
+                    borderColor: errors.temp_password ? 'var(--color-danger)' : 'var(--color-border)',
+                  }}
                   onFocus={(e) => { e.target.style.borderColor = 'var(--color-secondary)'; e.target.style.boxShadow = '0 0 0 3px var(--color-secondary-muted)'; }}
-                  onBlur={(e)  => { e.target.style.borderColor = 'var(--color-border)'; e.target.style.boxShadow = 'none'; }}
+                  onBlur={(e)  => { e.target.style.borderColor = errors.temp_password ? 'var(--color-danger)' : 'var(--color-border)'; e.target.style.boxShadow = 'none'; }}
                 />
+                {errors.temp_password && (
+                  <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
+                    {errors.temp_password.message}
+                  </span>
+                )}
               </div>
             )}
           </div>

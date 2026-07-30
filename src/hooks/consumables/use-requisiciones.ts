@@ -131,6 +131,39 @@ export function useRecepcionRQ() {
   })
 }
 
+export function useRecepcionDotacionRQ() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, firmaBlob, fecha_entrega, nombre_receptor, cargo_receptor, items }: {
+      id: string
+      firmaBlob: Blob
+      fecha_entrega: string
+      nombre_receptor: string
+      cargo_receptor: string
+      items: { id: string; recibido: number }[]
+    }) => {
+      const fd = new FormData()
+      fd.append('firma', firmaBlob, 'firma.png')
+      fd.append('fecha_entrega', fecha_entrega)
+      fd.append('nombre_receptor', nombre_receptor)
+      fd.append('cargo_receptor', cargo_receptor)
+      fd.append('items', JSON.stringify(items))
+      return api.patch<Requisicion>(`/requisiciones/${id}/recepcion-dotacion`, fd, {
+        headers: { 'Content-Type': undefined },
+      }).then((r) => r.data)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requisiciones'] })
+      qc.invalidateQueries({ queryKey: ['dotaciones'] })
+      toast.success('Entrega registrada correctamente')
+    },
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al registrar la entrega'))
+    },
+  })
+}
+
 export function useGuardarFacturas() {
   const qc = useQueryClient()
   return useMutation({

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import Image from 'next/image'
 import { formatDateShort as formatDate } from '@/src/lib/utils'
 import { Loader2, XCircle, CheckCircle2, Plus, Trash2, Upload, X, Send, ChevronDown, Image as ImageIcon, PenLine } from 'lucide-react'
@@ -224,7 +225,10 @@ function ReposicionFormRow({
 
         {/* Imagenes */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium text-gray-500">Fotos de evidencia</label>
+          <label className="text-xs font-medium text-gray-500">Fotos de evidencia *</label>
+          {repo.imagenes.length === 0 && (
+            <p className="text-xs" style={{ color: '#dc2626' }}>Debe agregar al menos una foto.</p>
+          )}
 
           {repo.imagenes.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -475,7 +479,7 @@ export function HseView({ token }: Props) {
     inspector.trim() &&
     cargoInspector.trim() &&
     reposiciones.length > 0 &&
-    reposiciones.every(r => r.empleado_id && r.condicion_encontrada.trim())
+    reposiciones.every(r => r.empleado_id && r.condicion_encontrada.trim() && r.imagenes.length > 0)
 
   async function handleConfirm() {
     if (!isValid || !spaceInfo) return
@@ -543,7 +547,10 @@ export function HseView({ token }: Props) {
           onFirmado={blob => {
             firmarHSE.mutate(
               { id: solicitudId, firmaBlob: blob },
-              { onSuccess: () => setSubmitted(true), onError: () => setSubmitted(true) },
+              {
+                onSuccess: () => setSubmitted(true),
+                onError:   () => toast.error('Error al guardar la firma, intente de nuevo'),
+              },
             )
           }}
         />
@@ -553,13 +560,6 @@ export function HseView({ token }: Props) {
             <span className="text-sm text-gray-500">Guardando firma...</span>
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => setSubmitted(true)}
-          className="text-xs text-gray-400 underline text-center"
-        >
-          Omitir firma por ahora
-        </button>
       </div>
     </div>
   )
