@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
-import type { IndumentariaItem, IndumentariaEntrega, TipoEntrega } from '@/src/types/indumentaria.types'
+import type { IndumentariaItem, IndumentariaEntrega, TipoEntrega, EmpleadoTallaRow, EmpleadoTallaBulkRow, TallaCategoria, CensoEmpleadoResumen } from '@/src/types/indumentaria.types'
 
 export function useIndumentariaCatalog() {
   return useQuery({
@@ -122,11 +122,51 @@ export function useRegistrarEntregaBatch() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['indumentaria', 'historial', variables.empleadoId] })
       qc.invalidateQueries({ queryKey: ['indumentaria', 'entregas'] })
+      qc.invalidateQueries({ queryKey: ['indumentaria', 'censo-resumen'] })
       toast.success('Entrega registrada correctamente')
     },
     onError: (err: AxiosError<{ message?: string | string[] }>) => {
       const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al registrar la entrega'))
     },
+  })
+}
+
+export function useTallasEmpleado(empleadoId: string | null) {
+  return useQuery({
+    queryKey: ['indumentaria', 'tallas', empleadoId],
+    queryFn: () => api.get<EmpleadoTallaRow[]>(`/indumentaria/tallas/${empleadoId}`).then(r => r.data),
+    enabled: !!empleadoId,
+  })
+}
+
+export function useTallasBulk() {
+  return useQuery({
+    queryKey: ['indumentaria', 'tallas', 'bulk'],
+    queryFn: () => api.get<EmpleadoTallaBulkRow[]>('/indumentaria/tallas').then(r => r.data),
+  })
+}
+
+export function useUpsertTallaEmpleado() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ empleadoId, categoria, talla }: { empleadoId: string; categoria: TallaCategoria; talla: string | null }) =>
+      api.patch(`/indumentaria/tallas/${empleadoId}/${categoria}`, { talla }).then(r => r.data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['indumentaria', 'tallas', variables.empleadoId] })
+      qc.invalidateQueries({ queryKey: ['indumentaria', 'tallas', 'bulk'] })
+      toast.success('Talla actualizada')
+    },
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar la talla'))
+    },
+  })
+}
+
+export function useCensoResumen() {
+  return useQuery({
+    queryKey: ['indumentaria', 'censo-resumen'],
+    queryFn: () => api.get<CensoEmpleadoResumen[]>('/indumentaria/censo-resumen').then(r => r.data),
   })
 }

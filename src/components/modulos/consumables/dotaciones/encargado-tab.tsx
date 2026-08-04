@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { formatDateShort as formatDate } from '@/src/lib/utils'
 import {
@@ -9,7 +9,7 @@ import {
   Eye, BarChart2, History, Search, PackagePlus, Calendar, PackageCheck, PenLine, type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAllDotacionSolicitudes, useGenerarDotacionRQ } from '@/src/hooks/dotaciones/use-dotaciones'
+import { useAllDotacionSolicitudes, useGenerarDotacionRQ, useCrearRqDirecta } from '@/src/hooks/dotaciones/use-dotaciones'
 import {
   useIndumentariaCatalog,
   useCreateIndumentariaItem,
@@ -26,6 +26,9 @@ import { ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { DotacionSolicitud, EstadoDotacion, Reposicion } from '@/src/types/dotaciones.types'
 import type { Requisicion, RQItem } from '@/src/types/consumables.types'
 import { exportDotacionPdf, exportDotacionExcel } from '@/src/lib/dotacion-export'
+import type { ImageRange } from 'exceljs'
+import { TallaPicker, useSignatureCanvas, type TipoTalla } from './entrega-shared'
+import { HistorialGeneralTab } from './historial-general-tab'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -111,48 +114,229 @@ async function exportRQPdf(rq: Requisicion) {
   }).from(html).save()
 }
 
+function totalGeneralRQ(items: RQItem[]) {
+  return items.reduce((sum, i) => {
+    if (i.solicitado === null || i.valor_unitario === null) return sum
+    return sum + i.solicitado * i.valor_unitario
+  }, 0)
+}
+
 async function exportRQExcel(rq: Requisicion) {
-  const excelModule = await import('exceljs')
+  const [excelModule, { fetchLogoBuffer }, { fetchFirmaUrl }, { getAuthState }] = await Promise.all([
+    import('exceljs'),
+    import('@/src/lib/report-header'),
+    import('@/src/lib/firma'),
+    import('@/src/stores/auth.store'),
+  ])
   const ExcelJS = (excelModule as unknown as { default?: typeof excelModule }).default ?? excelModule
   const wb = new ExcelJS.Workbook()
-  const ws = wb.addWorksheet('RQ Dotacion')
-  ws.columns = [{ width: 14 }, { width: 36 }, { width: 10 }, { width: 16 }, { width: 10 }, { width: 16 }]
+  const ws = wb.addWorksheet(`RQ-${rq.numero_rq}`)
 
-  const DARK = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1a3a3a' } } as const
-  const THIN = { style: 'thin', color: { argb: 'FFd1d5db' } } as const
-  const BDR  = { top: THIN, left: THIN, bottom: THIN, right: THIN }
+  const encargadoFirmaUrl = await fetchFirmaUrl()
+  const encargadoUser2    = getAuthState().user
+  const encargadoNombre2  = encargadoUser2 ? `${encargadoUser2.first_name} ${encargadoUser2.last_name}` : ''
+  async function fetchBuf(url: string): Promise<ArrayBuffer | null> {
+    try { const r = await fetch(url); return r.ok ? r.arrayBuffer() : null } catch { return null }
+  }
 
-  ws.addRow([`RQ #${rq.numero_rq} - Requisicion de Dotacion`]).getCell(1).font = { bold: true, size: 11 }
-  ws.addRow(['Solicitante:', rq.nombre_solicitante ?? '-', 'Contrato:', rq.numero_contrato ?? '-'])
-  ws.addRow(['Fecha:', rq.fecha ?? '-', 'Lugar:', rq.lugar ?? '-'])
-  ws.addRow([])
+  const hasFactura = rq.items.some((i) => i.numero_factura !== null || i.precio_real !== null)
 
-  const hdr = ws.addRow(['Codigo', 'Descripcion', 'Unidad', 'V. Unitario', 'Cantidad', 'Total'])
-  hdr.eachCell((c) => {
-    c.fill = DARK; c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-    c.alignment = { horizontal: 'center', vertical: 'middle' }; c.border = BDR
+  const HEADERS = hasFactura
+    ? ['Codigo','Descripcion','Unidad','Proveedor Ord.','Proveedor Ext.','Valor Unitario','Cantidad','Total','N. Factura','V. Real','Diferencia','Prov. Real']
+    : ['Codigo','Descripcion','Unidad','Proveedor Ord.','Proveedor Ext.','Valor Unitario','Cantidad','Total']
+  const COL_WIDTHS = hasFactura
+    ? [14, 38, 10, 22, 22, 18, 12, 18, 18, 18, 18, 22]
+    : [14, 38, 10, 22, 22, 18, 12, 18]
+  const numCols = HEADERS.length
+
+  ws.columns = COL_WIDTHS.map((width) => ({ width }))
+
+  const thin       = { style: 'thin' } as const
+  const allBorders = { top: thin, bottom: thin, left: thin, right: thin }
+  const copFmt     = '"$"#,##0'
+
+  // Row 1: logo header (solo Servicios Asociados)
+  ws.getRow(1).height = 68
+  ws.mergeCells(1, 2, 1, numCols)
+  const titleCell     = ws.getCell(1, 2)
+  titleCell.value     = `SERVICIOS ASOCIADOS SAS.\nREQUISICION DE DOTACION  |  RQ #${rq.numero_rq}\nCC: ${rq.lote}  |  Lugar: ${rq.lugar}`
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  titleCell.font      = { bold: true, size: 10 }
+
+  const logoBuf = await fetchLogoBuffer('/assets/logo-full.png')
+  if (logoBuf) {
+    const id = wb.addImage({ buffer: logoBuf, extension: 'png' })
+    ws.addImage(id, { tl: { col: 0.05, row: 0.05 }, br: { col: 1.9, row: 0.95 } } as unknown as ImageRange)
+  }
+
+  // Row 2: blue separator
+  ws.getRow(2).height = 4
+  for (let c = 1; c <= numCols; c++) {
+    ws.getCell(2, c).border = { bottom: { style: 'medium', color: { argb: 'FF1E4A8A' } } }
+  }
+
+  // Row 3: info block
+  ws.getRow(3).height = 18
+  ws.mergeCells(3, 1, 3, 4)
+  ws.getCell(3, 1).value     = `Solicitante: ${rq.nombre_solicitante ?? '-'}   |   Contrato: ${rq.numero_contrato ?? '-'}`
+  ws.getCell(3, 1).font      = { size: 10 }
+  ws.getCell(3, 1).alignment = { vertical: 'middle' }
+  ws.mergeCells(3, 5, 3, numCols)
+  ws.getCell(3, 5).value     = `Fecha: ${rq.fecha ?? '-'}   |   Estado: ${ESTADO_LABELS[rq.estado]}`
+  ws.getCell(3, 5).font      = { size: 10 }
+  ws.getCell(3, 5).alignment = { vertical: 'middle' }
+
+  // Row 4: column headers
+  const hdrRow = ws.getRow(4)
+  hdrRow.height = 26
+  HEADERS.forEach((h, i) => {
+    const cell     = hdrRow.getCell(i + 1)
+    cell.value     = h
+    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } }
+    cell.font      = { bold: true, size: 10, color: { argb: 'FF000000' } }
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+    cell.border    = allBorders
   })
 
-  const sorted = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
-  let total = 0
-  sorted.forEach((item, i) => {
-    const sol = Math.round(Number(item.solicitado ?? 0))
-    const tot = item.valor_unitario != null ? sol * item.valor_unitario : null
-    if (tot) total += tot
-    const row = ws.addRow([item.codigo || '-', item.descripcion, item.unidad, item.valor_unitario, sol, tot])
-    row.eachCell((c) => { c.border = BDR; c.font = { size: 9 } })
-    if (i % 2 === 1) row.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } } })
-    row.getCell(4).numFmt = '"$"#,##0'; row.getCell(6).numFmt = '"$"#,##0'
-  })
+  // Data rows
+  const items = [...rq.items].sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true, sensitivity: 'base' }))
+  for (let ri = 0; ri < items.length; ri++) {
+    const item    = items[ri]
+    const rowNum  = 5 + ri
+    const row     = ws.getRow(rowNum)
+    row.height    = 18
+    const bgColor = ri % 2 !== 0 ? 'FFF3F4F6' : 'FFFFFFFF'
 
-  const totRow = ws.addRow(['', '', '', '', 'TOTAL GENERAL', total])
-  totRow.getCell(5).font = { bold: true, size: 9 }
-  totRow.getCell(6).font = { bold: true, size: 9 }; totRow.getCell(6).numFmt = '"$"#,##0'
-  totRow.eachCell((c) => { c.border = BDR })
+    const diff = item.precio_real != null && item.valor_unitario !== null && item.solicitado !== null
+      ? (item.precio_real - item.valor_unitario) * item.solicitado
+      : null
 
-  const buf = await wb.xlsx.writeBuffer()
-  const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
-  Object.assign(document.createElement('a'), { href: url, download: `RQ-Dotacion-${rq.numero_rq}.xlsx` }).click()
+    const cols = [
+      { v: item.codigo,                          align: 'left',   numFmt: null   },
+      { v: item.descripcion,                     align: 'left',   numFmt: null   },
+      { v: item.unidad,                          align: 'center', numFmt: null   },
+      { v: item.proveedor_ordinario     ?? '',   align: 'left',   numFmt: null   },
+      { v: item.proveedor_extraordinario ?? '',  align: 'left',   numFmt: null   },
+      { v: item.valor_unitario          ?? '',   align: 'right',  numFmt: copFmt },
+      { v: item.solicitado              ?? '',   align: 'center', numFmt: null   },
+      { v: item.total                   ?? '',   align: 'right',  numFmt: copFmt },
+      ...(hasFactura ? [
+        { v: item.numero_factura        ?? '',   align: 'left',   numFmt: null   },
+        { v: item.precio_real           ?? '',   align: 'right',  numFmt: copFmt },
+        { v: diff                       ?? '',   align: 'right',  numFmt: copFmt },
+        { v: item.proveedor_factura     ?? '',   align: 'left',   numFmt: null   },
+      ] : []),
+    ]
+    cols.forEach(({ v, align, numFmt }, ci) => {
+      const cell     = row.getCell(ci + 1)
+      cell.value     = v
+      cell.alignment = { vertical: 'middle', horizontal: align as 'left' | 'center' | 'right', wrapText: true }
+      cell.border    = allBorders
+      cell.font      = { size: 10 }
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      if (numFmt) cell.numFmt = numFmt
+    })
+  }
+
+  // Total row
+  const totalRowNum = 5 + items.length
+  const totalRow    = ws.getRow(totalRowNum)
+  totalRow.height   = 22
+  const grayFill    = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1D5DB' } } as const
+
+  if (hasFactura) {
+    // Estimated: cols 1-7 label, col 8 value
+    ws.mergeCells(totalRowNum, 1, totalRowNum, 7)
+    const lbl = totalRow.getCell(1)
+    lbl.value = 'TOTAL GENERAL'; lbl.font = { bold: true, size: 11 }; lbl.alignment = { horizontal: 'right', vertical: 'middle' }; lbl.border = allBorders; lbl.fill = grayFill
+    const tot = totalRow.getCell(8)
+    tot.value = totalGeneralRQ(rq.items); tot.numFmt = copFmt; tot.font = { bold: true, size: 11 }; tot.alignment = { horizontal: 'right', vertical: 'middle' }; tot.border = allBorders; tot.fill = grayFill
+    // Real: col 9 label, col 10 value
+    const realTotalVal = rq.items.reduce((sum, i) => (i.precio_real != null && i.solicitado != null ? sum + i.precio_real * i.solicitado : sum), 0)
+    const realLbl = totalRow.getCell(9)
+    realLbl.value = 'TOTAL REAL'; realLbl.font = { bold: true, size: 11 }; realLbl.alignment = { horizontal: 'right', vertical: 'middle' }; realLbl.border = allBorders; realLbl.fill = grayFill
+    const realTot = totalRow.getCell(10)
+    realTot.value = realTotalVal; realTot.numFmt = copFmt; realTot.font = { bold: true, size: 11 }; realTot.alignment = { horizontal: 'right', vertical: 'middle' }; realTot.border = allBorders; realTot.fill = grayFill
+    for (const c of [11, 12]) { const cell = totalRow.getCell(c); cell.border = allBorders; cell.fill = grayFill }
+  } else {
+    ws.mergeCells(totalRowNum, 1, totalRowNum, numCols - 1)
+    const lbl     = totalRow.getCell(1)
+    lbl.value     = 'TOTAL GENERAL'
+    lbl.font      = { bold: true, size: 11 }
+    lbl.alignment = { horizontal: 'right', vertical: 'middle' }
+    lbl.border    = allBorders
+    lbl.fill      = grayFill
+    const tot     = totalRow.getCell(numCols)
+    tot.value     = totalGeneralRQ(rq.items)
+    tot.numFmt    = copFmt
+    tot.font      = { bold: true, size: 11 }
+    tot.alignment = { horizontal: 'right', vertical: 'middle' }
+    tot.border    = allBorders
+    tot.fill      = grayFill
+  }
+
+  // Signature section
+  const midCol      = Math.floor(numCols / 2)
+  const sigHdrRow   = totalRowNum + 2
+  const sigNombreRow = sigHdrRow + 1
+  const sigFirmaStart = sigNombreRow + 1
+  const sigFirmaEnd   = sigFirmaStart + 4
+  const grayHdrFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } } as const
+
+  ws.getRow(totalRowNum + 1).height = 8
+  ws.getRow(sigHdrRow).height = 14
+  ws.getRow(sigNombreRow).height = 16
+  for (let r = sigFirmaStart; r <= sigFirmaEnd; r++) ws.getRow(r).height = 18
+
+  ws.mergeCells(sigHdrRow, 1, sigHdrRow, midCol)
+  const supHdr = ws.getCell(sigHdrRow, 1)
+  supHdr.value = 'RESPONSABLE SOLICITUD'; supHdr.font = { bold: true, size: 10 }
+  supHdr.alignment = { horizontal: 'center', vertical: 'middle' }; supHdr.fill = grayHdrFill; supHdr.border = allBorders
+
+  ws.mergeCells(sigHdrRow, midCol + 1, sigHdrRow, numCols)
+  const encHdr = ws.getCell(sigHdrRow, midCol + 1)
+  encHdr.value = 'RESPONSABLE AUTORIZACION'; encHdr.font = { bold: true, size: 10 }
+  encHdr.alignment = { horizontal: 'center', vertical: 'middle' }; encHdr.fill = grayHdrFill; encHdr.border = allBorders
+
+  ws.mergeCells(sigNombreRow, 1, sigNombreRow, midCol)
+  const supNom = ws.getCell(sigNombreRow, 1)
+  supNom.value = `Nombre: ${rq.nombre_solicitante ?? ''}`; supNom.font = { size: 10 }
+  supNom.alignment = { horizontal: 'left', vertical: 'middle' }; supNom.border = allBorders
+
+  ws.mergeCells(sigNombreRow, midCol + 1, sigNombreRow, numCols)
+  const encNom = ws.getCell(sigNombreRow, midCol + 1)
+  encNom.value = `Nombre: ${encargadoNombre2}`; encNom.font = { size: 10 }
+  encNom.alignment = { horizontal: 'left', vertical: 'middle' }; encNom.border = allBorders
+
+  for (let r = sigFirmaStart; r <= sigFirmaEnd; r++) {
+    ws.mergeCells(r, 1, r, midCol)
+    ws.getCell(r, 1).border = allBorders
+    ws.mergeCells(r, midCol + 1, r, numCols)
+    ws.getCell(r, midCol + 1).border = allBorders
+  }
+
+  if (rq.firma_supervisor_url) {
+    const buf2 = await fetchBuf(rq.firma_supervisor_url)
+    if (buf2) {
+      const imgId = wb.addImage({ buffer: buf2, extension: 'png' })
+      ws.addImage(imgId, { tl: { col: 0.1, row: sigFirmaStart - 0.9 }, br: { col: midCol - 0.1, row: sigFirmaEnd - 0.1 } } as unknown as ImageRange)
+    }
+  }
+  if (encargadoFirmaUrl) {
+    const buf2 = await fetchBuf(encargadoFirmaUrl)
+    if (buf2) {
+      const imgId = wb.addImage({ buffer: buf2, extension: 'png' })
+      ws.addImage(imgId, { tl: { col: midCol + 0.1, row: sigFirmaStart - 0.9 }, br: { col: numCols - 0.1, row: sigFirmaEnd - 0.1 } } as unknown as ImageRange)
+    }
+  }
+
+  const buf  = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `RQ-${rq.numero_rq}-DOTACION.xlsx`
+  a.click()
   URL.revokeObjectURL(url)
 }
 
@@ -322,7 +506,7 @@ function DotacionRQDetail({ rqId, onBack }: { rqId: string; onBack: () => void }
               </span>
             </div>
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>
-              Dotacion · CC 45 · {rq.lugar}
+              Dotacion · CC {rq.lote} · {rq.lugar}
             </p>
           </div>
         </div>
@@ -655,6 +839,7 @@ function GenerarRQModal({
   onDone:  () => void
 }) {
   const [numeroRQ, setNumeroRQ] = useState('')
+  const [cc, setCc]             = useState('45')
   const [obs, setObs]           = useState('')
   const [items, setItems]       = useState<ItemRow[]>(() => [makeItem()])
   const generar = useGenerarDotacionRQ()
@@ -687,6 +872,7 @@ function GenerarRQModal({
       numero_contrato:    sol.contrato,
       nombre_solicitante: sol.inspeccion_realizada_por,
       estado:             'APROBADA',
+      lote:               parseInt(cc) || 45,
       ...(obs.trim() ? { observaciones: obs.trim() } : {}),
       items: items.map(it => ({
         indumentaria_id:  it.indumentariaId,
@@ -718,18 +904,21 @@ function GenerarRQModal({
         </div>
 
         <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
-          {/* Meta read-only */}
+          {/* Meta */}
           <div className="grid grid-cols-3 gap-3">
             {([
-              { label: 'Contrato',        value: sol.contrato                   },
-              { label: 'Solicitante',     value: sol.inspeccion_realizada_por   },
-              { label: 'Centro de costo', value: '45'                           },
+              { label: 'Contrato',    value: sol.contrato                 },
+              { label: 'Solicitante', value: sol.inspeccion_realizada_por },
             ] as const).map(({ label, value }) => (
               <div key={label}>
                 <p className="text-xs mb-1" style={{ color: 'var(--color-text-400)' }}>{label}</p>
                 <p className="text-sm font-medium px-3 py-2 rounded-lg truncate" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-900)' }}>{value}</p>
               </div>
             ))}
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Centro de costo (CC)</label>
+              <input type="number" value={cc} onChange={e => setCc(e.target.value)} placeholder="45" style={INP} />
+            </div>
           </div>
 
           {/* Numero RQ + Observaciones */}
@@ -1329,6 +1518,7 @@ function RequisicionesTab() {
   const [anio, setAnio] = useState(now.getFullYear())
   const [selectedSol,   setSelectedSol]   = useState<DotacionSolicitud | null>(null)
   const [selectedRQId,  setSelectedRQId]  = useState<string | null>(null)
+  const [showGenerarDirecta, setShowGenerarDirecta] = useState(false)
 
   function adjustPeriod(delta: number) {
     let m = mes + delta, a = anio
@@ -1429,7 +1619,16 @@ function RequisicionesTab() {
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <p className="text-sm font-semibold" style={{ color: 'var(--color-text-700)' }}>Requisiciones generadas</p>
-          <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{rqs.length} RQ{rqs.length !== 1 ? 's' : ''}</p>
+          <div className="flex items-center gap-3">
+            <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{rqs.length} RQ{rqs.length !== 1 ? 's' : ''}</p>
+            <button
+              onClick={() => setShowGenerarDirecta(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity"
+              style={{ background: '#1a3a3a', color: '#fff' }}
+            >
+              <Plus size={13} /> Generar RQ
+            </button>
+          </div>
         </div>
 
         {loadingRQs ? (
@@ -1445,7 +1644,7 @@ function RequisicionesTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: '#1a3a3a', color: '#fff' }}>
-                    {['Numero RQ', 'Lugar', 'Estado', 'Fecha', 'Total', ''].map(h => (
+                    {['Numero RQ', 'C. Costo', 'Lugar', 'Estado', 'Fecha', 'Total', ''].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -1456,6 +1655,7 @@ function RequisicionesTab() {
                     return (
                       <tr key={rq.id} style={{ borderBottom: '1px solid var(--color-border)', background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)' }}>
                         <td className="px-4 py-3 font-bold" style={{ color: 'var(--color-text-900)' }}>#{rq.numero_rq}</td>
+                        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-text-600)' }}>{rq.lote}</td>
                         <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-text-700)' }}>{rq.lugar}</td>
                         <td className="px-4 py-3">
                           <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -1488,7 +1688,175 @@ function RequisicionesTab() {
       </div>
 
       {selectedSol && <SolicitudModal sol={selectedSol} onClose={() => setSelectedSol(null)} />}
+      {showGenerarDirecta && <GenerarRQDirectaModal onClose={() => setShowGenerarDirecta(false)} />}
     </div>
+  )
+}
+
+// ── Generar RQ directa (sin reposicion detras, ej. dotacion inicial/periodica) ──
+function GenerarRQDirectaModal({ onClose }: { onClose: () => void }) {
+  const [numeroRQ, setNumeroRQ]   = useState('')
+  const [lugar, setLugar]         = useState('')
+  const [cc, setCc]               = useState('45')
+  const [contrato, setContrato]   = useState('')
+  const [solicitante, setSolicitante] = useState('')
+  const [obs, setObs]             = useState('')
+  const [items, setItems]         = useState<ItemRow[]>(() => [makeItem()])
+  const generar = useCrearRqDirecta()
+  const { data: catalogRaw } = useIndumentariaCatalog()
+  const catalog = (Array.isArray(catalogRaw) ? catalogRaw : []).filter(c => c.activo)
+
+  function setField(id: string, field: keyof Omit<ItemRow, '_id'>, val: string) {
+    setItems(prev => prev.map(it => it._id === id ? { ...it, [field]: val } : it))
+  }
+
+  function selectIndumentaria(id: string, item: IndumentariaItem) {
+    setItems(prev => prev.map(it => it._id === id
+      ? { ...it, indumentariaId: item.id, valorUnitario: it.valorUnitario || (item.valor_unitario != null ? String(item.valor_unitario) : '') }
+      : it))
+  }
+
+  const totalGeneral = items.reduce((s, it) => s + rowTotal(it), 0)
+
+  function submit() {
+    const num = parseInt(numeroRQ)
+    if (isNaN(num) || num <= 0) { toast.error('Ingrese un numero de RQ valido'); return }
+    if (!lugar.trim()) { toast.error('Ingrese el lugar/campo de la RQ'); return }
+    if (items.length === 0) { toast.error('Agregue al menos un item'); return }
+    const invalid = items.find(it => !it.indumentariaId || !it.valorUnitario || !it.solicitado)
+    if (invalid) { toast.error('Complete todos los campos requeridos de los items'); return }
+
+    generar.mutate({
+      numero_rq:          num,
+      lugar:               lugar.trim(),
+      fecha:              new Date().toISOString().split('T')[0],
+      lote:               parseInt(cc) || 45,
+      ...(contrato.trim()    ? { numero_contrato:    contrato.trim()    } : {}),
+      ...(solicitante.trim() ? { nombre_solicitante: solicitante.trim() } : {}),
+      ...(obs.trim()         ? { observaciones:      obs.trim()         } : {}),
+      items: items.map(it => ({
+        indumentaria_id:  it.indumentariaId,
+        tipo_requisicion: it.tipo,
+        valor_unitario:   parseFloat(it.valorUnitario),
+        solicitado:       parseInt(it.solicitado),
+      })),
+    }, { onSuccess: () => onClose() })
+  }
+
+  const INP: React.CSSProperties = { border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)', borderRadius: 8, padding: '6px 10px', fontSize: 12, outline: 'none', width: '100%' }
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', maxHeight: '90vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>Generar RQ directa</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>Sin reposicion detras, ej. dotacion inicial o periodica</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--color-text-400)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Numero RQ *</label>
+              <input type="number" value={numeroRQ} onChange={e => setNumeroRQ(e.target.value)} placeholder="ej. 105" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Lugar / Campo *</label>
+              <input value={lugar} onChange={e => setLugar(e.target.value)} placeholder="ej. DINA" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Centro de costo (CC)</label>
+              <input type="number" value={cc} onChange={e => setCc(e.target.value)} placeholder="45" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Contrato</label>
+              <input value={contrato} onChange={e => setContrato(e.target.value)} placeholder="Opcional" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Solicitante</label>
+              <input value={solicitante} onChange={e => setSolicitante(e.target.value)} placeholder="Opcional" style={INP} />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Observaciones</label>
+            <input value={obs} onChange={e => setObs(e.target.value)} placeholder="Opcional" style={INP} />
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-400)' }}>Items</p>
+            <div className="flex flex-col gap-2">
+              {items.map((item, idx) => (
+                <div key={item._id} className="rounded-xl p-3 flex flex-col gap-2" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>Item {idx + 1}</span>
+                    {items.length > 1 && (
+                      <button onClick={() => setItems(prev => prev.filter(it => it._id !== item._id))}
+                        className="p-0.5 rounded transition-opacity hover:opacity-70" style={{ color: '#ef4444' }}>
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <IndumentariaPicker
+                      catalog={catalog}
+                      selectedId={item.indumentariaId}
+                      onSelect={i => selectIndumentaria(item._id, i)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <select value={item.tipo} onChange={e => setField(item._id, 'tipo', e.target.value)} style={{ ...INP, appearance: 'none' as const }}>
+                      <option value="ORDINARIA">Ordinaria</option>
+                      <option value="EXTRAORDINARIA">Extraordinaria</option>
+                    </select>
+                    <input type="number" value={item.valorUnitario} onChange={e => setField(item._id, 'valorUnitario', e.target.value)} placeholder="Valor unit. *" style={INP} />
+                    <input type="number" value={item.solicitado} onChange={e => setField(item._id, 'solicitado', e.target.value)} placeholder="Cant *" min="1" style={INP} />
+                  </div>
+                  {rowTotal(item) > 0 && (
+                    <p className="text-xs text-right font-medium" style={{ color: 'var(--color-text-600)' }}>= {fmtCop(rowTotal(item))}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setItems(prev => [...prev, makeItem()])}
+              className="mt-2 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
+            >
+              <Plus size={13} /> Agregar item
+            </button>
+          </div>
+
+          {totalGeneral > 0 && (
+            <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+              <span className="text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>Total general</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--color-text-900)' }}>{fmtCop(totalGeneral)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-4 flex gap-3 justify-end shrink-0" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium"
+            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
+            Cancelar
+          </button>
+          <button onClick={submit} disabled={generar.isPending}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
+            style={{ background: '#1a3a3a', color: '#fff', opacity: generar.isPending ? 0.7 : 1 }}>
+            {generar.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            {generar.isPending ? 'Generando...' : 'Generar RQ'}
+          </button>
+        </div>
+      </div>
+    </ModalPortal>
   )
 }
 
@@ -1497,17 +1865,13 @@ interface EntregaItemRow {
   _id: string
   indumentaria_id: string
   cantidad: string
-  tipoTalla: '' | 'LETRA' | 'NUMERO_ROPA' | 'NUMERO_CALZADO'
+  tipoTalla: TipoTalla
   talla: string
 }
 
 function makeEntregaItem(): EntregaItemRow {
   return { _id: Math.random().toString(36).slice(2), indumentaria_id: '', cantidad: '1', tipoTalla: '', talla: '' }
 }
-
-const TALLAS_LETRA = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL']
-const TALLAS_NUMERO_ROPA = Array.from({ length: 17 }, (_, i) => String(10 + i * 2)) // 10..42 de 2 en 2
-const TALLAS_NUMERO_CALZADO = Array.from({ length: 34 }, (_, i) => String(10 + i)) // 10..43 de 1 en 1
 
 function GenerarEntregaModal({
   sol,
@@ -1536,9 +1900,7 @@ function GenerarEntregaModal({
   const [fecha, setFecha]       = useState(() => new Date().toISOString().split('T')[0])
   const [obs, setObs]           = useState('')
   const [items, setItems]       = useState<EntregaItemRow[]>(() => [makeEntregaItem()])
-  const [hasStrokes, setHasStrokes] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const drawing   = useRef(false)
+  const { canvasRef, hasStrokes, setHasStrokes, startDraw, draw, endDraw, limpiar } = useSignatureCanvas(fase === 'firma')
 
   const loadingItems = loadingRQ || loadingEntregas
   const rqItems: RQItem[] = (rqDetail?.items ?? []).filter(i => i.indumentaria_id)
@@ -1583,65 +1945,6 @@ function GenerarEntregaModal({
     const max = disponiblePara(indumentariaId, id)
     const n = Math.min(Math.max(1, parseInt(val) || 1), Math.max(1, max))
     setItemField(id, 'cantidad', String(n))
-  }
-
-  useEffect(() => {
-    if (fase !== 'firma') return
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.fillStyle = '#fff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.strokeStyle = '#111827'
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-  }, [fase])
-
-  function getPos(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current!
-    const rect = canvas.getBoundingClientRect()
-    const sx = canvas.width / rect.width
-    const sy = canvas.height / rect.height
-    if ('touches' in e) {
-      const t = e.touches[0]
-      return { x: (t.clientX - rect.left) * sx, y: (t.clientY - rect.top) * sy }
-    }
-    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy }
-  }
-
-  const startDraw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault()
-    const ctx = canvasRef.current?.getContext('2d')
-    if (!ctx) return
-    drawing.current = true
-    const { x, y } = getPos(e)
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-  }, [])
-
-  const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault()
-    if (!drawing.current) return
-    const ctx = canvasRef.current?.getContext('2d')
-    if (!ctx) return
-    const { x, y } = getPos(e)
-    ctx.lineTo(x, y)
-    ctx.stroke()
-    setHasStrokes(true)
-  }, [])
-
-  const endDraw = useCallback(() => { drawing.current = false }, [])
-
-  function handleLimpiar() {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.fillStyle = '#fff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    setHasStrokes(false)
   }
 
   function irAResumen() {
@@ -1751,10 +2054,6 @@ function GenerarEntregaModal({
                         i.indumentaria_id === item.indumentaria_id || disponiblePara(i.indumentaria_id!, item._id) > 0
                       )
                       const necesitaTalla = item.indumentaria_id && requiereTalla(item.indumentaria_id)
-                      const opcionesTalla =
-                        item.tipoTalla === 'LETRA'           ? TALLAS_LETRA :
-                        item.tipoTalla === 'NUMERO_ROPA'     ? TALLAS_NUMERO_ROPA :
-                        item.tipoTalla === 'NUMERO_CALZADO'  ? TALLAS_NUMERO_CALZADO : []
                       return (
                         <div key={item._id} className="rounded-xl p-3 flex flex-col gap-2"
                           style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
@@ -1791,26 +2090,13 @@ function GenerarEntregaModal({
                             )}
                           </div>
                           {necesitaTalla && (
-                            <div className="flex items-center gap-2 pl-6">
-                              <select
-                                value={item.tipoTalla}
-                                onChange={e => setTipoTalla(item._id, e.target.value as EntregaItemRow['tipoTalla'])}
-                                style={{ ...INP, appearance: 'none' as const, width: 150 }}
-                              >
-                                <option value="">Tipo de talla...</option>
-                                <option value="LETRA">Letra (XS - 5XL)</option>
-                                <option value="NUMERO_ROPA">Numero - ropa</option>
-                                <option value="NUMERO_CALZADO">Numero - calzado</option>
-                              </select>
-                              <select
-                                value={item.talla}
-                                onChange={e => setItemField(item._id, 'talla', e.target.value)}
-                                disabled={!item.tipoTalla}
-                                style={{ ...INP, appearance: 'none' as const, width: 100 }}
-                              >
-                                <option value="">Talla...</option>
-                                {opcionesTalla.map(t => <option key={t} value={t}>{t}</option>)}
-                              </select>
+                            <div className="pl-6">
+                              <TallaPicker
+                                tipoTalla={item.tipoTalla}
+                                talla={item.talla}
+                                onChangeTipo={t => setTipoTalla(item._id, t)}
+                                onChangeTalla={v => setItemField(item._id, 'talla', v)}
+                              />
                             </div>
                           )}
                         </div>
@@ -1931,7 +2217,7 @@ function GenerarEntregaModal({
                 style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)', opacity: registrar.isPending ? 0.5 : 1 }}>
                 Volver
               </button>
-              <button onClick={handleLimpiar} disabled={registrar.isPending}
+              <button onClick={limpiar} disabled={registrar.isPending}
                 className="px-4 py-2 rounded-xl text-sm font-medium"
                 style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)', opacity: registrar.isPending ? 0.5 : 1 }}>
                 Limpiar
@@ -2053,8 +2339,8 @@ function RQDetailModal({ rqId, onClose }: { rqId: string; onClose: () => void })
   )
 }
 
-// ── Tab: Historial ────────────────────────────────────────────────────────────
-function HistorialTab() {
+// ── Tab: Historial (reposiciones) ──────────────────────────────────────────────
+function ReposicionesHistorialTab() {
   const now = new Date()
   const { data: solicitudes = [], isLoading } = useAllDotacionSolicitudes()
   const [search, setSearch]       = useState('')
@@ -2193,6 +2479,38 @@ function HistorialTab() {
       {rqDetailId && (
         <RQDetailModal rqId={rqDetailId} onClose={() => setRqDetailId(null)} />
       )}
+    </div>
+  )
+}
+
+// ── Tab: Historial (wrapper con sub-tabs) ──────────────────────────────────────
+function HistorialTab() {
+  const [subTab, setSubTab] = useState<'reposiciones' | 'general'>('reposiciones')
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--color-surface-2)' }}>
+        {([
+          { id: 'reposiciones', label: 'Reposiciones' },
+          { id: 'general',      label: 'Historial general' },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setSubTab(t.id)}
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+            style={
+              subTab === t.id
+                ? { background: 'var(--color-surface-0)', color: 'var(--color-secundary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
+                : { color: 'var(--color-text-400)' }
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'reposiciones' && <ReposicionesHistorialTab />}
+      {subTab === 'general'      && <HistorialGeneralTab />}
     </div>
   )
 }

@@ -264,6 +264,7 @@ function SolicitudDetailModal({
             <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
               {solicitud.inspeccion_realizada_por} &middot; {solicitud.cargo_inspector} &middot; Contrato {solicitud.contrato}
             </p>
+            
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: '#9ca3af' }}>
             <X size={18} />

@@ -119,6 +119,7 @@ export interface RequisicionSummary {
   anio?: number
   fecha_entrega?: string | null
   recepcion_completada?: boolean | null
+  total_general?: number | null
   total_solicitado?: number | null
   total_recibido?: number | null
   entrega_completa?: boolean | null

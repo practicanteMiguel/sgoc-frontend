@@ -16,6 +16,7 @@ import { ESTADO_DOTACION_LABELS, ESTADO_DOTACION_COLORS } from '@/src/types/dota
 import type { DotacionSolicitud, Reposicion } from '@/src/types/dotaciones.types'
 import { ESTADO_COLORS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type { EstadoRQ } from '@/src/types/consumables.types'
+import { TallasEmpleadosTab } from './tallas-tab'
 import { exportDotacionPdf, exportDotacionExcel } from '@/src/lib/dotacion-export'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -380,6 +381,7 @@ export function SupervisorDotacionTab() {
   const [seguimiento, setSeguimiento] = useState<DotacionSolicitud | null>(null)
   const [mes,  setMes]  = useState(now.getMonth() + 1)
   const [anio, setAnio] = useState(now.getFullYear())
+  const [subTab, setSubTab] = useState<'reposiciones' | 'tallas'>('reposiciones')
 
   function adjustPeriod(delta: number) {
     let m = mes + delta, a = anio
@@ -491,7 +493,31 @@ export function SupervisorDotacionTab() {
         </div>
       </div>
 
+      {/* Sub-tabs */}
+      <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--color-surface-2)' }}>
+        {([
+          { id: 'reposiciones', label: 'Reposiciones' },
+          { id: 'tallas',       label: 'Tallas de empleados' },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setSubTab(t.id)}
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+            style={
+              subTab === t.id
+                ? { background: 'var(--color-surface-0)', color: 'var(--color-secundary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
+                : { color: 'var(--color-text-400)' }
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'tallas' && <TallasEmpleadosTab />}
+
       {/* Solicitudes list */}
+      {subTab === 'reposiciones' && (
       <div>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <p className="text-sm font-semibold" style={{ color: 'var(--color-text-700)' }}>
@@ -586,6 +612,7 @@ export function SupervisorDotacionTab() {
           </div>
         )}
       </div>
+      )}
 
       {selected && (
         <SolicitudModal solicitud={selected} onClose={() => setSelected(null)} />

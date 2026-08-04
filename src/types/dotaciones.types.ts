@@ -20,6 +20,7 @@ export interface EmpleadoRepo {
   first_name: string
   last_name: string
   position: string
+  identification_number?: string
 }
 
 export interface DotacionImagen {
@@ -77,6 +78,18 @@ export interface GenerarDotacionRQDto {
   nombre_solicitante: string
   estado?: string
   observaciones?: string
+  lote?: number
+  items: DotacionRQItemDto[]
+}
+
+export interface CrearRqDirectaDto {
+  numero_rq: number
+  lugar: string
+  fecha?: string
+  numero_contrato?: string
+  nombre_solicitante?: string
+  observaciones?: string
+  lote?: number
   items: DotacionRQItemDto[]
 }
 

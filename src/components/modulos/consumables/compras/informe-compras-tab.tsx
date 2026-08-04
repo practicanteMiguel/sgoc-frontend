@@ -664,7 +664,7 @@ type PlantaKey = string
 
 export function InformeComprasTab() {
   const now  = new Date()
-  const [mes,           setMes]          = useState(6)
+  const [mes,           setMes]          = useState(now.getMonth() + 1)
   const [anio,          setAnio]         = useState(now.getFullYear())
   const [catActiva,     setCatActiva]    = useState<CategoriaInsumo>('PAPELERIA')
   const [plantaActiva,  setPlantaActiva] = useState<PlantaKey | 'total'>('total')

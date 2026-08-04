@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
-import type { DotacionSpace, DotacionSpaceInfo, DotacionSolicitud, GenerarDotacionRQDto } from '@/src/types/dotaciones.types'
+import type { DotacionSpace, DotacionSpaceInfo, DotacionSolicitud, GenerarDotacionRQDto, EmpleadoRepo, CrearRqDirectaDto } from '@/src/types/dotaciones.types'
 
 const API_BASE  = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
 const API_KEY   = process.env.NEXT_PUBLIC_API_KEY ?? ''
@@ -54,6 +54,18 @@ export function useDotacionSolicitudesByToken(token: string | null) {
       const r = await fetch(`${API_BASE}/dotaciones/spaces/${token}/solicitudes`)
       if (!r.ok) throw new Error('error')
       return r.json() as Promise<DotacionSolicitud[]>
+    },
+    enabled: !!token,
+  })
+}
+
+export function useDotacionEmpleadosByToken(token: string | null) {
+  return useQuery({
+    queryKey: ['dotaciones', 'empleados-token', token],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/dotaciones/spaces/${token}/empleados`)
+      if (!r.ok) throw new Error('error')
+      return r.json() as Promise<EmpleadoRepo[]>
     },
     enabled: !!token,
   })
@@ -158,6 +170,22 @@ export function useGenerarDotacionRQ() {
     },
     onError: (err: { message?: string | string[] }) => {
       const msg = err.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al generar la RQ'))
+    },
+  })
+}
+
+export function useCrearRqDirecta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (dto: CrearRqDirectaDto) =>
+      api.post('/dotaciones/rq-directa', dto).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requisiciones'] })
+      toast.success('RQ generada correctamente')
+    },
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al generar la RQ'))
     },
   })
