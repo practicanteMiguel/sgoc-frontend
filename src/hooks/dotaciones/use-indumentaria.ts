@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
-import type { IndumentariaItem, IndumentariaEntrega, TipoEntrega, EmpleadoTallaRow, EmpleadoTallaBulkRow, TallaCategoria, CensoEmpleadoResumen } from '@/src/types/indumentaria.types'
+import type { IndumentariaItem, IndumentariaEntrega, TipoEntrega, EmpleadoTallaRow, EmpleadoTallaBulkRow, TallaCategoria, CensoEmpleadoResumen, CensoValorEmpleado, CensoValorEntregaDetalle } from '@/src/types/indumentaria.types'
 
 export function useIndumentariaCatalog() {
   return useQuery({
@@ -168,5 +168,20 @@ export function useCensoResumen() {
   return useQuery({
     queryKey: ['indumentaria', 'censo-resumen'],
     queryFn: () => api.get<CensoEmpleadoResumen[]>('/indumentaria/censo-resumen').then(r => r.data),
+  })
+}
+
+export function useCensoValores() {
+  return useQuery({
+    queryKey: ['indumentaria', 'censo-valores'],
+    queryFn: () => api.get<CensoValorEmpleado[]>('/indumentaria/censo-valores').then(r => r.data),
+  })
+}
+
+export function useCensoValorEmpleadoDetalle(empleadoId: string | null) {
+  return useQuery({
+    queryKey: ['indumentaria', 'censo-valores', empleadoId],
+    queryFn: () => api.get<CensoValorEntregaDetalle[]>(`/indumentaria/censo-valores/${empleadoId}`).then(r => r.data),
+    enabled: !!empleadoId,
   })
 }

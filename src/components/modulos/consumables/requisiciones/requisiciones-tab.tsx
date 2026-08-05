@@ -5,14 +5,16 @@ import Image from 'next/image'
 import { formatCOP, formatDateShort as formatDate } from '@/src/lib/utils'
 import type { ImageRange } from 'exceljs'
 import {
-  Plus, Loader2, Eye, Trash2, AlertTriangle, FileText,
+  Plus, Loader2, Eye, Trash2, AlertTriangle, FileText, Search,
   ChevronLeft, ChevronRight, ChevronDown, ClipboardCheck, CheckCircle2, RotateCcw,
   Pencil, Check, X, Banknote, MapPin, FileSpreadsheet, PenLine,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { fetchFirmaUrl, uploadFirma } from '@/src/lib/firma'
 import { getAuthState } from '@/src/stores/auth.store'
-import { useRequisiciones, useDeleteRequisicion } from '@/src/hooks/consumables/use-requisiciones'
+import { useRequisiciones, useDeleteRequisicion, useCrearRqDirecta } from '@/src/hooks/consumables/use-requisiciones'
 import { useInformeFacturas } from '@/src/hooks/consumables/use-informe'
+import { useInsumos } from '@/src/hooks/consumables/use-insumos'
 import { useSolicitudes, useSolicitud, useGenerarRQs, useSolicitudRequisiciones, useReabrirSolicitud } from '@/src/hooks/consumables/use-solicitudes'
 import {
   useFields, useActualizarPresupuesto,
@@ -25,6 +27,7 @@ import { EntregaParcialBadge } from '../entrega-parcial-badge'
 import { CATEGORIAS, CATEGORIA_LABELS, ESTADO_LABELS } from '@/src/types/consumables.types'
 import type {
   Requisicion, RequisicionSummary, CategoriaInsumo, SolicitudItem, GenerarRQsResult, AjusteSolicitadoDto,
+  Insumo,
 } from '@/src/types/consumables.types'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -1561,11 +1564,282 @@ function SolicitudesSection({ mes, anio }: { mes: number; anio: number }) {
   )
 }
 
+// ── RQ directa (sin depender de una solicitud) ──────────────────────────────
+interface RqDirectaItemRow {
+  _id: string
+  insumoId: string
+  solicitado: string
+}
+
+function makeRqDirectaItem(): RqDirectaItemRow {
+  return { _id: Math.random().toString(36).slice(2), insumoId: '', solicitado: '1' }
+}
+
+const PICKER_INP_RQ: React.CSSProperties = {
+  border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)',
+  borderRadius: 8, padding: '6px 10px 6px 28px', fontSize: 12, outline: 'none', width: '100%',
+}
+
+function InsumoPicker({ catalog, selectedId, onSelect }: {
+  catalog: Insumo[]
+  selectedId: string
+  onSelect: (item: Insumo) => void
+}) {
+  const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
+  const boxRef = useRef<HTMLDivElement>(null)
+  const selected = catalog.find(c => c.id === selectedId) ?? null
+
+  useEffect(() => {
+    if (!open) return
+    function onDocMouseDown(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [open])
+
+  const filtered = catalog.filter(c => {
+    if (!query.trim()) return true
+    const q = query.toLowerCase()
+    return c.descripcion.toLowerCase().includes(q) || c.codigo.toLowerCase().includes(q)
+  })
+
+  if (selected && !open) {
+    return (
+      <div className="col-span-4 flex items-center justify-between gap-2 rounded-lg px-3 py-2"
+        style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text-900)' }}>
+            {selected.codigo} &middot; {selected.descripcion}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>{selected.unidad} &middot; {formatCOP(selected.valor_unitario)}</p>
+        </div>
+        <button type="button" onClick={() => { setQuery(''); setOpen(true) }}
+          className="text-xs font-medium shrink-0 px-2 py-1 rounded-md transition-opacity hover:opacity-70"
+          style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-600)' }}>
+          Cambiar
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="col-span-4 relative" ref={boxRef}>
+      <div className="relative">
+        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-400)' }} />
+        <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          placeholder="Buscar insumo del catalogo *"
+          style={PICKER_INP_RQ}
+        />
+      </div>
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-1 rounded-lg overflow-y-auto z-10"
+          style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-0)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', maxHeight: 280 }}>
+          {filtered.length === 0 ? (
+            <p className="text-xs px-3 py-2" style={{ color: 'var(--color-text-400)' }}>Sin resultados</p>
+          ) : filtered.map(c => (
+            <button key={c.id} type="button"
+              onClick={() => { onSelect(c); setOpen(false); setQuery('') }}
+              className="w-full text-left px-3 py-2 text-xs transition-colors hover:opacity-80"
+              style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <span className="font-semibold" style={{ color: 'var(--color-text-900)' }}>{c.descripcion}</span>
+              <span style={{ color: 'var(--color-text-400)' }}> &middot; {c.codigo} &middot; {c.unidad}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GenerarRQDirectaModal({ onClose }: { onClose: () => void }) {
+  const [numeroRQ, setNumeroRQ]   = useState('')
+  const [categoria, setCategoria] = useState<CategoriaInsumo>(CATEGORIAS[0])
+  const [lugar, setLugar]         = useState('')
+  const [cc, setCc]               = useState('45')
+  const [contrato, setContrato]   = useState('')
+  const [solicitante, setSolicitante] = useState('')
+  const [obs, setObs]             = useState('')
+  const [items, setItems]         = useState<RqDirectaItemRow[]>(() => [makeRqDirectaItem()])
+  const generar = useCrearRqDirecta()
+  const { data: catalogData } = useInsumos({ categoria, activo: true, limit: 500 })
+  const catalog = catalogData?.data ?? []
+  const insumosById = new Map(catalog.map(i => [i.id, i]))
+
+  function setField(id: string, val: string) {
+    setItems(prev => prev.map(it => it._id === id ? { ...it, solicitado: val } : it))
+  }
+
+  function selectInsumo(id: string, insumo: Insumo) {
+    setItems(prev => prev.map(it => it._id === id ? { ...it, insumoId: insumo.id } : it))
+  }
+
+  function handleCategoriaChange(next: CategoriaInsumo) {
+    setCategoria(next)
+    setItems([makeRqDirectaItem()])
+  }
+
+  function rowTotal(item: RqDirectaItemRow): number {
+    const insumo = insumosById.get(item.insumoId)
+    const cant = parseFloat(item.solicitado)
+    if (!insumo || insumo.valor_unitario == null || isNaN(cant)) return 0
+    return insumo.valor_unitario * cant
+  }
+  const totalGeneral = items.reduce((s, it) => s + rowTotal(it), 0)
+
+  function submit() {
+    const num = parseInt(numeroRQ)
+    if (isNaN(num) || num <= 0) { toast.error('Ingrese un numero de RQ valido'); return }
+    if (!lugar.trim()) { toast.error('Ingrese el lugar/campo de la RQ'); return }
+    if (items.length === 0) { toast.error('Agregue al menos un item'); return }
+    const invalid = items.find(it => !it.insumoId || !it.solicitado || isNaN(parseFloat(it.solicitado)))
+    if (invalid) { toast.error('Complete todos los campos requeridos de los items'); return }
+
+    generar.mutate({
+      numero_rq: num,
+      categoria,
+      lugar: lugar.trim(),
+      fecha: new Date().toISOString().split('T')[0],
+      lote: parseInt(cc) || 45,
+      ...(contrato.trim()    ? { numero_contrato:    contrato.trim()    } : {}),
+      ...(solicitante.trim() ? { nombre_solicitante: solicitante.trim() } : {}),
+      ...(obs.trim()         ? { observaciones:      obs.trim()         } : {}),
+      items: items.map(it => ({ insumo_id: it.insumoId, solicitado: parseFloat(it.solicitado) })),
+    }, { onSuccess: () => onClose() })
+  }
+
+  const INP: React.CSSProperties = { border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)', borderRadius: 8, padding: '6px 10px', fontSize: 12, outline: 'none', width: '100%' }
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div
+        className="w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', maxHeight: '90vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 flex items-center justify-between shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-text-900)' }}>Generar RQ</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-400)' }}>Sin solicitud detras, eliges los insumos y cantidades directamente</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--color-text-400)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Numero RQ *</label>
+              <input type="number" value={numeroRQ} onChange={e => setNumeroRQ(e.target.value)} placeholder="ej. 105" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Categoria *</label>
+              <select value={categoria} onChange={e => handleCategoriaChange(e.target.value as CategoriaInsumo)} style={{ ...INP, appearance: 'none' as const }}>
+                {CATEGORIAS.map(cat => <option key={cat} value={cat}>{CATEGORIA_LABELS[cat]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Lugar / Campo *</label>
+              <input value={lugar} onChange={e => setLugar(e.target.value)} placeholder="ej. DINA" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Centro de costo (CC)</label>
+              <input type="number" value={cc} onChange={e => setCc(e.target.value)} placeholder="45" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Contrato</label>
+              <input value={contrato} onChange={e => setContrato(e.target.value)} placeholder="Opcional" style={INP} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Solicitante</label>
+              <input value={solicitante} onChange={e => setSolicitante(e.target.value)} placeholder="Opcional" style={INP} />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Observaciones</label>
+            <input value={obs} onChange={e => setObs(e.target.value)} placeholder="Opcional" style={INP} />
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-400)' }}>Items</p>
+            <div className="flex flex-col gap-2">
+              {items.map((item, idx) => {
+                const itemsUsados = new Set(items.filter(it => it._id !== item._id).map(it => it.insumoId).filter(Boolean))
+                const opciones = catalog.filter(c => c.id === item.insumoId || !itemsUsados.has(c.id))
+                return (
+                  <div key={item._id} className="rounded-xl p-3 flex flex-col gap-2" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>Item {idx + 1}</span>
+                      {items.length > 1 && (
+                        <button onClick={() => setItems(prev => prev.filter(it => it._id !== item._id))}
+                          className="p-0.5 rounded transition-opacity hover:opacity-70" style={{ color: '#ef4444' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <InsumoPicker
+                        catalog={opciones}
+                        selectedId={item.insumoId}
+                        onSelect={i => selectInsumo(item._id, i)}
+                      />
+                    </div>
+                    <input type="number" value={item.solicitado} onChange={e => setField(item._id, e.target.value)} placeholder="Cant *" min="1" style={INP} />
+                    {rowTotal(item) > 0 && (
+                      <p className="text-xs text-right font-medium" style={{ color: 'var(--color-text-600)' }}>= {formatCOP(rowTotal(item))}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {items.length < catalog.length && (
+              <button
+                onClick={() => setItems(prev => [...prev, makeRqDirectaItem()])}
+                className="mt-2 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
+              >
+                <Plus size={13} /> Agregar item
+              </button>
+            )}
+          </div>
+
+          {totalGeneral > 0 && (
+            <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+              <span className="text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>Total general</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--color-text-900)' }}>{formatCOP(totalGeneral)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-4 flex gap-3 justify-end shrink-0" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium"
+            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
+            Cancelar
+          </button>
+          <button onClick={submit} disabled={generar.isPending}
+            className="px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
+            style={{ background: '#1a3a3a', color: '#fff', opacity: generar.isPending ? 0.7 : 1 }}>
+            {generar.isPending && <Loader2 size={14} className="animate-spin" />}
+            Generar RQ
+          </button>
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
 // ── Main tab ──────────────────────────────────────────────────────────────────
 export function RequisicionesTab() {
   const now  = new Date()
   const [mes,  setMes]  = useState(now.getMonth() + 1)
   const [anio, setAnio] = useState(now.getFullYear())
+  const [showGenerarDirecta, setShowGenerarDirecta] = useState(false)
 
   function adjustPeriod(delta: number) {
     let m = mes + delta, a = anio
@@ -1675,6 +1949,14 @@ export function RequisicionesTab() {
                 Seleccionar
               </button>
             )}
+            <button
+              onClick={() => setShowGenerarDirecta(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity"
+              style={{ background: '#1a3a3a', color: '#fff' }}
+            >
+              <Plus size={13} />
+              Generar RQ
+            </button>
           </div>
         </div>
 
@@ -1856,8 +2138,9 @@ export function RequisicionesTab() {
         )}
       </div>
 
-      {deleteRq         && <DeleteConfirm rq={deleteRq} onClose={() => setDeleteRq(null)} />}
-      {showPresupuestos && <PresupuestosModal onClose={() => setShowPresupuestos(false)} />}
+      {deleteRq          && <DeleteConfirm rq={deleteRq} onClose={() => setDeleteRq(null)} />}
+      {showPresupuestos  && <PresupuestosModal onClose={() => setShowPresupuestos(false)} />}
+      {showGenerarDirecta && <GenerarRQDirectaModal onClose={() => setShowGenerarDirecta(false)} />}
     </div>
   )
 }

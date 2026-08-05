@@ -138,6 +138,23 @@ export interface CreateRequisicionDto {
   lugar: string
 }
 
+export interface RqDirectaItemDto {
+  insumo_id: string
+  solicitado: number
+}
+
+export interface CreateRqDirectaDto {
+  numero_rq: number
+  categoria: CategoriaInsumo
+  lugar: string
+  lote?: number
+  observaciones?: string
+  fecha?: string
+  nombre_solicitante?: string
+  numero_contrato?: string
+  items: RqDirectaItemDto[]
+}
+
 export interface LlenadoDto {
   fecha: string
   nombre_solicitante: string

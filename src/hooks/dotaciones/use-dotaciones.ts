@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
-import type { DotacionSpace, DotacionSpaceInfo, DotacionSolicitud, GenerarDotacionRQDto, EmpleadoRepo, CrearRqDirectaDto } from '@/src/types/dotaciones.types'
+import type { DotacionSpace, DotacionSpaceInfo, DotacionSolicitud, GenerarDotacionRQDto, EmpleadoRepo, CrearRqDirectaDto, InformeDotacion, InformeDotacionTotalHistorico } from '@/src/types/dotaciones.types'
 
 const API_BASE  = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'
 const API_KEY   = process.env.NEXT_PUBLIC_API_KEY ?? ''
@@ -188,5 +188,43 @@ export function useCrearRqDirecta() {
       const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al generar la RQ'))
     },
+  })
+}
+
+export function useInformeDotaciones(mes: number, anio: number) {
+  return useQuery({
+    queryKey: ['dotaciones', 'informe', mes, anio],
+    queryFn: () => api.get<InformeDotacion>(`/dotaciones/informe?mes=${mes}&anio=${anio}`).then(r => r.data),
+  })
+}
+
+export function useInformeDotacionesTotalHistorico() {
+  return useQuery({
+    queryKey: ['dotaciones', 'informe', 'total-historico'],
+    queryFn: () => api.get<InformeDotacionTotalHistorico>('/dotaciones/informe/total-historico').then(r => r.data),
+  })
+}
+
+export function useInformeDotacionesTendencia(periodos: { mes: number; anio: number }[]) {
+  return useQuery({
+    queryKey: ['dotaciones', 'informe', 'tendencia', periodos.map(p => `${p.mes}-${p.anio}`).join(',')],
+    queryFn: () =>
+      Promise.all(
+        periodos.map(p =>
+          api
+            .get<InformeDotacion>(`/dotaciones/informe?mes=${p.mes}&anio=${p.anio}`)
+            .then(r => r.data)
+            .catch(
+              () =>
+                ({
+                  mes: p.mes,
+                  anio: p.anio,
+                  total_valor: 0,
+                  por_origen: { REPOSICION: 0, DIRECTA: 0 },
+                  rows: [],
+                } as InformeDotacion),
+            ),
+        ),
+      ),
   })
 }

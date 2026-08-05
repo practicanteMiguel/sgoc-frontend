@@ -64,6 +64,25 @@ export interface CensoEmpleadoResumen {
   fecha_ultima_entrega: string | null
 }
 
+export interface CensoValorEmpleado {
+  empleado_id: string
+  valor_total: number
+  total_entregas: number
+  fecha_ultima_entrega: string | null
+}
+
+export interface CensoValorEntregaDetalle {
+  id: string
+  indumentaria_id: string | null
+  indumentaria_nombre: string
+  codigo: string | null
+  tipo: TipoEntrega
+  cantidad: number
+  valor_unitario: number | null
+  valor_total: number
+  fecha_entrega: string
+}
+
 export const TIPO_ENTREGA_LABELS: Record<TipoEntrega, string> = {
   TOCACION:   'Dotacion inicial',
   REPOSICION: 'Reposicion',

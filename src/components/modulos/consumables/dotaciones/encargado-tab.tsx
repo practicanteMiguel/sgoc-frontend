@@ -29,6 +29,7 @@ import { exportDotacionPdf, exportDotacionExcel } from '@/src/lib/dotacion-expor
 import type { ImageRange } from 'exceljs'
 import { TallaPicker, useSignatureCanvas, type TipoTalla } from './entrega-shared'
 import { HistorialGeneralTab } from './historial-general-tab'
+import { InformeDotacionesTab } from './informe-dotaciones-tab'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -1500,17 +1501,6 @@ function IndumentariaTab() {
 }
 
 // ── Tab: Informe ──────────────────────────────────────────────────────────────
-function InformeTab() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 rounded-xl"
-      style={{ border: '1px dashed var(--color-border)', background: 'var(--color-surface-1)' }}>
-      <FileText size={30} className="mb-3" style={{ color: 'var(--color-text-400)' }} />
-      <p className="text-sm font-medium" style={{ color: 'var(--color-text-700)' }}>Informe</p>
-      <p className="text-xs mt-1" style={{ color: 'var(--color-text-400)' }}>Esta seccion estara disponible proximamente</p>
-    </div>
-  )
-}
-
 // ── Tab: Requisiciones ────────────────────────────────────────────────────────
 function RequisicionesTab() {
   const now = new Date()
@@ -1794,45 +1784,51 @@ function GenerarRQDirectaModal({ onClose }: { onClose: () => void }) {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-400)' }}>Items</p>
             <div className="flex flex-col gap-2">
-              {items.map((item, idx) => (
-                <div key={item._id} className="rounded-xl p-3 flex flex-col gap-2" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>Item {idx + 1}</span>
-                    {items.length > 1 && (
-                      <button onClick={() => setItems(prev => prev.filter(it => it._id !== item._id))}
-                        className="p-0.5 rounded transition-opacity hover:opacity-70" style={{ color: '#ef4444' }}>
-                        <Trash2 size={13} />
-                      </button>
+              {items.map((item, idx) => {
+                const itemsUsados = new Set(items.filter(it => it._id !== item._id).map(it => it.indumentariaId).filter(Boolean))
+                const opciones = catalog.filter(c => c.id === item.indumentariaId || !itemsUsados.has(c.id))
+                return (
+                  <div key={item._id} className="rounded-xl p-3 flex flex-col gap-2" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold" style={{ color: 'var(--color-text-400)' }}>Item {idx + 1}</span>
+                      {items.length > 1 && (
+                        <button onClick={() => setItems(prev => prev.filter(it => it._id !== item._id))}
+                          className="p-0.5 rounded transition-opacity hover:opacity-70" style={{ color: '#ef4444' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <IndumentariaPicker
+                        catalog={opciones}
+                        selectedId={item.indumentariaId}
+                        onSelect={i => selectIndumentaria(item._id, i)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <select value={item.tipo} onChange={e => setField(item._id, 'tipo', e.target.value)} style={{ ...INP, appearance: 'none' as const }}>
+                        <option value="ORDINARIA">Ordinaria</option>
+                        <option value="EXTRAORDINARIA">Extraordinaria</option>
+                      </select>
+                      <input type="number" value={item.valorUnitario} onChange={e => setField(item._id, 'valorUnitario', e.target.value)} placeholder="Valor unit. *" style={INP} />
+                      <input type="number" value={item.solicitado} onChange={e => setField(item._id, 'solicitado', e.target.value)} placeholder="Cant *" min="1" style={INP} />
+                    </div>
+                    {rowTotal(item) > 0 && (
+                      <p className="text-xs text-right font-medium" style={{ color: 'var(--color-text-600)' }}>= {fmtCop(rowTotal(item))}</p>
                     )}
                   </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    <IndumentariaPicker
-                      catalog={catalog}
-                      selectedId={item.indumentariaId}
-                      onSelect={i => selectIndumentaria(item._id, i)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <select value={item.tipo} onChange={e => setField(item._id, 'tipo', e.target.value)} style={{ ...INP, appearance: 'none' as const }}>
-                      <option value="ORDINARIA">Ordinaria</option>
-                      <option value="EXTRAORDINARIA">Extraordinaria</option>
-                    </select>
-                    <input type="number" value={item.valorUnitario} onChange={e => setField(item._id, 'valorUnitario', e.target.value)} placeholder="Valor unit. *" style={INP} />
-                    <input type="number" value={item.solicitado} onChange={e => setField(item._id, 'solicitado', e.target.value)} placeholder="Cant *" min="1" style={INP} />
-                  </div>
-                  {rowTotal(item) > 0 && (
-                    <p className="text-xs text-right font-medium" style={{ color: 'var(--color-text-600)' }}>= {fmtCop(rowTotal(item))}</p>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
-            <button
-              onClick={() => setItems(prev => [...prev, makeItem()])}
-              className="mt-2 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-              style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
-            >
-              <Plus size={13} /> Agregar item
-            </button>
+            {items.length < catalog.length && (
+              <button
+                onClick={() => setItems(prev => [...prev, makeItem()])}
+                className="mt-2 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}
+              >
+                <Plus size={13} /> Agregar item
+              </button>
+            )}
           </div>
 
           {totalGeneral > 0 && (
@@ -2546,7 +2542,7 @@ export function EncargadoDotacionTab() {
       {tab === 'indumentaria'  && <IndumentariaTab />}
       {tab === 'requisiciones' && <RequisicionesTab />}
       {tab === 'historial'     && <HistorialTab />}
-      {tab === 'informe'       && <InformeTab />}
+      {tab === 'informe'       && <InformeDotacionesTab />}
     </div>
   )
 }

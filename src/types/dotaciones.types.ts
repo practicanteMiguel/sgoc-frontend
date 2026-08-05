@@ -93,6 +93,35 @@ export interface CrearRqDirectaDto {
   items: DotacionRQItemDto[]
 }
 
+export type OrigenRqDotacion = 'REPOSICION' | 'DIRECTA'
+
+export interface InformeDotacionRow {
+  id: string
+  fecha: string
+  numero_rq: number
+  lugar: string | null
+  indumentaria_id: string | null
+  codigo: string | null
+  descripcion: string
+  solicitado: number
+  valor_unitario: number | null
+  valor_total: number
+  origen: OrigenRqDotacion
+}
+
+export interface InformeDotacion {
+  mes: number
+  anio: number
+  total_valor: number
+  por_origen: Record<OrigenRqDotacion, number>
+  rows: InformeDotacionRow[]
+}
+
+export interface InformeDotacionTotalHistorico {
+  total_valor: number
+  por_origen: Record<OrigenRqDotacion, number>
+}
+
 export const ESTADO_DOTACION_LABELS: Record<EstadoDotacion, string> = {
   emitida:    'Emitida',
   autorizada: 'Autorizada',

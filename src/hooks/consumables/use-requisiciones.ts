@@ -6,6 +6,7 @@ import type {
   Requisicion,
   RequisicionSummary,
   CreateRequisicionDto,
+  CreateRqDirectaDto,
   LlenadoDto,
   EnvioMasivoDto,
   EnvioMasivoResult,
@@ -47,6 +48,22 @@ export function useCreateRequisicion() {
     onError: (err: AxiosError<{ message?: string | string[] }>) => {
       const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear la requisicion'))
+    },
+  })
+}
+
+export function useCrearRqDirecta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (dto: CreateRqDirectaDto) =>
+      api.post<Requisicion>('/requisiciones/rq-directa', dto).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requisiciones'] })
+      toast.success('RQ generada correctamente')
+    },
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al generar la RQ'))
     },
   })
 }
