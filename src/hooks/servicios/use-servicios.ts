@@ -141,7 +141,10 @@ export function useAsignarHerramientasServicio() {
     mutationFn: ({ servicioId, items }: { servicioId: string; items: CreateServicioHerramientaDto[] }) =>
       api.post<ServicioHerramienta[]>(`/servicios/${servicioId}/herramientas`, { items }).then(r => r.data),
     onSuccess: (data, { servicioId }) => {
-      qc.invalidateQueries({ queryKey: ['servicios', servicioId, 'herramientas'] })
+      // El POST ya devuelve la lista completa y actualizada de herramientas
+      // exigidas del servicio, asi que se escribe directo en cache en vez de
+      // invalidar (evita un GET redundante justo despues de este POST).
+      qc.setQueryData(['servicios', servicioId, 'herramientas'], data)
       toast.success(`${data.length} herramienta${data.length !== 1 ? 's' : ''} asignada${data.length !== 1 ? 's' : ''} al servicio`)
     },
     onError: (err: AxiosError<{ message?: string | string[] }>) => {

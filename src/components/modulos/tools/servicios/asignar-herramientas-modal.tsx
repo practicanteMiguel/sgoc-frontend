@@ -33,12 +33,18 @@ export function AsignarHerramientasModal({ servicio, existingIds = [], onClose }
   const [seleccion,  setSeleccion]  = useState<Map<string, Seleccion>>(new Map())
 
   // El catalogo suele tener menos de 500 herramientas activas; se trae todo de
-  // una vez para que el buscador filtre sobre el listado completo, sin paginar.
-  const { data, isLoading } = useHerramientas({ search: search || undefined, activo: true, limit: 500 })
+  // una vez (sin pasar el texto de busqueda al backend) y el buscador filtra
+  // en memoria sobre ese listado completo. Si el "search" fuera al backend,
+  // cada tecla dispararia una peticion nueva y con catalogos grandes se
+  // agota rapido el limite de peticiones por minuto.
+  const { data, isLoading } = useHerramientas({ activo: true, limit: 500 })
   const asignar = useAsignarHerramientasServicio()
 
   const excluidos = new Set(existingIds)
-  const opciones  = (data?.data ?? []).filter(h => !excluidos.has(h.id))
+  const q = search.trim().toLowerCase()
+  const opciones = (data?.data ?? [])
+    .filter(h => !excluidos.has(h.id))
+    .filter(h => !q || h.descripcion.toLowerCase().includes(q) || h.codigo.toLowerCase().includes(q))
 
   // El panel de seleccionadas guarda su propia copia de cada herramienta para
   // no depender del resultado (filtrado por busqueda) del catalogo: si no,

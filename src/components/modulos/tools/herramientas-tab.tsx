@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Search, Loader2, Plus, Trash2, ChevronLeft, ChevronRight, Wrench } from 'lucide-react'
 import { useHerramientas, useDeleteHerramienta } from '@/src/hooks/herramientas/use-herramientas'
+import { useDebouncedValue } from '@/src/hooks/use-debounced-value'
 import { usePermissions } from '@/src/hooks/auth/use-permissions'
 import { formatCOP } from '@/src/lib/utils'
 import { HerramientaModal } from './herramienta-modal'
@@ -21,9 +22,14 @@ export function HerramientasTab() {
 
   function resetPage() { setPage(1) }
 
+  // El texto tipeado se debounce antes de ir al backend: sin esto, cada
+  // tecla dispara un GET nuevo y con busquedas largas se agota el limite
+  // de peticiones por minuto.
+  const debouncedSearch = useDebouncedValue(search, 400)
+
   const { data, isLoading } = useHerramientas({
     categoria: categoria || undefined,
-    search:    search    || undefined,
+    search:    debouncedSearch || undefined,
     activo:    activoFilter,
     page,
   })

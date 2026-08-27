@@ -26,6 +26,10 @@ export function useHerramientas(params: UseHerramientasParams = {}) {
         ...(activo !== undefined ? { activo } : {}),
       },
     }).then(r => r.data),
+    // El catalogo no cambia a cada rato; evita relanzar la peticion cada vez
+    // que un modal que lo usa (agregar/entregar herramientas) se vuelve a
+    // abrir dentro de esta ventana, para no gastar el limite del throttle.
+    staleTime: 5 * 60 * 1000,
   })
 }
 
