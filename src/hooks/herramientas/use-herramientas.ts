@@ -1,0 +1,76 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
+import { api } from '@/src/lib/axios'
+import type {
+  Herramienta, CategoriaHerramienta, CreateHerramientaDto, UpdateHerramientaDto, PaginatedHerramientas,
+} from '@/src/types/herramientas.types'
+
+interface UseHerramientasParams {
+  categoria?: CategoriaHerramienta
+  search?:    string
+  activo?:    boolean
+  page?:      number
+  limit?:     number
+}
+
+export function useHerramientas(params: UseHerramientasParams = {}) {
+  const { categoria, search, activo, page = 1, limit = 50 } = params
+  return useQuery({
+    queryKey: ['herramientas', 'catalog', categoria, search, activo, page, limit],
+    queryFn: () => api.get<PaginatedHerramientas>('/herramientas', {
+      params: {
+        page, limit,
+        ...(categoria ? { categoria } : {}),
+        ...(search ? { search } : {}),
+        ...(activo !== undefined ? { activo } : {}),
+      },
+    }).then(r => r.data),
+  })
+}
+
+export function useCreateHerramienta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: CreateHerramientaDto) => api.post<Herramienta>('/herramientas', data).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['herramientas'] })
+      toast.success('Herramienta creada')
+    },
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al crear la herramienta'))
+    },
+  })
+}
+
+export function useUpdateHerramienta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: UpdateHerramientaDto & { id: string }) =>
+      api.patch<Herramienta>(`/herramientas/${id}`, data).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['herramientas'] })
+      toast.success('Herramienta actualizada')
+    },
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar la herramienta'))
+    },
+  })
+}
+
+export function useDeleteHerramienta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/herramientas/${id}`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['herramientas'] })
+      toast.success('Herramienta eliminada')
+    },
+    onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      const msg = err.response?.data?.message
+      toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al eliminar la herramienta'))
+    },
+  })
+}

@@ -60,12 +60,19 @@ export function useUpdateScheduleDays() {
       id: string
       days: Array<{ employee_id: string; fecha: string; turno: Turno }>
     }) =>
-      api.put(`/compliance/schedules/${id}/days`, { days }).then((r) => r.data),
+      // Un horario grande (muchos empleados x muchos dias) puede tardar mas
+      // que el timeout global de 10s del cliente axios, asi que este guardado
+      // puntual usa un margen mayor.
+      api.put(`/compliance/schedules/${id}/days`, { days }, { timeout: 60000 }).then((r) => r.data),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['compliance-schedule', vars.id] })
       toast.success('Horario guardado')
     },
     onError: (err: AxiosError<{ message?: string | string[] }>) => {
+      if (err.code === 'ECONNABORTED') {
+        toast.error('El guardado esta tardando mas de lo normal. Espera un momento y verifica el horario antes de volver a intentar (es posible que ya se haya guardado).')
+        return
+      }
       const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al guardar horario'))
     },
