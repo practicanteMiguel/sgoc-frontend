@@ -20,7 +20,7 @@ const INP: React.CSSProperties = {
 }
 
 export function FondoComunServicio({ servicioId, cuadrillas, canEdit }: {
-  servicioId: string; cuadrillas: CuadrillaDisponible[]; canEdit: boolean
+  servicioId: string; cuadrillas: CuadrillaDisponible[]; canEdit: boolean | undefined
 }) {
   const { data: fondoComun = [], isLoading } = useFondoComunServicio(servicioId)
   const actualizarUbicacion = useActualizarHerramientaServicio()
