@@ -9,12 +9,14 @@ import { ROLE_LABELS } from '@/src/lib/utils';
 import { ReportsDashboardPanel } from './reports-panel';
 import { SupervisorDashboardPanel } from './supervisor-panel';
 import { InformeComprasTab } from '../consumables/compras/informe-compras-tab';
+import { InformeHerramientasTab } from '../tools/servicios/informe-herramientas-tab';
 import { ChevronRight } from 'lucide-react';
 
 // Panels available per module slug (grow as modules get dashboards)
 const MODULE_PANELS: Partial<Record<string, React.ComponentType>> = {
   reports:     ReportsDashboardPanel,
   consumables: InformeComprasTab,
+  tools:       InformeHerramientasTab,
 }
 
 export function DashboardView() {

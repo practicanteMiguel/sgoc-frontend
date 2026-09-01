@@ -16,6 +16,7 @@ import { HerramientaServicioModal } from './herramienta-servicio-modal'
 import { AsignarHerramientasModal } from './asignar-herramientas-modal'
 import { BovedaHerramientaModal } from './boveda-herramienta-modal'
 import { BuscarCuadrillaModal } from './buscar-cuadrilla-modal'
+import { FondoComunServicio } from './fondo-comun-servicio'
 import type { Servicio, ServicioHerramienta } from '@/src/types/servicios.types'
 
 export function ServiciosTab() {
@@ -351,6 +352,9 @@ export function ServiciosTab() {
                 </div>
               )}
             </div>
+
+            {/* Fondo comun: herramientas exigidas cedidas por las cuadrillas */}
+            <FondoComunServicio servicioId={selected.id} cuadrillas={cuadrillas} canEdit={canEdit} />
           </div>
         )}
       </div>

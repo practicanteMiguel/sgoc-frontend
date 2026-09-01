@@ -1,29 +1,44 @@
 'use client'
 
-import { Package, Repeat, Wrench, ChevronRight } from 'lucide-react'
+import { Package, Repeat, Wrench, ChevronRight, ArrowLeftRight } from 'lucide-react'
 import { formatDateShort as formatDate } from '@/src/lib/utils'
 import type { EntregaHerramientaCrew, RetiroHerramientaCrew } from '@/src/types/entregas-herramientas.types'
 import type { MovimientoBovedaCrewHistorial } from '@/src/types/boveda-herramientas.types'
+import type { MovimientoCustodiaHistorial } from '@/src/types/custodia-herramientas.types'
 
 const ESTADO_MOV_LABELS: Record<string, string> = { ENTREGADA: 'Entregada', DEVUELTA: 'Devuelta' }
 const ESTADO_MOV_COLORS: Record<string, string> = { ENTREGADA: '#16a34a', DEVUELTA: '#6b7280' }
 const RETIRO_COLOR = '#ef4444'
+const CUSTODIA_COLOR = '#8b5cf6'
 
 export type TimelineEntry =
   | { kind: 'entrega'; fecha: string; data: EntregaHerramientaCrew }
   | { kind: 'boveda'; fecha: string; data: MovimientoBovedaCrewHistorial }
   | { kind: 'retiro'; fecha: string; data: RetiroHerramientaCrew }
+  | { kind: 'custodia'; fecha: string; data: MovimientoCustodiaHistorial }
 
 export function buildTimeline(
   entregas: EntregaHerramientaCrew[],
   movimientosBoveda: MovimientoBovedaCrewHistorial[],
   retiros: RetiroHerramientaCrew[],
+  movimientosCustodia: MovimientoCustodiaHistorial[] = [],
 ): TimelineEntry[] {
   return [
     ...entregas.map((e): TimelineEntry => ({ kind: 'entrega', fecha: e.fecha_entrega, data: e })),
     ...movimientosBoveda.map((m): TimelineEntry => ({ kind: 'boveda', fecha: m.fecha, data: m })),
     ...retiros.map((r): TimelineEntry => ({ kind: 'retiro', fecha: r.fecha, data: r })),
+    ...movimientosCustodia.map((c): TimelineEntry => ({ kind: 'custodia', fecha: c.fecha, data: c })),
   ].sort((a, b) => b.fecha.localeCompare(a.fecha))
+}
+
+function textoCustodia(m: MovimientoCustodiaHistorial): string {
+  if (m.rol === 'ORIGEN') {
+    if (m.tipo === 'PRESTAMO') return m.de_fondo_comun ? `Trasladada del fondo común a ${m.crew_destino?.name ?? '-'}` : `Prestada a ${m.crew_destino?.name ?? '-'}`
+    if (m.tipo === 'BOVEDA') return 'Cedida al fondo común'
+    return `Devuelta por ${m.crew_destino?.name ?? 'el fondo común'}`
+  }
+  if (m.tipo === 'PRESTAMO') return m.de_fondo_comun ? `Recibida del fondo común (cedida por ${m.crew_origen.name})` : `Recibida en préstamo de ${m.crew_origen.name}`
+  return `Devuelta a ${m.crew_origen.name}`
 }
 
 function ServicioBadge({ nombre }: { nombre: string }) {
@@ -90,6 +105,29 @@ export function HistorialTimelineList({ entries, showServicio, onClickEntrega }:
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
                 style={{ background: `${RETIRO_COLOR}22`, color: RETIRO_COLOR }}>
                 Fuera de funcionamiento
+              </span>
+            </div>
+          )
+        }
+        if (entry.kind === 'custodia') {
+          return (
+            <div key={`c-${entry.data.id}`} className="rounded-xl p-3 flex items-center justify-between gap-3"
+              style={{ border: `1.5px solid ${CUSTODIA_COLOR}`, background: 'var(--color-surface-1)' }}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <ArrowLeftRight size={15} className="shrink-0" style={{ color: CUSTODIA_COLOR }} />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-900)' }}>
+                    {entry.data.cantidad} x {entry.data.herramienta.descripcion}
+                    {showServicio && <ServicioBadge nombre={entry.data.servicio.nombre} />}
+                  </p>
+                  <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-text-400)' }}>
+                    {formatDate(entry.data.fecha)} &middot; {textoCustodia(entry.data)}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+                style={{ background: `${CUSTODIA_COLOR}22`, color: CUSTODIA_COLOR }}>
+                {entry.data.rol === 'ORIGEN' ? 'Cedido' : 'Prestado'}
               </span>
             </div>
           )

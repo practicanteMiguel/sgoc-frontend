@@ -4,6 +4,7 @@ import type { AxiosError } from 'axios'
 import { api } from '@/src/lib/axios'
 import type {
   Herramienta, CategoriaHerramienta, CreateHerramientaDto, UpdateHerramientaDto, PaginatedHerramientas,
+  BulkImportHerramientasResult,
 } from '@/src/types/herramientas.types'
 
 interface UseHerramientasParams {
@@ -61,6 +62,25 @@ export function useUpdateHerramienta() {
       const msg = err.response?.data?.message
       toast.error(Array.isArray(msg) ? msg[0] : (msg ?? 'Error al actualizar la herramienta'))
     },
+  })
+}
+
+export function useBulkImportHerramientas() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData()
+      fd.append('archivo', file)
+      return api.post<BulkImportHerramientasResult>('/herramientas/bulk-import', fd, {
+        headers: { 'Content-Type': undefined },
+      }).then(r => r.data)
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['herramientas'] })
+      toast.success(`${data.creadas} herramienta${data.creadas !== 1 ? 's' : ''} importada${data.creadas !== 1 ? 's' : ''} correctamente`)
+    },
+    // Sin toast de error generico aca: el modal que llama a esta mutacion
+    // muestra el detalle fila por fila a partir de mutation.error.
   })
 }
 

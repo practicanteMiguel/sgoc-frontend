@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Loader2, Users, Wrench, PackagePlus, Package, UserMinus } from 'lucide-react'
+import { X, Loader2, Users, Wrench, PackagePlus, Package, UserMinus, Repeat } from 'lucide-react'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { getInitials } from '@/src/lib/utils'
 import { useCrew } from '@/src/hooks/activities/use-crews'
@@ -9,9 +9,11 @@ import { usePermissions } from '@/src/hooks/auth/use-permissions'
 import {
   useHistorialEntregasCrew, useMovimientosBovedaCrew, useHistorialRetirosCrew,
 } from '@/src/hooks/servicios/use-entregas-herramientas'
+import { useHistorialCustodiaCrew } from '@/src/hooks/servicios/use-custodia-herramientas'
 import { EntregarHerramientasModal } from './entregar-herramientas-modal'
 import { EntregaDetalleModal } from './entrega-detalle-modal'
 import { RetirarHerramientaModal } from './retirar-herramienta-modal'
+import { CustodiaHerramientaModal } from './custodia-herramienta-modal'
 import { QuitarCuadrillaModal } from './quitar-cuadrilla-modal'
 import { HistorialTimelineList, buildTimeline } from './historial-timeline-list'
 import type { Servicio, CuadrillaDisponible } from '@/src/types/servicios.types'
@@ -25,14 +27,16 @@ export function CuadrillaServicioModal({ servicio, crew, onClose }: {
   const { data: entregas = [], isLoading: loadingEntregas } = useHistorialEntregasCrew(servicio.id, crew.id)
   const { data: movimientosBoveda = [], isLoading: loadingBoveda } = useMovimientosBovedaCrew(servicio.id, crew.id)
   const { data: retiros = [], isLoading: loadingRetiros } = useHistorialRetirosCrew(servicio.id, crew.id)
-  const isLoadingHistorial = loadingEntregas || loadingBoveda || loadingRetiros
+  const { data: custodia = [], isLoading: loadingCustodia } = useHistorialCustodiaCrew(servicio.id, crew.id)
+  const isLoadingHistorial = loadingEntregas || loadingBoveda || loadingRetiros || loadingCustodia
 
   const [showEntrega, setShowEntrega] = useState(false)
   const [showRetirar, setShowRetirar] = useState(false)
+  const [showCustodia, setShowCustodia] = useState(false)
   const [showQuitar, setShowQuitar] = useState(false)
   const [verEntrega, setVerEntrega] = useState<EntregaHerramientaCrew | null>(null)
 
-  const timeline = buildTimeline(entregas, movimientosBoveda, retiros)
+  const timeline = buildTimeline(entregas, movimientosBoveda, retiros, custodia)
 
   return (
     <ModalPortal onClose={onClose}>
@@ -126,6 +130,13 @@ export function CuadrillaServicioModal({ servicio, crew, onClose }: {
               >
                 <Wrench size={13} /> Sacar de funcionamiento
               </button>
+              <button
+                onClick={() => setShowCustodia(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
+                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)' }}
+              >
+                <Repeat size={13} /> Prestar / Ceder
+              </button>
             </div>
 
             <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-2">
@@ -148,6 +159,7 @@ export function CuadrillaServicioModal({ servicio, crew, onClose }: {
 
       {showEntrega && <EntregarHerramientasModal servicio={servicio} crewId={crew.id} onClose={() => setShowEntrega(false)} />}
       {showRetirar && <RetirarHerramientaModal servicioId={servicio.id} crewId={crew.id} onClose={() => setShowRetirar(false)} />}
+      {showCustodia && <CustodiaHerramientaModal servicioId={servicio.id} crewId={crew.id} onClose={() => setShowCustodia(false)} />}
       {verEntrega && <EntregaDetalleModal entrega={verEntrega} onClose={() => setVerEntrega(null)} />}
       {showQuitar && <QuitarCuadrillaModal servicioId={servicio.id} crew={crew} onClose={() => setShowQuitar(false)} />}
     </ModalPortal>

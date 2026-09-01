@@ -80,6 +80,7 @@ export interface InformeHerramientasItem {
   valor_total_contrato: number
   total_entregado: number
   valor_total_entregado: number
+  valor_actual_depreciado: number | null
 }
 
 export interface InformeHerramientasServicio {
@@ -91,6 +92,8 @@ export interface InformeHerramientasServicio {
     valor_total_contrato: number
     total_entregado: number
     valor_total_entregado: number
+    valor_actual_depreciado: number | null
+    valor_sin_vida_util_definida: number | null
   }
 }
 
@@ -125,4 +128,31 @@ export interface TendenciaMensualPunto {
   valor_invertido: number
   valor_retirado: number
   valor_acumulado: number
+}
+
+export interface InformeGlobalCampo {
+  field_id: string
+  field_name: string
+  num_cuadrillas: number
+  valor_licitado: number
+  valor_entregado_actual: number
+  valor_entregado_historico: number
+  valor_retirado: number
+  valor_actual_depreciado: number
+  valor_sin_vida_util_definida: number
+  cumplimiento: number
+}
+
+export interface InformeGlobalPorCampo {
+  campos: InformeGlobalCampo[]
+  totales: {
+    valor_licitado: number
+    valor_entregado_actual: number
+    valor_entregado_historico: number
+    valor_retirado: number
+    valor_actual_depreciado: number
+    valor_sin_vida_util_definida: number
+    num_cuadrillas: number
+    cumplimiento: number
+  }
 }

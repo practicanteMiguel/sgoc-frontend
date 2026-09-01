@@ -5,7 +5,7 @@ import { api } from '@/src/lib/axios'
 import type {
   EntregaHerramientaCrew, ResumenHerramientasCrewResponse, RegistrarEntregaHerramientasItemDto,
   InformeHerramientasServicio, StockHerramientaCrew, RetiroHerramientaCrew, RegistrarRetiroDto,
-  TendenciaMensualPunto,
+  TendenciaMensualPunto, InformeGlobalPorCampo,
 } from '@/src/types/entregas-herramientas.types'
 import type { MovimientoBovedaCrewHistorial } from '@/src/types/boveda-herramientas.types'
 
@@ -46,6 +46,20 @@ export function useTendenciaMensualServicio(servicioId: string | null) {
       `/servicios/${servicioId}/informe-herramientas-tendencia`,
     ).then(r => r.data),
     enabled: !!servicioId,
+  })
+}
+
+export function useInformeGlobalPorCampo() {
+  return useQuery({
+    queryKey: ['informe-herramientas-global'],
+    queryFn: () => api.get<InformeGlobalPorCampo>('/informe-herramientas-global').then(r => r.data),
+  })
+}
+
+export function useTendenciaMensualGlobal() {
+  return useQuery({
+    queryKey: ['informe-herramientas-global', 'tendencia'],
+    queryFn: () => api.get<TendenciaMensualPunto[]>('/informe-herramientas-global/tendencia').then(r => r.data),
   })
 }
 

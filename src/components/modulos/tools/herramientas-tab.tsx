@@ -1,17 +1,25 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Loader2, Plus, Trash2, ChevronLeft, ChevronRight, Wrench } from 'lucide-react'
-import { useHerramientas, useDeleteHerramienta } from '@/src/hooks/herramientas/use-herramientas'
+import {
+  Search, Loader2, Plus, Trash2, ChevronLeft, ChevronRight, Wrench, Upload, Download,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { useHerramientas } from '@/src/hooks/herramientas/use-herramientas'
 import { useDebouncedValue } from '@/src/hooks/use-debounced-value'
 import { usePermissions } from '@/src/hooks/auth/use-permissions'
 import { formatCOP } from '@/src/lib/utils'
+import { exportarCatalogoHerramientas } from '@/src/lib/herramientas-excel'
 import { HerramientaModal } from './herramienta-modal'
+import { ImportarHerramientasModal } from './importar-herramientas-modal'
+import { EliminarHerramientaModal } from './eliminar-herramienta-modal'
 import { CATEGORIAS_HERRAMIENTA, CATEGORIA_HERRAMIENTA_LABELS } from '@/src/types/herramientas.types'
 import type { Herramienta, CategoriaHerramienta } from '@/src/types/herramientas.types'
 
 export function HerramientasTab() {
-  const { canCreate, canEdit, canDelete } = usePermissions('tools')
+  const { canCreate, canEdit, canDelete, canExport } = usePermissions('tools')
+  const [showImportar, setShowImportar] = useState(false)
+  const [exportando,   setExportando]   = useState(false)
 
   const [categoria,    setCategoria]    = useState<CategoriaHerramienta | ''>('')
   const [search,       setSearch]       = useState('')
@@ -19,6 +27,7 @@ export function HerramientasTab() {
   const [page,         setPage]         = useState(1)
   const [showNuevo,    setShowNuevo]    = useState(false)
   const [editItem,     setEditItem]     = useState<Herramienta | null>(null)
+  const [eliminarItem, setEliminarItem] = useState<Herramienta | null>(null)
 
   function resetPage() { setPage(1) }
 
@@ -33,11 +42,24 @@ export function HerramientasTab() {
     activo:    activoFilter,
     page,
   })
-  const eliminar = useDeleteHerramienta()
-
   const herramientas = data?.data  ?? []
   const total        = data?.total ?? 0
   const pages        = data?.pages ?? 1
+
+  async function handleExportar() {
+    setExportando(true)
+    try {
+      await exportarCatalogoHerramientas({
+        categoria: categoria || undefined,
+        search:    debouncedSearch || undefined,
+        activo:    activoFilter,
+      })
+    } catch {
+      toast.error('Error al exportar el catalogo')
+    } finally {
+      setExportando(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,6 +105,27 @@ export function HerramientasTab() {
           ))}
         </div>
 
+        {canExport && (
+          <button
+            onClick={handleExportar}
+            disabled={exportando}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)', opacity: exportando ? 0.6 : 1 }}
+            title="Exportar catalogo a Excel"
+          >
+            {exportando ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+          </button>
+        )}
+        {canCreate && (
+          <button
+            onClick={() => setShowImportar(true)}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-700)' }}
+            title="Cargar herramientas desde Excel"
+          >
+            <Upload size={15} />
+          </button>
+        )}
         {canCreate && (
           <button
             onClick={() => setShowNuevo(true)}
@@ -157,7 +200,7 @@ export function HerramientasTab() {
                     <td className="px-4 py-3">
                       {canDelete && (
                         <button
-                          onClick={(e) => { e.stopPropagation(); if (confirm('Eliminar esta herramienta?')) eliminar.mutate(h.id) }}
+                          onClick={(e) => { e.stopPropagation(); setEliminarItem(h) }}
                           className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
                           title="Eliminar"
                           style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
@@ -200,6 +243,8 @@ export function HerramientasTab() {
 
       {showNuevo && <HerramientaModal onClose={() => setShowNuevo(false)} />}
       {editItem  && <HerramientaModal item={editItem} onClose={() => setEditItem(null)} />}
+      {showImportar && <ImportarHerramientasModal onClose={() => setShowImportar(false)} />}
+      {eliminarItem && <EliminarHerramientaModal herramienta={eliminarItem} onClose={() => setEliminarItem(null)} />}
     </div>
   )
 }

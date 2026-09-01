@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { X, Loader2, CheckCircle2 } from 'lucide-react'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { useCreateHerramienta, useUpdateHerramienta } from '@/src/hooks/herramientas/use-herramientas'
-import { CATEGORIAS_HERRAMIENTA, CATEGORIA_HERRAMIENTA_LABELS } from '@/src/types/herramientas.types'
+import { CATEGORIAS_HERRAMIENTA, CATEGORIA_HERRAMIENTA_LABELS, VIDA_UTIL_POR_CATEGORIA } from '@/src/types/herramientas.types'
 import type { Herramienta, CategoriaHerramienta } from '@/src/types/herramientas.types'
 
 const INP: React.CSSProperties = {
@@ -28,18 +28,21 @@ export function HerramientaModal({ item, onClose }: { item?: Herramienta; onClos
   const [marcaModelo,  setMarcaModelo]  = useState(item?.marca_modelo ?? '')
   const [unidad,       setUnidad]       = useState(item?.unidad ?? 'UND')
   const [valor,        setValor]        = useState(item?.valor_unitario != null ? String(item.valor_unitario) : '')
+  const [vidaUtil,     setVidaUtil]     = useState(item?.vida_util_anios != null ? String(item.vida_util_anios) : '')
   const [activo,       setActivo]       = useState(item?.activo ?? true)
 
   const isPending = crear.isPending || editar.isPending
+  const refVidaUtil = VIDA_UTIL_POR_CATEGORIA[categoria]
 
   function submit() {
     if (!descripcion.trim()) return
     const payload = {
       categoria,
-      descripcion:    descripcion.trim(),
-      marca_modelo:   marcaModelo.trim() || null,
-      unidad:         unidad.trim() || 'UND',
-      valor_unitario: valor ? parseFloat(valor) : null,
+      descripcion:      descripcion.trim(),
+      marca_modelo:     marcaModelo.trim() || null,
+      unidad:           unidad.trim() || 'UND',
+      valor_unitario:   valor ? parseFloat(valor) : null,
+      vida_util_anios:  vidaUtil ? parseInt(vidaUtil, 10) : null,
     }
     if (isEdit) {
       editar.mutate({ id: item!.id, ...payload, activo }, { onSuccess: onClose })
@@ -95,6 +98,16 @@ export function HerramientaModal({ item, onClose }: { item?: Herramienta; onClos
             <div>
               <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Valor unitario</label>
               <input type="number" value={valor} onChange={e => setValor(e.target.value)} placeholder="0" min="0" style={INP} />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-400)' }}>Vida útil (años)</label>
+              <input type="number" value={vidaUtil} onChange={e => setVidaUtil(e.target.value)} placeholder="Opcional" min="1" style={INP} />
+              {refVidaUtil && (
+                <p className="text-xs mt-1.5 leading-snug" style={{ color: 'var(--color-text-400)' }}>
+                  Referencia para <b>{CATEGORIA_HERRAMIENTA_LABELS[categoria]}</b>: {refVidaUtil.anios_uso_intensivo} años con uso diario/pesado,
+                  hasta {refVidaUtil.anios_uso_moderado} años con uso ocasional. {refVidaUtil.nota}
+                </p>
+              )}
             </div>
           </div>
 

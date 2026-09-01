@@ -7,6 +7,7 @@ import { useCuadrillasDisponibles } from '@/src/hooks/servicios/use-servicios'
 import {
   useHistorialEntregasCrewGlobal, useMovimientosBovedaCrewGlobal, useHistorialRetirosCrewGlobal,
 } from '@/src/hooks/servicios/use-entregas-herramientas'
+import { useHistorialCustodiaCrewGlobal } from '@/src/hooks/servicios/use-custodia-herramientas'
 import { HistorialTimelineList, buildTimeline } from './historial-timeline-list'
 import { EntregaDetalleModal } from './entrega-detalle-modal'
 import type { EntregaHerramientaCrew } from '@/src/types/entregas-herramientas.types'
@@ -17,10 +18,11 @@ function HistorialGlobalContent({ crewId, crewName, crewField, onBack }: {
   const { data: entregas = [], isLoading: loadingEntregas } = useHistorialEntregasCrewGlobal(crewId)
   const { data: movimientosBoveda = [], isLoading: loadingBoveda } = useMovimientosBovedaCrewGlobal(crewId)
   const { data: retiros = [], isLoading: loadingRetiros } = useHistorialRetirosCrewGlobal(crewId)
-  const isLoading = loadingEntregas || loadingBoveda || loadingRetiros
+  const { data: custodia = [], isLoading: loadingCustodia } = useHistorialCustodiaCrewGlobal(crewId)
+  const isLoading = loadingEntregas || loadingBoveda || loadingRetiros || loadingCustodia
   const [verEntrega, setVerEntrega] = useState<EntregaHerramientaCrew | null>(null)
 
-  const timeline = buildTimeline(entregas, movimientosBoveda, retiros)
+  const timeline = buildTimeline(entregas, movimientosBoveda, retiros, custodia)
   const servicios = [...new Set(timeline.map(e => {
     if (e.kind === 'entrega') return e.data.servicio?.nombre
     if (e.kind === 'retiro') return e.data.servicio?.nombre

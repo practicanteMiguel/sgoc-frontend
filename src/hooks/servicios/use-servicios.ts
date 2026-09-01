@@ -161,6 +161,7 @@ export function useActualizarHerramientaServicio() {
       api.patch<ServicioHerramienta>(`/servicios/${servicioId}/herramientas/${itemId}`, data).then(r => r.data),
     onSuccess: (_data, { servicioId }) => {
       qc.invalidateQueries({ queryKey: ['servicios', servicioId, 'herramientas'] })
+      qc.invalidateQueries({ queryKey: ['servicios', servicioId, 'fondo-comun-herramientas'] })
       toast.success('Herramienta actualizada')
     },
     onError: (err: AxiosError<{ message?: string | string[] }>) => {

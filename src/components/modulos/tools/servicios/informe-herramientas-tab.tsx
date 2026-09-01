@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Loader2, FileBarChart, Briefcase } from 'lucide-react'
+import { Loader2, FileBarChart } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
@@ -10,37 +10,38 @@ import { useServicios } from '@/src/hooks/servicios/use-servicios'
 import {
   useInformeServicio, useInformeHistoricoServicio, useTendenciaMensualServicio,
 } from '@/src/hooks/servicios/use-entregas-herramientas'
+import { InformeGlobalCampoView } from './informe-global-campo-view'
 
 type Vista = 'actual' | 'historico' | 'estadisticas'
 
 const MESES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const CREW_COLORS = ['#1a6b6b', '#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#14b8a6', '#8b5cf6', '#64748b']
-const TOOLTIP_STYLE = { background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }
+export const TOOLTIP_STYLE = { background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }
 
-function formatMes(mes: string) {
+export function formatMes(mes: string) {
   const [anio, m] = mes.split('-')
   const idx = parseInt(m, 10) - 1
   return `${MESES_SHORT[idx] ?? m} ${anio.slice(2)}`
 }
 
-function formatShort(v: number) {
+export function formatShort(v: number) {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`
   if (v >= 1_000)     return `$${(v / 1_000).toFixed(0)}K`
   return `$${v}`
 }
 
-function SummaryCard({ label, value, color, sub }: { label: string; value: string; color: string; sub?: string }) {
+export function SummaryCard({ label, value, color, sub }: { label: string; value: string; color: string; sub?: string }) {
   return (
     <div className="rounded-xl p-4 flex flex-col gap-1"
       style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}>
-      <span className="text-xs" style={{ color: 'var(--color-text-200)' }}>{label}</span>
+      <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>{label}</span>
       <span className="text-lg font-bold font-display" style={{ color }}>{value}</span>
       {sub && <span className="text-xs font-medium" style={{ color }}>{sub}</span>}
     </div>
   )
 }
 
-function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+export function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}>
       <div>
@@ -80,6 +81,11 @@ export function InformeHerramientasTab() {
   const totalRetirado     = Math.max(0, totalHistorico - totalActual)
   const cumplimiento      = totalLicitado > 0 ? Math.round((totalActual / totalLicitado) * 100) : 0
   const colorCumplimiento = cumplimiento >= 80 ? '#16a34a' : cumplimiento >= 50 ? '#f59e0b' : '#ef4444'
+
+  const totalDepreciado   = informeActual?.totales.valor_actual_depreciado ?? null
+  const totalSinVidaUtil  = informeActual?.totales.valor_sin_vida_util_definida ?? 0
+  const totalDevaluado    = totalDepreciado != null ? Math.max(0, totalActual - totalDepreciado) : 0
+  const porcentajeDevaluado = totalDepreciado != null && totalActual > 0 ? Math.round((totalDevaluado / totalActual) * 100) : 0
 
   const donutData = [
     { value: Math.min(100, cumplimiento),     fill: colorCumplimiento },
@@ -128,30 +134,32 @@ export function InformeHerramientasTab() {
           className="px-3 py-2.5 rounded-lg text-sm outline-none cursor-pointer"
           style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)', color: 'var(--color-text-900)', minWidth: 260 }}
         >
-          <option value="">Selecciona un servicio...</option>
+          <option value="">Todos los campos (global)</option>
           {servicios.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
         </select>
 
-        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
-          {([
-            { id: 'actual' as const,       label: 'Actual en campo' },
-            { id: 'historico' as const,    label: 'Histórico de inversión' },
-            { id: 'estadisticas' as const, label: 'Estadísticas' },
-          ]).map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setVista(id)}
-              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
-              style={
-                vista === id
-                  ? { background: 'var(--color-surface-0)', color: 'var(--color-primary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
-                  : { color: 'var(--color-text-400)' }
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {servicioId && (
+          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+            {([
+              { id: 'actual' as const,       label: 'Actual en campo' },
+              { id: 'historico' as const,    label: 'Histórico de inversión' },
+              { id: 'estadisticas' as const, label: 'Estadísticas' },
+            ]).map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setVista(id)}
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                style={
+                  vista === id
+                    ? { background: 'var(--color-surface-0)', color: 'var(--color-primary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
+                    : { color: 'var(--color-text-400)' }
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {selected?.descripcion && (
           <span className="text-xs" style={{ color: 'var(--color-text-400)' }}>{selected.descripcion}</span>
@@ -159,7 +167,9 @@ export function InformeHerramientasTab() {
       </div>
 
       <p className="text-xs -mt-2" style={{ color: 'var(--color-text-400)' }}>
-        {vista === 'actual'
+        {!servicioId
+          ? 'Totales agrupados por campo, cruzando todas las cuadrillas y servicios, más el total general de todos los campos.'
+          : vista === 'actual'
           ? 'Lo que tiene cada cuadrilla en campo ahora mismo (descuenta lo que se ha sacado de funcionamiento).'
           : vista === 'historico'
           ? 'Todo lo entregado desde el inicio del servicio, sin descontar lo sacado de funcionamiento — para saber cuánto se ha invertido en total en herramientas.'
@@ -167,13 +177,7 @@ export function InformeHerramientasTab() {
       </p>
 
       {!servicioId ? (
-        <div
-          className="flex flex-col items-center justify-center py-24 rounded-xl gap-2"
-          style={{ background: 'var(--color-surface-0)', border: '1px dashed var(--color-border)' }}
-        >
-          <Briefcase size={28} style={{ color: 'var(--color-text-400)' }} />
-          <p className="text-sm" style={{ color: 'var(--color-text-400)' }}>Selecciona un servicio para ver su informe</p>
-        </div>
+        <InformeGlobalCampoView />
       ) : isLoading ? (
         <div className="flex justify-center py-24">
           <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
@@ -189,14 +193,22 @@ export function InformeHerramientasTab() {
       ) : vista === 'estadisticas' ? (
         <>
           {/* KPI cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             <SummaryCard label="Total licitado" value={formatCOP(totalLicitado)} color="var(--color-text-900)" />
-            <SummaryCard label="Actual en campo" value={formatCOP(totalActual)} color="var(--color-primary)" />
+            <SummaryCard label="Actual en campo (sin devaluar)" value={formatCOP(totalActual)} color="var(--color-primary)" />
+            <SummaryCard label="Valor actual depreciado" value={totalDepreciado != null ? formatCOP(totalDepreciado) : '—'} color="#f59e0b"
+              sub={totalDepreciado != null ? `-${porcentajeDevaluado}% por devaluación` : undefined} />
+            <SummaryCard label="Devaluación acumulada" value={formatCOP(totalDevaluado)} color="#ef4444" />
             <SummaryCard label="Invertido histórico" value={formatCOP(totalHistorico)} color="#16a34a" />
             <SummaryCard label="Sacado de funcionamiento" value={formatCOP(totalRetirado)} color="#ef4444" />
             <SummaryCard label="Cumplimiento" value={`${cumplimiento}%`} color={colorCumplimiento}
               sub={cumplimiento >= 100 ? 'Al día' : 'Falta por entregar'} />
           </div>
+          {totalSinVidaUtil > 0 && (
+            <p className="text-xs -mt-2" style={{ color: 'var(--color-text-400)' }}>
+              Incluye {formatCOP(totalSinVidaUtil)} en herramientas sin vida útil definida en el catálogo (se muestran a valor nominal, sin devaluar).
+            </p>
+          )}
 
           {/* Donut + tendencia */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -231,7 +243,7 @@ export function InformeHerramientasTab() {
                     <LineChart data={tendenciaData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                       <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-400)' }} />
-                      <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-200)' }} tickFormatter={formatShort} width={64} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-400)' }} tickFormatter={formatShort} width={64} />
                       <Tooltip formatter={(value) => formatCOP(typeof value === 'number' ? value : 0)} contentStyle={TOOLTIP_STYLE} labelStyle={{ color: 'var(--color-text-900)' }} />
                       <Legend iconSize={10} wrapperStyle={{ fontSize: 11, color: 'var(--color-text-400)' }} />
                       <Line type="monotone" dataKey="Invertido" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--color-primary)' }} />
@@ -249,10 +261,10 @@ export function InformeHerramientasTab() {
               <BarChart data={barHerramientas} margin={{ top: 4, right: 4, bottom: 40, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--color-text-400)' }} angle={-30} textAnchor="end" interval={0} height={70} />
-                <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-200)' }} tickFormatter={formatShort} width={64} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-400)' }} tickFormatter={formatShort} width={64} />
                 <Tooltip formatter={(value) => formatCOP(typeof value === 'number' ? value : 0)} contentStyle={TOOLTIP_STYLE} labelStyle={{ color: 'var(--color-text-900)' }} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11, color: 'var(--color-text-400)' }} />
-                <Bar dataKey="Licitado" fill="var(--color-surface-2)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Licitado" fill="var(--color-text-400)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Entregado" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -266,10 +278,10 @@ export function InformeHerramientasTab() {
               <ResponsiveContainer width="100%" height={Math.max(140, barCuadrillas.length * 40)}>
                 <BarChart data={barCuadrillas} layout="vertical" margin={{ top: 4, right: 24, bottom: 0, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--color-text-200)' }} tickFormatter={formatShort} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--color-text-400)' }} tickFormatter={formatShort} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-400)' }} width={110} />
                   <Tooltip formatter={(value) => formatCOP(typeof value === 'number' ? value : 0)} contentStyle={TOOLTIP_STYLE} labelStyle={{ color: 'var(--color-text-900)' }} />
-                  <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="valor" fill="var(--color-text-900)" radius={[0, 4, 4, 0]}>
                     {barCuadrillas.map((_, i) => (
                       <Cell key={i} fill={CREW_COLORS[i % CREW_COLORS.length]} />
                     ))}
@@ -305,6 +317,9 @@ export function InformeHerramientasTab() {
                     <th className={th} style={{ color: 'var(--color-text-900)' }}>
                       {vista === 'actual' ? 'Vr. Total HTA Entregada' : 'Vr. Total Invertido'}
                     </th>
+                    {vista === 'actual' && (
+                      <th className={th} style={{ color: 'var(--color-text-900)' }}>Vr. Actual Depreciado</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -333,6 +348,11 @@ export function InformeHerramientasTab() {
                       <td className={td} style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{it.es_adicional ? '-' : formatCOP(it.valor_total_contrato)}</td>
                       <td className={td} style={{ color: 'var(--color-text-900)', fontWeight: 600 }}>{it.total_entregado}</td>
                       <td className={td} style={{ color: '#16a34a', fontWeight: 700 }}>{formatCOP(it.valor_total_entregado)}</td>
+                      {vista === 'actual' && (
+                        <td className={td} style={{ color: '#f59e0b', fontWeight: 700 }}>
+                          {it.valor_actual_depreciado != null ? formatCOP(it.valor_actual_depreciado) : '—'}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -348,6 +368,11 @@ export function InformeHerramientasTab() {
                     <td className="text-center px-3 py-3 text-sm font-bold" style={{ color: '#16a34a' }}>
                       {formatCOP(informe?.totales.valor_total_entregado ?? 0)}
                     </td>
+                    {vista === 'actual' && (
+                      <td className="text-center px-3 py-3 text-sm font-bold" style={{ color: '#f59e0b' }}>
+                        {informeActual?.totales.valor_actual_depreciado != null ? formatCOP(informeActual.totales.valor_actual_depreciado) : '—'}
+                      </td>
+                    )}
                   </tr>
                 </tfoot>
               </table>
