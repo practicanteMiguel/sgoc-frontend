@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { formatCOP } from '@/src/lib/utils'
 import { ChevronLeft, ChevronRight, FileText, Loader2, AlertTriangle, Upload, X, CheckCircle2 } from 'lucide-react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { toast } from 'sonner'
 import { useInformeFacturas, useInformeTendencia, useUpdateFacturas } from '@/src/hooks/consumables/use-informe'
@@ -662,12 +662,14 @@ function TotalTabla({ rows, categoria }: { rows: InformeRow[]; categoria: Catego
 // ── Main ────────────────────────────────────────────────────────────────────
 type PlantaKey = string
 
-export function InformeComprasTab() {
+export function InformeComprasTab({ defaultModo = 'mensual', contexto = 'modulo' }: { defaultModo?: 'mensual' | 'anual'; contexto?: 'modulo' | 'dashboard' } = {}) {
   const now  = new Date()
   const [mes,           setMes]          = useState(now.getMonth() + 1)
   const [anio,          setAnio]         = useState(now.getFullYear())
   const [catActiva,     setCatActiva]    = useState<CategoriaInsumo>('PAPELERIA')
   const [plantaActiva,  setPlantaActiva] = useState<PlantaKey | 'total'>('total')
+  const [modo,          setModo]         = useState<'mensual' | 'anual'>(defaultModo)
+  const [anioAnual,     setAnioAnual]    = useState(now.getFullYear())
 
   function adjustPeriod(delta: number) {
     let m = mes + delta, a = anio
@@ -689,6 +691,47 @@ export function InformeComprasTab() {
 
   const { data: informe, isLoading } = useInformeFacturas(mes, anio)
   const { data: tendencia = []     } = useInformeTendencia(periodosTendencia)
+
+  // ── Modo anual ────────────────────────────────────────────────────────────
+  const periodosAnual = useMemo(
+    () => modo === 'anual' ? Array.from({ length: 12 }, (_, i) => ({ mes: i + 1, anio: anioAnual })) : [],
+    [modo, anioAnual],
+  )
+  const { data: anualData = [], isLoading: isLoadingAnual } = useInformeTendencia(periodosAnual)
+
+  const allRowsAnual: InformeRow[] = useMemo(
+    () => anualData.flatMap((t) => (t.rows ?? []).filter((r) => (r.solicitado ?? 0) > 0)),
+    [anualData],
+  )
+  const totalEstAnual  = useMemo(() => anualData.reduce((s, t) => s + (t.total_estimado ?? 0), 0), [anualData])
+  const totalRealAnual = useMemo(() => anualData.reduce((s, t) => s + (t.total_real ?? 0), 0), [anualData])
+  const diferenciaAnual  = totalRealAnual - totalEstAnual
+  const pctAnual          = totalEstAnual > 0 ? (diferenciaAnual / totalEstAnual) * 100 : 0
+  const hayFacturasAnual  = allRowsAnual.some((r) => r.precio_real != null)
+
+  const chartDataAnual = useMemo(() => anualData.map((t) => ({
+    name:      MESES_SHORT[t.mes - 1],
+    Estimado:  t.total_estimado ?? 0,
+    Facturado: t.total_real ?? 0,
+  })), [anualData])
+
+  const categoriaBreakdownAnual = useMemo(() => CATEGORIAS.map((cat) => {
+    const rows     = allRowsAnual.filter((r) => r.categoria === cat)
+    const estimado = rows.reduce((s, r) => r.solicitado != null && r.valor_unitario != null ? s + Number(r.solicitado) * Number(r.valor_unitario) : s, 0)
+    const real     = rows.reduce((s, r) => r.solicitado != null && r.precio_real != null ? s + Number(r.solicitado) * Number(r.precio_real) : s, 0)
+    return { cat, estimado, real, count: rows.length }
+  }), [allRowsAnual])
+
+  const topInsumosAnual = useMemo(() => {
+    const map = new Map<string, { codigo: string; descripcion: string; cantidad: number; estimado: number }>()
+    for (const r of allRowsAnual) {
+      const entry = map.get(r.insumo_id) ?? { codigo: r.codigo, descripcion: r.descripcion, cantidad: 0, estimado: 0 }
+      entry.cantidad += Number(r.solicitado ?? 0)
+      if (r.valor_unitario != null) entry.estimado += Number(r.solicitado ?? 0) * Number(r.valor_unitario)
+      map.set(r.insumo_id, entry)
+    }
+    return Array.from(map.values()).sort((a, b) => b.estimado - a.estimado).slice(0, 10)
+  }, [allRowsAnual])
 
   const allRows: InformeRow[] = useMemo(
     () => (informe?.rows ?? []).filter((r) => (r.solicitado ?? 0) > 0),
@@ -767,31 +810,215 @@ export function InformeComprasTab() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Period selector */}
-      <div
-        className="flex items-center gap-1 rounded-lg px-2 py-1.5 w-fit"
-        style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}
-      >
-        <button
-          onClick={() => adjustPeriod(-1)}
-          className="w-7 h-7 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
-          style={{ color: 'var(--color-text-400)' }}
-        >
-          <ChevronLeft size={14} />
-        </button>
-        <span className="text-sm font-semibold px-2 min-w-36 text-center" style={{ color: 'var(--color-text-900)' }}>
-          {MESES_FULL[mes - 1]} {anio}
-        </span>
-        <button
-          onClick={() => adjustPeriod(1)}
-          className="w-7 h-7 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
-          style={{ color: 'var(--color-text-400)' }}
-        >
-          <ChevronRight size={14} />
-        </button>
+      {/* Modo + period selector */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+          {(['mensual', 'anual'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setModo(m)}
+              className="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+              style={
+                modo === m
+                  ? { background: 'var(--color-surface-0)', color: 'var(--color-text-900)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }
+                  : { color: 'var(--color-text-400)' }
+              }
+            >
+              {m === 'mensual' ? 'Mensual' : 'Anual'}
+            </button>
+          ))}
+        </div>
+
+        {modo === 'mensual' ? (
+          <div
+            className="flex items-center gap-1 rounded-lg px-2 py-1.5 w-fit"
+            style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}
+          >
+            <button
+              onClick={() => adjustPeriod(-1)}
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+              style={{ color: 'var(--color-text-400)' }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-sm font-semibold px-2 min-w-36 text-center" style={{ color: 'var(--color-text-900)' }}>
+              {MESES_FULL[mes - 1]} {anio}
+            </span>
+            <button
+              onClick={() => adjustPeriod(1)}
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+              style={{ color: 'var(--color-text-400)' }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        ) : (
+          <div
+            className="flex items-center gap-1 rounded-lg px-2 py-1.5 w-fit"
+            style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}
+          >
+            <button
+              onClick={() => setAnioAnual((a) => a - 1)}
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+              style={{ color: 'var(--color-text-400)' }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-sm font-semibold px-2 min-w-20 text-center" style={{ color: 'var(--color-text-900)' }}>
+              {anioAnual}
+            </span>
+            <button
+              onClick={() => setAnioAnual((a) => a + 1)}
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:opacity-70 transition-opacity"
+              style={{ color: 'var(--color-text-400)' }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {isLoading ? (
+      {modo === 'anual' ? (
+        isLoadingAnual ? (
+          <div className="flex justify-center py-20">
+            <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
+          </div>
+        ) : allRowsAnual.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center py-20 rounded-xl"
+            style={{ border: '1px dashed var(--color-border)', background: 'var(--color-surface-0)' }}
+          >
+            <FileText size={28} className="mb-3" style={{ color: 'var(--color-border)' }} />
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text-900)' }}>Sin requisiciones para {anioAnual}</p>
+          </div>
+        ) : (
+          <>
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <SummaryCard label="Total estimado del año" value={formatCOP(totalEstAnual)}      color="var(--color-text-900)" />
+              <SummaryCard label="Promedio mensual"       value={formatCOP(totalEstAnual / 12)} color="var(--color-text-900)" />
+              <SummaryCard
+                label="Total real del año"
+                value={hayFacturasAnual ? formatCOP(totalRealAnual) : 'Sin facturas'}
+                color="var(--color-text-900)"
+              />
+              <SummaryCard
+                label="Diferencia"
+                value={hayFacturasAnual ? formatCOP(Math.abs(diferenciaAnual)) : '-'}
+                color={diferenciaAnual > 0 ? '#dc2626' : diferenciaAnual < 0 ? '#16a34a' : 'var(--color-text-200)'}
+                sub={hayFacturasAnual ? (diferenciaAnual > 0 ? 'Sobrecosto' : diferenciaAnual < 0 ? 'Ahorro' : 'Sin variacion') : undefined}
+              />
+              <SummaryCard
+                label="% Variacion"
+                value={hayFacturasAnual ? `${pctAnual > 0 ? '+' : ''}${pctAnual.toFixed(1)}%` : '-'}
+                color={pctAnual > 0 ? '#dc2626' : pctAnual < 0 ? '#16a34a' : 'var(--color-text-200)'}
+              />
+            </div>
+
+            {/* 12-month chart */}
+            <div
+              className="rounded-xl p-4 flex flex-col gap-3"
+              style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-200)' }}>
+                Mes a mes · {anioAnual}
+              </p>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={chartDataAnual} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-400)' }} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-200)' }} tickFormatter={formatShort} width={64} />
+                  <Tooltip
+                    formatter={(value) => formatCOP(typeof value === 'number' ? value : 0)}
+                    contentStyle={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'var(--color-text-900)' }}
+                  />
+                  <Legend iconSize={10} wrapperStyle={{ fontSize: 11, color: 'var(--color-text-400)' }} />
+                  <Line type="monotone" dataKey="Estimado"  stroke="var(--color-border-strong)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="Facturado" stroke="var(--color-primary)"       strokeWidth={2} dot={{ r: 3, fill: 'var(--color-primary)' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Category breakdown */}
+              {contexto === 'dashboard' ? (
+                <div
+                  className="rounded-xl p-4 flex flex-col gap-3"
+                  style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-200)' }}>
+                    Gasto estimado por categoria · {anioAnual}
+                  </p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={categoriaBreakdownAnual.map((c) => ({ name: CATEGORIA_LABELS[c.cat], Estimado: c.estimado }))} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-400)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-200)' }} tickFormatter={formatShort} width={64} />
+                      <Tooltip
+                        formatter={(value) => formatCOP(typeof value === 'number' ? value : 0)}
+                        contentStyle={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
+                        labelStyle={{ color: 'var(--color-text-900)' }}
+                      />
+                      <Bar dataKey="Estimado" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div
+                  className="rounded-xl overflow-hidden"
+                  style={{ border: '1px solid var(--color-border)' }}
+                >
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
+                        {['Categoria', 'Items', 'Estimado', 'Real'].map((h) => (
+                          <th key={h} className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--color-text-400)' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categoriaBreakdownAnual.map((c, idx) => (
+                        <tr key={c.cat} style={{ borderBottom: '1px solid var(--color-border)', background: idx % 2 === 0 ? 'var(--color-surface-0)' : 'var(--color-surface-1)' }}>
+                          <td className="px-3 py-2.5 text-xs font-medium" style={{ color: 'var(--color-text-900)' }}>{CATEGORIA_LABELS[c.cat]}</td>
+                          <td className="px-3 py-2.5 text-xs text-center" style={{ color: 'var(--color-text-600)' }}>{c.count}</td>
+                          <td className="px-3 py-2.5 text-xs text-right font-semibold whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>{formatCOP(c.estimado)}</td>
+                          <td className="px-3 py-2.5 text-xs text-right whitespace-nowrap" style={{ color: c.real > 0 ? 'var(--color-text-900)' : 'var(--color-border)' }}>{c.real > 0 ? formatCOP(c.real) : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Top insumos */}
+              <div
+                className="rounded-xl p-4 flex flex-col gap-3"
+                style={{ background: 'var(--color-surface-0)', border: '1px solid var(--color-border)' }}
+              >
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-200)' }}>
+                  Insumos de mayor valor · {anioAnual}
+                </p>
+                {topInsumosAnual.length === 0 ? (
+                  <p className="text-xs" style={{ color: 'var(--color-text-200)' }}>Sin datos</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5 overflow-y-auto" style={{ maxHeight: 236 }}>
+                    {topInsumosAnual.map((it, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs px-1 py-1.5" style={{ borderBottom: idx < topInsumosAnual.length - 1 ? '1px solid var(--color-border)' : undefined }}>
+                        <div className="flex flex-col">
+                          <span className="font-medium" style={{ color: 'var(--color-text-900)' }}>{it.descripcion}</span>
+                          <span style={{ color: 'var(--color-text-400)' }}>{it.codigo} · {Math.round(it.cantidad)} und.</span>
+                        </div>
+                        <span className="font-bold whitespace-nowrap" style={{ color: 'var(--color-text-900)' }}>{formatCOP(it.estimado)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )
+      ) : isLoading ? (
         <div className="flex justify-center py-20">
           <Loader2 size={22} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
         </div>
