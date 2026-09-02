@@ -1328,7 +1328,7 @@ export function MiSolicitudTab() {
             <div className="flex flex-col gap-3">
               {/* Tabs */}
               <div
-                className="flex gap-1 p-1 rounded-xl w-fit"
+                className="flex gap-1 p-1 rounded-xl overflow-x-auto"
                 style={{ background: 'var(--color-surface-2)' }}
               >
                 {categorias.map(({ categoria }) => (
@@ -1336,7 +1336,7 @@ export function MiSolicitudTab() {
                     key={categoria}
                     type="button"
                     onClick={() => { setCatActiva(categoria); setBusqueda('') }}
-                    className="px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
+                    className="px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap shrink-0"
                     style={
                       catActiva === categoria
                         ? { background: 'var(--color-surface-0)', color: 'var(--color-primary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }

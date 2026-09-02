@@ -74,7 +74,7 @@ export function CuadrillaServicioModal({ servicio, crew, onClose }: {
               </span>
             </div>
 
-            <div className="overflow-y-auto flex-1 px-3 py-3 flex flex-col gap-1.5" style={{ maxHeight: 260 }}>
+            <div className="overflow-y-auto flex-1 min-h-0 px-3 py-3 flex flex-col gap-1.5 max-h-40 md:max-h-65">
               {loadingCrew ? (
                 <div className="flex justify-center py-8">
                   <Loader2 size={18} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
@@ -114,7 +114,7 @@ export function CuadrillaServicioModal({ servicio, crew, onClose }: {
           </div>
 
           {/* Columna derecha: acciones + historial */}
-          <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col">
             <div className="px-5 py-3 flex gap-2 flex-wrap shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
               <button
                 onClick={() => setShowEntrega(true)}

@@ -494,7 +494,7 @@ export function SupervisorDotacionTab() {
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--color-surface-2)' }}>
+      <div className="flex gap-1 p-1 rounded-lg overflow-x-auto" style={{ background: 'var(--color-surface-2)' }}>
         {([
           { id: 'reposiciones', label: 'Reposiciones' },
           { id: 'tallas',       label: 'Tallas de empleados' },
@@ -502,7 +502,7 @@ export function SupervisorDotacionTab() {
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
-            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all shrink-0"
             style={
               subTab === t.id
                 ? { background: 'var(--color-surface-0)', color: 'var(--color-secundary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }

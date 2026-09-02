@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Loader2, Search, Wrench, Repeat, Trash2, CheckCircle2, Plus } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { X, Loader2, Search, Wrench, Repeat, Trash2, CheckCircle2, Plus, GripHorizontal } from 'lucide-react'
 import { ModalPortal } from '@/src/components/ui/modal-portal'
 import { useHerramientas } from '@/src/hooks/herramientas/use-herramientas'
 import { useAsignarHerramientasServicio } from '@/src/hooks/servicios/use-servicios'
@@ -26,11 +26,51 @@ interface Seleccion {
   es_rotativa: boolean
 }
 
+// Alto minimo (una sola herramienta) y maximo que puede alcanzar la lista de
+// seleccionadas al arrastrar su encabezado hacia arriba.
+const SELECCION_MIN_ALTO = 128
+const SELECCION_MAX_ALTO = 420
+
 export function AsignarHerramientasModal({ servicio, existingIds = [], onClose }: {
   servicio: Servicio; existingIds?: string[]; onClose: () => void
 }) {
   const [search,     setSearch]     = useState('')
   const [seleccion,  setSeleccion]  = useState<Map<string, Seleccion>>(new Map())
+
+  // Arrastrar el encabezado "Seleccionadas" hacia arriba expande la lista;
+  // hacia abajo la vuelve a encoger, hasta el alto minimo de una herramienta.
+  const [seleccionAlto, setSeleccionAlto] = useState(SELECCION_MIN_ALTO)
+  const [arrastrando,   setArrastrando]   = useState(false)
+  const dragRef = useRef<{ y: number; alto: number } | null>(null)
+
+  function iniciarArrastre(clientY: number) {
+    dragRef.current = { y: clientY, alto: seleccionAlto }
+    setArrastrando(true)
+  }
+
+  useEffect(() => {
+    if (!arrastrando) return
+
+    function mover(clientY: number) {
+      if (!dragRef.current) return
+      const delta = dragRef.current.y - clientY
+      setSeleccionAlto(Math.min(SELECCION_MAX_ALTO, Math.max(SELECCION_MIN_ALTO, dragRef.current.alto + delta)))
+    }
+    function onMouseMove(e: MouseEvent) { mover(e.clientY) }
+    function onTouchMove(e: TouchEvent) { e.preventDefault(); mover(e.touches[0].clientY) }
+    function detener() { dragRef.current = null; setArrastrando(false) }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', detener)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', detener)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', detener)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', detener)
+    }
+  }, [arrastrando])
 
   // El catalogo suele tener menos de 500 herramientas activas; se trae todo de
   // una vez (sin pasar el texto de busqueda al backend) y el buscador filtra
@@ -112,22 +152,23 @@ export function AsignarHerramientasModal({ servicio, existingIds = [], onClose }
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 flex" style={{ borderBottom: '1px solid var(--color-border)' }}>
-          {/* Catalogo */}
-          <div className="w-1/2 flex flex-col min-h-0" style={{ borderRight: '1px solid var(--color-border)' }}>
-            <div className="px-4 py-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-400)' }} />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Buscar herramienta..."
-                  style={{ ...INP, paddingLeft: 30 }}
-                />
-              </div>
-            </div>
+        {/* Buscador: fuera del area con scroll, siempre visible */}
+        <div className="px-4 py-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-400)' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar herramienta..."
+              style={{ ...INP, paddingLeft: 30 }}
+            />
+          </div>
+        </div>
 
-            <div className="overflow-y-auto flex-1 px-3 py-2 flex flex-col gap-1">
+        <div className="flex-1 min-h-0 flex flex-col sm:flex-row" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          {/* Catalogo: unico lado con scroll, ocupa el espacio restante */}
+          <div className="w-full sm:w-1/2 flex-1 sm:flex-none min-h-0 flex flex-col border-b sm:border-b-0 sm:border-r" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="overflow-y-auto flex-1 min-h-0 px-3 py-2 flex flex-col gap-1">
               {isLoading ? (
                 <div className="flex justify-center py-10">
                   <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-text-400)' }} />
@@ -175,19 +216,30 @@ export function AsignarHerramientasModal({ servicio, existingIds = [], onClose }
             </div>
           </div>
 
-          {/* Seleccion */}
-          <div className="w-1/2 flex flex-col min-h-0">
-            <div className="px-4 py-3 shrink-0 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)' }}>
+          {/* Seleccion: alto fijo de una sola herramienta; arrastrar el
+              encabezado hacia arriba la expande, hacia abajo la encoge */}
+          <div className="w-full sm:w-1/2 shrink-0 flex flex-col">
+            <div
+              className="px-4 py-3 shrink-0 flex items-center justify-between select-none"
+              style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-1)', cursor: arrastrando ? 'grabbing' : 'ns-resize', touchAction: 'none' }}
+              onMouseDown={e => iniciarArrastre(e.clientY)}
+              onTouchStart={e => iniciarArrastre(e.touches[0].clientY)}
+              title="Arrastra para expandir la lista"
+            >
               <span className="text-xs font-semibold" style={{ color: 'var(--color-text-900)' }}>
                 Seleccionadas ({items.length})
               </span>
+              <GripHorizontal size={14} style={{ color: 'var(--color-text-400)' }} />
             </div>
 
-            <div className="overflow-y-auto flex-1 px-3 py-2 flex flex-col gap-2">
+            <div
+              className="overflow-y-auto shrink-0 px-3 py-2 flex flex-col gap-2"
+              style={{ height: seleccionAlto, transition: arrastrando ? 'none' : 'height 0.15s ease' }}
+            >
               {items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 px-4 text-center">
+                <div className="flex flex-col items-center justify-center h-full gap-1 px-4 text-center">
                   <p className="text-xs" style={{ color: 'var(--color-text-400)' }}>
-                    Elige herramientas del catalogo a la izquierda para irlas agregando aqui
+                    Elige herramientas del catálogo para irlas agregando aquí
                   </p>
                 </div>
               ) : (
@@ -228,14 +280,14 @@ export function AsignarHerramientasModal({ servicio, existingIds = [], onClose }
           </div>
         </div>
 
-        <div className="px-5 py-4 flex gap-3 justify-end shrink-0" style={{ background: 'var(--color-surface-1)' }}>
+        <div className="px-5 py-4 flex gap-3 justify-end shrink-0 overflow-x-auto" style={{ background: 'var(--color-surface-1)' }}>
           <button onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-medium"
+            className="px-4 py-2 rounded-xl text-sm font-medium shrink-0 whitespace-nowrap"
             style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-700)' }}>
             Cancelar
           </button>
           <button onClick={submit} disabled={asignar.isPending || !puedeGuardar}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity"
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-opacity shrink-0 whitespace-nowrap"
             style={{ background: 'var(--color-primary)', color: '#fff', opacity: asignar.isPending || !puedeGuardar ? 0.6 : 1 }}>
             {asignar.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             {asignar.isPending ? 'Agregando...' : `Agregar ${items.length || ''} herramienta${items.length !== 1 ? 's' : ''}`}

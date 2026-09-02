@@ -139,7 +139,7 @@ export function InformeHerramientasTab() {
         </select>
 
         {servicioId && (
-          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+          <div className="flex gap-1 p-1 rounded-lg min-w-0 max-w-full overflow-x-auto" style={{ background: 'var(--color-surface-2)' }}>
             {([
               { id: 'actual' as const,       label: 'Actual en campo' },
               { id: 'historico' as const,    label: 'Histórico de inversión' },
@@ -148,7 +148,7 @@ export function InformeHerramientasTab() {
               <button
                 key={id}
                 onClick={() => setVista(id)}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all shrink-0"
                 style={
                   vista === id
                     ? { background: 'var(--color-surface-0)', color: 'var(--color-primary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }

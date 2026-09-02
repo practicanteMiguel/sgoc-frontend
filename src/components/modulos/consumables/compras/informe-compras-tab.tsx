@@ -885,7 +885,7 @@ export function InformeComprasTab() {
 
           {/* Category tabs + comparison table */}
           <div className="flex flex-col gap-3">
-            <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--color-surface-2)' }}>
+            <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: 'var(--color-surface-2)' }}>
               {CATEGORIAS.map((cat) => {
                 const fStatus   = catFacturadoStatus[cat]
                 const dotColor  = fStatus === 'complete' ? '#16a34a' : fStatus === 'partial' ? '#f59e0b' : '#d1d5db'
@@ -893,7 +893,7 @@ export function InformeComprasTab() {
                   <button
                     key={cat}
                     onClick={() => setCatActiva(cat)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all shrink-0"
                     style={
                       catActiva === cat
                         ? { background: 'var(--color-surface-0)', color: 'var(--color-text-900)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }

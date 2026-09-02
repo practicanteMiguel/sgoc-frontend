@@ -343,7 +343,7 @@ export function InsumosTab() {
         </div>
 
         {/* Month navigator + Ver cambios */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           <div
             className="flex items-center gap-1 rounded-lg px-2 py-1.5"
             style={{ border: '1.5px solid var(--color-border)', background: 'var(--color-surface-0)' }}

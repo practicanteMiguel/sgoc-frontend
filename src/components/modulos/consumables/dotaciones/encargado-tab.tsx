@@ -2485,7 +2485,7 @@ function HistorialTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--color-surface-2)' }}>
+      <div className="flex gap-1 p-1 rounded-lg overflow-x-auto" style={{ background: 'var(--color-surface-2)' }}>
         {([
           { id: 'reposiciones', label: 'Reposiciones' },
           { id: 'general',      label: 'Historial general' },
@@ -2493,7 +2493,7 @@ function HistorialTab() {
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
-            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all shrink-0"
             style={
               subTab === t.id
                 ? { background: 'var(--color-surface-0)', color: 'var(--color-secundary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
@@ -2518,14 +2518,14 @@ export function EncargadoDotacionTab() {
   return (
     <div className="flex flex-col gap-4">
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--color-surface-2)' }}>
+      <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: 'var(--color-surface-2)' }}>
         {TABS.map(t => {
           const Icon = t.icon
           return (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all shrink-0"
               style={
                 tab === t.id
                   ? { background: 'var(--color-surface-0)', color: 'var(--color-secundary)', boxShadow: '0 1px 4px rgba(13,59,88,0.12)' }
