@@ -1,28 +1,45 @@
 'use client'
 
 import { useState } from 'react'
-import { Wrench, Briefcase, FileBarChart } from 'lucide-react'
+import { Wrench, Briefcase, FileBarChart, Inbox } from 'lucide-react'
+import { useAuthStore } from '@/src/stores/auth.store'
 import { HerramientasTab } from './herramientas-tab'
 import { ServiciosTab } from './servicios/servicios-tab'
 import { InformeHerramientasTab } from './servicios/informe-herramientas-tab'
+import { SolicitudesHerramientaTab } from './solicitudes/solicitudes-herramienta-tab'
+import { SupervisorToolsView } from './supervisor/supervisor-tools-view'
 
-type Tab = 'catalogo' | 'servicios' | 'informe'
+type Tab = 'catalogo' | 'servicios' | 'informe' | 'solicitudes'
 
 const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
-  { id: 'catalogo',  label: 'Catalogo',              icon: Wrench       },
-  { id: 'servicios', label: 'Servicios y Cuadrillas', icon: Briefcase    },
-  { id: 'informe',   label: 'Informe',               icon: FileBarChart },
+  { id: 'catalogo',    label: 'Catalogo',              icon: Wrench       },
+  { id: 'servicios',   label: 'Servicios y Cuadrillas', icon: Briefcase    },
+  { id: 'informe',     label: 'Informe',               icon: FileBarChart },
+  { id: 'solicitudes', label: 'Solicitudes',           icon: Inbox        },
 ]
 
 const TITLES: Record<Tab, { title: string; subtitle: string }> = {
-  catalogo:  { title: 'Herramientas',           subtitle: 'Catalogo de herramientas: ficha tecnica, valores y estado' },
-  servicios: { title: 'Servicios y Cuadrillas',  subtitle: 'Asigna las cuadrillas de cada campo al servicio que les corresponde' },
-  informe:   { title: 'Informe de herramientas', subtitle: 'Licitado vs. entregado por servicio y cuadrilla, con estadísticas y tendencias' },
+  catalogo:    { title: 'Herramientas',           subtitle: 'Catalogo de herramientas: ficha tecnica, valores y estado' },
+  servicios:   { title: 'Servicios y Cuadrillas',  subtitle: 'Asigna las cuadrillas de cada campo al servicio que les corresponde' },
+  informe:     { title: 'Informe de herramientas', subtitle: 'Licitado vs. entregado por servicio y cuadrilla, con estadísticas y tendencias' },
+  solicitudes: { title: 'Solicitudes',             subtitle: 'Herramientas dañadas o nuevas reportadas por los supervisores de campo' },
 }
 
 export function ToolsView() {
+  const { user } = useAuthStore()
+  const roles = user?.roles ?? []
+  const isSupervisor = roles.includes('supervisor')
+
   const [tab, setTab] = useState<Tab>('catalogo')
   const { title, subtitle } = TITLES[tab]
+
+  if (isSupervisor) {
+    return (
+      <div className="max-w-8xl p-6 sm:p-10 mx-auto animate-fade-in">
+        <SupervisorToolsView />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-8xl p-6 sm:p-10 mx-auto animate-fade-in">
@@ -54,9 +71,10 @@ export function ToolsView() {
       </div>
 
       <div className="animate-fade-in">
-        {tab === 'catalogo'  && <HerramientasTab />}
-        {tab === 'servicios' && <ServiciosTab />}
-        {tab === 'informe'   && <InformeHerramientasTab />}
+        {tab === 'catalogo'    && <HerramientasTab />}
+        {tab === 'servicios'   && <ServiciosTab />}
+        {tab === 'informe'     && <InformeHerramientasTab />}
+        {tab === 'solicitudes' && <SolicitudesHerramientaTab />}
       </div>
     </div>
   )
